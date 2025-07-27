@@ -1,3 +1,4 @@
+
 fake_users_db = {
     "admin": {
         "username": "admin",
