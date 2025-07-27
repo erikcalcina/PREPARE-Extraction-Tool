@@ -1,12 +1,13 @@
-import uuid
+from pydantic import BaseModel
+from typing import Optional, TypedDict
 
-from typing_extensions import TypedDict
-from sqlmodel import Field, Relationship, SQLModel
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
-# ================================================
-# Definitions (FastAPI)
-# ================================================
-
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
 
 class MessageOutput(TypedDict):
     message: str

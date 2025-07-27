@@ -1,24 +1,22 @@
-from fastapi import APIRouter, HTTPException, status, Form
-
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from app.utils.fake_db import fake_users_db
+from app.models import LoginRequest, RegisterRequest
 router = APIRouter()
 
-fake_users_db = {
-    "admin": {
-        "username": "admin",
-        "password": "1234"
-    }
-}
-
-@router.get("/login")
-async def login_get():
-    return {"message": "Please send username and password via POST request."}
-
 @router.post("/login")
-async def login_post(username: str = Form(...), password: str = Form(...)):
-    user = fake_users_db.get(username)
-    if not user or user["password"] != password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
-        )
-    return {"message": f"Welcome, {username}!"}
+def login_user(data: LoginRequest):
+    user = fake_users_db.get(data.username)
+    if user and user["password"] == data.password:
+        return {"message": "Login successful!"}
+    raise HTTPException(status_code=401, detail="Invalid username or password")
+
+@router.post("/register")
+def register_user(data: RegisterRequest):
+    if data.username in fake_users_db:
+        raise HTTPException(status_code=400, detail="User already exists")
+    fake_users_db[data.username] = {
+        "username": data.username,
+        "password": data.password
+    }
+    return {"message": f"User {data.username} registered successfully"}
