@@ -27,3 +27,7 @@ def reset_fake_db():
     }
     fake_vocabularies_db = []
     uploaded_filenames = []
+fake_datasets_db = [
+    {"id": 1, "title": "Arabic Vocabulary"},
+    {"id": 2, "title": "English Expressions"},
+]

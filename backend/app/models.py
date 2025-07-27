@@ -28,3 +28,16 @@ class VocabularyInput(BaseModel):
 class ConceptInput(BaseModel):
     id: str
     name: str
+
+class Record(BaseModel):
+    id: str
+    content: str
+
+class Dataset(BaseModel):
+    dataset_id: str
+    dataset_name: str
+    records: Optional[List[Record]] = []
+
+class DatasetInput(BaseModel):
+    dataset_id: str
+    dataset_name: str
