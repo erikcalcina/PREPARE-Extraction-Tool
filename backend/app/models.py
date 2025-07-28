@@ -54,3 +54,16 @@ class Dataset(BaseModel):
     dataset_id: str
     dataset_name: str
     records: List[Record] = []
+
+class RecordExtract(BaseModel):
+    extracted_data: Optional[str] = None
+
+class Record(BaseModel):
+    record_id: str
+    data: dict
+    extract: Optional[RecordExtract] = None
+
+class Dataset(BaseModel):
+    dataset_id: str
+    dataset_name: str
+    records: List[Record] = []
