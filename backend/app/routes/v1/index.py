@@ -1,9 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, status
-
 from app.models import MessageOutput
-
 
 router = APIRouter()
 
@@ -11,12 +9,9 @@ router = APIRouter()
 # Helper methods
 # ================================================
 
-# TODO
-
 # ================================================
 # Route definitions
 # ================================================
-
 
 @router.get(
     "/",

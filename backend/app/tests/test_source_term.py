@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from app.main import app
-from app.utils.fake_db import reset_fake_db,fake_source_terms_db
+from app.utils.fake_db import reset_fake_db, fake_source_terms_db
 
 client = TestClient(app)
 

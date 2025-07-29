@@ -1,11 +1,21 @@
 from fastapi import FastAPI
-from app.routes.v1 import login
-from app.routes.v1 import vocabularies
-from app.routes.v1 import datasets
-from app.routes.v1 import source_term
-app = FastAPI()
+from starlette.middleware.cors import CORSMiddleware
+from app.routes.v1 import routers
+from app.core.settings import settings
 
-app.include_router(login.router)
-app.include_router(vocabularies.router)
-app.include_router(datasets.router)
-app.include_router(source_term.router)
+app = FastAPI(
+    title=settings.SERVICE_NAME,
+    openapi_url="/api/openapi.json"
+)
+
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+for router, prefix, tags in routers:
+    app.include_router(router, tags=tags)

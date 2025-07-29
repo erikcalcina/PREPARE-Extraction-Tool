@@ -4,6 +4,8 @@ from app.utils.fake_db import fake_users_db
 from app.models import LoginRequest, RegisterRequest
 router = APIRouter()
 
+
+
 @router.post("/login")
 def login_user(data: LoginRequest):
     user = fake_users_db.get(data.username)

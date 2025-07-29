@@ -1,5 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel
+from app.models import RecordExtract, Record, Dataset
 
 fake_users_db = {
     "admin": {
@@ -13,19 +14,6 @@ fake_vocabularies_db = []
 uploaded_filenames = []
 
 fake_source_terms_db = []
-
-class RecordExtract(BaseModel):
-    extracted_data: Optional[str] = None
-
-class Record(BaseModel):
-    record_id: str
-    data: dict
-    extract: Optional[RecordExtract] = None
-
-class Dataset(BaseModel):
-    dataset_id: str
-    dataset_name: str
-    records: List[Record] = []
 
 fake_datasets_db = [
     Dataset(dataset_id="1", dataset_name="test1 Vocabulary", records=[]),
