@@ -1,13 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List, TypedDict
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-class RegisterRequest(BaseModel):
-    username: str
-    password: str
 
 class MessageOutput(TypedDict):
     message: str
