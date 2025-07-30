@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.utils.fake_db import fake_datasets_db
-from app.library.datasetService import DatasetService
+from app.library.dataset_service import DatasetService
 
 router = APIRouter(tags=["Datasets"])
 

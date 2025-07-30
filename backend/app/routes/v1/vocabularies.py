@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.utils.fake_db import fake_vocabularies_db
-from app.library.vocabularyService import VocabularyService
+from app.library.vocabulary_service import VocabularyService
 
 router = APIRouter(
     tags=["Vocabularies"]
