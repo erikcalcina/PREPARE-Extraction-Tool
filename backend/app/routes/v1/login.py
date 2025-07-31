@@ -1,24 +1,23 @@
-from fastapi import APIRouter, HTTPException, status, Form
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from app.schemas import UserCreate, UserLogin
+from app.crud import user as crud_user
+from app.core.database import get_db  
+from app.models_db import UsersDB
 
 router = APIRouter()
 
-fake_users_db = {
-    "admin": {
-        "username": "admin",
-        "password": "1234"
-    }
-}
-
-@router.get("/login")
-async def login_get():
-    return {"message": "Please send username and password via POST request."}
-
 @router.post("/login")
-async def login_post(username: str = Form(...), password: str = Form(...)):
-    user = fake_users_db.get(username)
-    if not user or user["password"] != password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
-        )
-    return {"message": f"Welcome, {username}!"}
+def login_user(data: UserLogin, db: Session = Depends(get_db)):
+    user = crud_user.get_user_by_username(db, data.user_name)
+    if user and user.user_pass == data.user_pass:
+        return {"message": "Login successful!"}
+    raise ValueError(status_code=401, detail="Invalid username or password")
+
+@router.post("/register")
+def register_user(data: UserCreate, db: Session = Depends(get_db)):
+    existing_user = crud_user.get_user_by_username(db, data.user_name)
+    if existing_user:
+        raise ValueError(status_code=400, detail="User already exists")
+    crud_user.create_user(db, data.user_name, data.user_pass)
+    return {"message": f"User {data.user_name} registered successfully"}

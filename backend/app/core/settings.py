@@ -7,8 +7,8 @@ from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
+    database_url: str    
 
     # ======================================================
     # Generic app settings
@@ -35,7 +35,6 @@ class Settings(BaseSettings):
     # Environment setting
     # ======================================================
 
-    model_config = SettingsConfigDict(env_file=".env")
-
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 settings = Settings()
