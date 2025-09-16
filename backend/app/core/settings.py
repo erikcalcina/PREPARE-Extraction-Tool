@@ -8,7 +8,7 @@ from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    database_url: str    
+    database_url: str = "sqlite:///./test.db"
 
     # ======================================================
     # Generic app settings

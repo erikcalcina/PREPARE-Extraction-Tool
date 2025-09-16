@@ -34,7 +34,7 @@ deactivate
 Run the following command to install the requirements:
 
 ```bash
-pip install -e .
+pip install -e .[dev]
 ```
 
 ## 🏗️ Development

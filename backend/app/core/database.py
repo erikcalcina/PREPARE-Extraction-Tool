@@ -1,17 +1,14 @@
+from sqlmodel import SQLModel, create_engine, Session
 from app.core.settings import settings
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-import os
+from app.models_db import User, Dataset, Record, SourceTerm, Concept, Vocabulary, SourceToConceptMap
+import sqlite3
 
-load_dotenv()  
+engine = create_engine(settings.database_url, echo=True) 
 
-engine = create_engine(settings.database_url)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create all tables if not already created
+SQLModel.metadata.create_all(engine)
+
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    with Session(engine) as session:
+        yield session

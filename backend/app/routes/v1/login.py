@@ -1,23 +1,37 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from app.schemas import UserCreate, UserLogin
-from app.crud import user as crud_user
+from app.models import MessageOutput, UserModel
 from app.core.database import get_db  
-from app.models_db import UsersDB
+from app.models_db import User
+from sqlmodel import select, Session
 
-router = APIRouter()
+router = APIRouter(tags=["Login"])
 
-@router.post("/login")
-def login_user(data: UserLogin, db: Session = Depends(get_db)):
-    user = crud_user.get_user_by_username(db, data.user_name)
-    if user and user.user_pass == data.user_pass:
-        return {"message": "Login successful!"}
-    raise ValueError(status_code=401, detail="Invalid username or password")
+@router.post("/login", response_model=MessageOutput, status_code=202)
+def login_user(data: UserModel, db: Session = Depends(get_db)):
+    statement = (
+        select(User)
+        .where(User.user_name == data.user_name)
+        .where(User.user_pass == data.user_pass)
+    )
+    user = db.exec(statement).one_or_none()
 
-@router.post("/register")
-def register_user(data: UserCreate, db: Session = Depends(get_db)):
-    existing_user = crud_user.get_user_by_username(db, data.user_name)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    return {"message": f"Login successful: {user.user_name}"}
+
+@router.post("/register", response_model=MessageOutput, status_code=201)
+def register_user(data: UserModel, db: Session = Depends(get_db)):
+    statement = select(User).where(User.user_name == data.user_name)
+    existing_user = db.exec(statement).one_or_none()
+
     if existing_user:
-        raise ValueError(status_code=400, detail="User already exists")
-    crud_user.create_user(db, data.user_name, data.user_pass)
+        raise HTTPException(status_code=400, detail="User already exists")
+    
+    user = User(user_name=data.user_name, user_pass=data.user_pass)
+    db.add(user)
+    db.commit()
+
     return {"message": f"User {data.user_name} registered successfully"}
+    
