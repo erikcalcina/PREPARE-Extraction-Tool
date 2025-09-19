@@ -1,11 +1,13 @@
+import secrets
+from typing import List, Union
+
+from pydantic import AnyHttpUrl, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
 """
 The Settings Configuration
 """
-
-import secrets
-from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./test.db"   # TODO switch to PostgreSQL
