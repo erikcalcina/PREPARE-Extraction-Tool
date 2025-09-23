@@ -1,8 +1,7 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.settings import settings
-from app.models_db import Concept, Dataset, Record, SourceTerm, SourceToConceptMap, User, Vocabulary
-
+from app.models_db import *
 
 engine = create_engine(settings.database_url, echo=True) 
 

@@ -27,7 +27,7 @@ def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_db)):
 
     for c in vocab.concepts:
         concept_db = Concept(
-            vocab_id=vocab_db.id,
+            vocabulary_id=vocab_db.id,
             vocab_term_id=c.vocab_term_id,
             vocab_term_name=c.vocab_term_name
         )
@@ -98,7 +98,7 @@ def add_concept(vocabulary_id: int, concept: ConceptCreate, db: Session = Depend
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
     
     concept_db = Concept(
-        vocab_id=vocabulary_id,
+        vocabulary_id=vocabulary_id,
         vocab_term_id=concept.vocab_term_id,
         vocab_term_name=concept.vocab_term_name
     )
@@ -119,7 +119,7 @@ def get_concepts(vocabulary_id: int, db: Session = Depends(get_db)):
 def get_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_db)):
     statement = (
         select(Concept)
-        .where(Concept.vocab_id == vocabulary_id)
+        .where(Concept.vocabulary_id == vocabulary_id)
         .where(Concept.id == concept_id)
     )
     concept_db = db.exec(statement).one_or_none()
@@ -133,7 +133,7 @@ def get_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_d
 def delete_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_db)):
     statement = (
         select(Concept)
-        .where(Concept.vocab_id == vocabulary_id)
+        .where(Concept.vocabulary_id == vocabulary_id)
         .where(Concept.id == concept_id))
     concept_db = db.exec(statement).one_or_none()
 

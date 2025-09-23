@@ -5,7 +5,7 @@ from sqlalchemy import Column, JSON
 from sqlmodel import Field, Relationship, SQLModel
 
 
-# DEFINIRANE TABELE
+# SQLModel TABLE DEFINITIONS
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -75,7 +75,7 @@ class Concept(SQLModel, table=True):
     #vocab_term_*: *
 
     # relationship back to Vocabulary
-    vocab_id: int = Field(foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False)
+    vocabulary_id: int = Field(foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False)
     vocabulary: Optional["Vocabulary"] = Relationship(back_populates="concepts")
 
     # relationship to SourceToConceptMap
