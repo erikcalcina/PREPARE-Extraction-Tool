@@ -1,41 +1,32 @@
-from pydantic import BaseModel
-from typing import Optional, List, TypedDict
+from typing import List
+
+from sqlmodel import SQLModel, Field
 
 
-class MessageOutput(TypedDict):
+class UserModel(SQLModel):
+    name: str
+    password: str
+
+class MessageOutput(SQLModel):
     message: str
 
-class SourceTerm(BaseModel):
-    term_id: str
-    term_name: str
-    description: Optional[str] = None
+class SourceTermCreate(SQLModel):
+    value: str
+    label: str
 
-class Concept(BaseModel):
-    id: str
+class ConceptCreate(SQLModel):
+    vocab_term_id: str
+    vocab_term_name: str
+
+class VocabularyCreate(SQLModel):
     name: str
+    version: str
+    concepts: List[ConceptCreate] = Field(default_factory=list)
 
-class Vocabulary(BaseModel):
-    id: str
+class RecordCreate(SQLModel):
+    text: str
+
+class DatasetCreate(SQLModel):
     name: str
-    concepts: Optional[List[Concept]] = []
-
-class VocabularyInput(BaseModel):
-    id: str
-    name: str
-
-class ConceptInput(BaseModel):
-    id: str
-    name: str
-
-class RecordExtract(BaseModel):
-    extracted_data: Optional[str] = None
-
-class Record(BaseModel):
-    record_id: str
-    data: dict
-    extract: Optional[RecordExtract] = None
-
-class Dataset(BaseModel):
-    dataset_id: str
-    dataset_name: str
-    records: List[Record] = []
+    labels: List[str] = Field(default_factory=list)
+    records: List[RecordCreate] = Field(default_factory=list)
