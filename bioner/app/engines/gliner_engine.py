@@ -11,9 +11,10 @@ class GlinerEngine(BaseEngine):
         super().__init__(model_name=model_name, device=device)
         self.labels = labels
         self.threshold = threshold
+        self._initialize()
 
-    def __post_init__(self):
-        self.model = GLiNER.from_pretrained(self.model_name, load_tokenizer=True, local_files_only=True)
+    def _initialize(self):
+        self.model = GLiNER.from_pretrained(self.model_name, load_tokenizer=False, local_files_only=False)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(device)
 
