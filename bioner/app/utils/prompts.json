@@ -1,0 +1,14 @@
+{
+  "instruction_training":{
+    "system_prompt": "You are tasked with performing Named Entity Recognition on medical text. Your goal is to extract specific entities and return them in a structured JSON format as specified for each label. Ensure the JSON output is accurate and adheres to the described format.",
+    "labels": {
+      "no_label": {
+        "description": "No description",
+        "output_structure": {
+          "text": "extracted value",
+          "label": "Label name"
+        }
+      }
+    }
+  }
+}
