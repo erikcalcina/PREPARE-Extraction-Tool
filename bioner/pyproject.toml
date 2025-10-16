@@ -1,0 +1,33 @@
+[project]
+name = "bioner"
+version = "0.1.0"
+description = "The service for bioner used in the PREPARE USAGI project"
+readme = "README.md"
+dynamic = ["dependencies"]
+keywords = ["python", "ohdsi", "machine learning", "natural language processing", "named entity extraction"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+requires-python = ">=3.10,<4.0"
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "flake8",
+    "python-githooks",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+all = ["bioner[dev,test]"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
