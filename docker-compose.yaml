@@ -127,7 +127,7 @@ services:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
     restart: always
     ports:
-      - "3000:8000"
+      - "8000:8000"
     networks:
       - prepare-usagi-public
       - default

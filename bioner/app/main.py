@@ -7,7 +7,7 @@ from app.engines import build_engine
 logging.basicConfig(level=logging.INFO)
 
 class NERAPI(ls.LitAPI):
-    def __init__(self, model_name:str, use_gpu:bool):
+    def __init__(self, model_name: str, use_gpu: bool):
         super().__init__()
         self.model_name = model_name
         self.use_gpu = use_gpu
