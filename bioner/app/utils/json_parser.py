@@ -1,9 +1,12 @@
 import re
 import json
+import logging
 from app.interfaces import Entity
 from typing import List, Dict, Literal, Tuple
 
-def parse_response(response: str) -> str:
+logger = logging.getLogger(__name__)
+
+def parse_response(response: str) -> List[Dict[str, str]]:
     """Parse the response from the LLM.
 
     Args:
@@ -43,7 +46,7 @@ def parse_response(response: str) -> str:
                 return entities
     except json.JSONDecodeError:
         pass
-    print("No valid JSON found in the response.")
+    logger.warning("No valid JSON found in the response.")
     return []
 
 def _compile_pattern(entity_text: str, short_word_len: int = 4) -> str:

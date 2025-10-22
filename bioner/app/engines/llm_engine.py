@@ -27,11 +27,10 @@ class LLMEngine(BaseEngine):
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=quantization_config,
-            device_map="auto"
         )
         if self.adapter_path:
-            self.model = PeftModel.from_pretrained(self.model, self.adapter_path).to(self.device)
-        self.model.to(self.device)
+            self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
+        self.model = self.model.to(self.device)
 
     def extract_entities(self, medical_text: str, labels: list[str]) -> List[Entity]:
         # Create prompt

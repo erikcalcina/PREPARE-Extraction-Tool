@@ -1,4 +1,5 @@
 from typing import List
+
 from app.interfaces import Entity
 
 class BaseEngine:
@@ -6,5 +7,5 @@ class BaseEngine:
         self.model_name = model_name
         self.device = device
 
-    def extract_entities(self, text: str, *args, labels: list[str] | None = None, **kwargs) -> List[Entity]:
+    def extract_entities(self, medical_text: str, *args, labels: list[str] | None = None, **kwargs) -> List[Entity]:
         raise NotImplementedError("Subclasses must implement this method")

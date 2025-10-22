@@ -1,6 +1,7 @@
+import torch
+from typing import Any
 from .gliner_engine import GlinerEngine
 from .llm_engine import LLMEngine
-from typing import Any
 
 def build_engine(spec: str, use_gpu=True) -> Any:
     """
@@ -9,7 +10,7 @@ def build_engine(spec: str, use_gpu=True) -> Any:
       - "llm:meta-llama/Llama-3.1-8B-Instruct@llama-ner-lora-adapter"
       - "llm:google/gemma-2-9b-it"
     """
-    device = "cuda" if use_gpu else "cpu"
+    device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
     if ":" not in spec:
         raise ValueError("spec must look like '<family>:<rest>'")
     family, rest = spec.split(":", 1)

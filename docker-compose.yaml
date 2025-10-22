@@ -122,6 +122,18 @@ services:
       args:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
         - NODE_ENV=production
+  
+  bioner:
+    image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
+    restart: always
+    ports:
+      - "3000:8000"
+    networks:
+      - prepare-usagi-public
+      - default
+    build:
+      context: ./bioner
+    
 
 volumes:
   app-db-data:

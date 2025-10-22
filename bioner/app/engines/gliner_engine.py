@@ -1,6 +1,4 @@
 from typing import List
-
-import torch
 from gliner import GLiNER
 
 from app.interfaces import Entity
@@ -15,8 +13,7 @@ class GlinerEngine(BaseEngine):
 
     def _initialize(self):
         self.model = GLiNER.from_pretrained(self.model_name, load_tokenizer=False, local_files_only=False)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(device)
+        self.model.to(self.device)
 
     def extract_entities(self, medical_text: str, labels: list[str]) -> List[Entity]:
         predictions = self.model.predict_entities(medical_text, labels=labels, threshold=self.threshold)

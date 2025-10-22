@@ -5,13 +5,12 @@ from pydantic import BaseModel
 # Data types
 # =====================================
 
-class Entity(TypedDict):
+class Entity(BaseModel):
     text: str
     label: str
     start: int
     end: int
     score: Optional[float]
-
 
 # =====================================
 # LitServe interface

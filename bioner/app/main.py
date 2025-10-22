@@ -1,23 +1,25 @@
 import litserve as ls
+import logging
 from argparse import ArgumentParser
 from app.interfaces import NERRequest
 from app.engines import build_engine
+
+logging.basicConfig(level=logging.INFO)
 
 class NERAPI(ls.LitAPI):
     def __init__(self, model_name:str, use_gpu:bool):
         super().__init__()
         self.model_name = model_name
         self.use_gpu = use_gpu
-        #print(f"Initialized NERAPI with model_name: {model_name} and use_gpu: {use_gpu}")
-
+        
     def setup(self, device):
         self.model = build_engine(self.model_name, use_gpu=self.use_gpu)
 
     def decode_request(self, request: NERRequest) -> dict:
         return {
             "medical_text": request.medical_text,
-            "labels": request.labels
-            }
+            "labels": request.labels or [],
+        }
 
     def predict(self, inputs: dict) -> dict:
         return self.model.extract_entities(medical_text=inputs["medical_text"], labels=inputs["labels"])
@@ -34,7 +36,7 @@ if __name__ == "__main__":
                         """
                         )
     parser.add_argument("--use_gpu",
-                        default=True,
+                        action="store_true",
                         help="Flag to use GPU for inference."
                         )
     args = parser.parse_args()
