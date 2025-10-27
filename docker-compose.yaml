@@ -124,10 +124,17 @@ services:
         - NODE_ENV=production
   
   bioner:
-    image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
+    image: '${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}'
     restart: always
     ports:
-      - "8000:8000"
+      - "${BIONER_HOST_PORT:-8001}:8000"
+    env_file:
+      - .env
+    environment:
+      - MODEL_TYPE=${BIONER_MODEL_TYPE:?Variable not set}
+      - MODEL_PATH=${BIONER_MODEL_PATH:?Variable not set}
+      - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
+      - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
     networks:
       - prepare-usagi-public
       - default

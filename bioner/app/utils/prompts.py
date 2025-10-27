@@ -2,8 +2,11 @@ import os
 import json
 
 class Prompts:
-    def __init__(self):
-        prompts_path = os.path.join(os.path.dirname(__file__), "prompts.json")
+    def __init__(self, prompts_path: str | None = None):
+        if prompts_path is None:
+            prompts_path = os.path.join(os.path.dirname(__file__), "prompts.json")
+        if not os.path.exists(prompts_path):
+            raise FileNotFoundError(f"prompts path not found at: {prompts_path}")
         with open(prompts_path, "r") as file:
             self.data = json.load(file)
 
