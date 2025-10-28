@@ -3,11 +3,11 @@ from typing import Any
 from .gliner_engine import GlinerEngine
 from .llm_engine_huggingface import LLMEngineHuggingFace
 
-def build_engine(model_type=str, 
-                 model_path=str, 
-                 adapter_path=str | None, 
-                 prompt_path=str | None, 
-                 use_gpu=True) -> Any:
+def build_engine(model_type: str, 
+                 model_path: str, 
+                 adapter_path: str | None, 
+                 prompt_path: str | None, 
+                 use_gpu: bool = True) -> Any:
     # Determine device
     device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
     # Build and return the appropriate engine
