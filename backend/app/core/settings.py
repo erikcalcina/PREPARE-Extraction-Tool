@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     SERVICE_NAME: str = "PREPARE USAGI"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     API_V1_STR: str = "/api/v1"
+    BIONER_SERVICE_URL = "http://0.0.0.0:8000"
 
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     # e.g: '["http://localhost", "http://localhost:4200", "http://localhost:3000", \
