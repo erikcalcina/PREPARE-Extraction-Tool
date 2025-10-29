@@ -21,7 +21,7 @@ class NERRequest(BaseModel):
     labels: list[str] | None = None
 
 # =====================================
-#
+# API interface
 # =====================================
 
 class LabelsInput(BaseModel):
