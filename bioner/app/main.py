@@ -64,13 +64,23 @@ if __name__ == "__main__":
                         action="store_true",
                         help="Flag to use GPU for inference."
                         )
+    parser.add_argument("--host",
+                        type=str,
+                        default="0.0.0.0",
+                        help="Host to run the server on."
+                        )
+    parser.add_argument("--port",
+                        type=int,
+                        default=8000,
+                        help="Port to run the server on."
+                        )
     args = parser.parse_args()
     api = NERAPI(
         model_type=args.model_type,
         model_path=args.model_path,
         adapter_path=args.adapter_path,
         prompt_path=args.prompt_path,
-        use_gpu=args.use_gpu,
+        use_gpu=args.use_gpu
     )
     server = ls.LitServer(api, accelerator="auto", timeout=300, api_path="/ner")
-    server.run(port=8000)
+    server.run(host=args.host, port=args.port)
