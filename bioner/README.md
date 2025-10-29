@@ -67,3 +67,13 @@ curl -sS -X POST http://localhost:8000/ner \
 
 ## 🐳 Dockerize (TODO)
 
+To dockerize the app, run the following command in the terminal:
+
+```bash
+# build the docker image
+docker build -t bioner .
+
+# run the docker container
+docker run -d -p 8000:8000 --name bioner bioner
+```
+
