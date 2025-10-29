@@ -70,19 +70,18 @@ def extract_entities_from_record(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"BioNER service error: {str(e)}"
         )
-    # Save entities as source terms
-    created_count = 0
-    for entity in entities:
-        source_term = SourceTerm(
+    # Save entities as source terms 
+    source_terms = [
+        SourceTerm(
             record_id=record_id,
             value=entity["text"],
             label=entity["label"]
         )
-        db.add(source_term)
-        created_count += 1
-    
+        for entity in entities
+    ]
+    db.add_all(source_terms)
     db.commit()
     
     return MessageOutput(
-        message=f"Extracted and saved {created_count} entities from record {record_id}"
+        message=f"Extracted and saved {len(source_terms)} entities from record {record_id}"
     )
