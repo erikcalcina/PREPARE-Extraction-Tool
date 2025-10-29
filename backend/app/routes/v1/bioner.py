@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Optional
+from typing import List
 from sqlmodel import Session
 from sqlalchemy import select
 from fastapi import APIRouter, HTTPException, Depends, status
@@ -54,7 +54,7 @@ def extract_entities_from_record(
     
     request_data = {
         "medical_text": record.text,
-        "labels": labels
+        "labels": labels.labels
     }
     
     try:
