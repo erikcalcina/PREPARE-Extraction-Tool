@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from app.core.database import get_db
 from app.models import ConceptCreate, MessageOutput, VocabularyCreate
 from app.models_db import Concept, Vocabulary
+from concept_mapping.es import create_concept_index, add_concept_to_index, delete_concept_from_index, delete_index, add_bulk_to_index
 
 
 router = APIRouter(tags=["Vocabularies"])
@@ -24,15 +25,27 @@ def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_db)):
     db.add(vocab_db)
     db.commit()
     db.refresh(vocab_db)
+    vocab_id = vocab_db.id
+
+    # NEED TO CREATE NEW ES ALSO
+    create_concept_index(vocab_id)
 
     for c in vocab.concepts:
         concept_db = Concept(
-            vocabulary_id=vocab_db.id,
+            vocabulary_id=vocab_id,
             vocab_term_id=c.vocab_term_id,
             vocab_term_name=c.vocab_term_name
         )
         db.add(concept_db)
     db.commit()
+
+    for c in vocab_db.concepts:
+        db.refresh(c)
+
+    db.refresh(vocab_db)
+    
+    # NEED TO ADD CONCEPTS TO INDEX
+    add_bulk_to_index(vocab_id, vocab_db.concepts)
 
     return MessageOutput(message="Vocabulary created")
 
@@ -57,6 +70,8 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     
     db.delete(vocab_db)
     db.commit()
+
+    delete_index(vocabulary_id)
 
     return MessageOutput(message="Vocabulary deleted")
 
@@ -104,6 +119,9 @@ def add_concept(vocabulary_id: int, concept: ConceptCreate, db: Session = Depend
     )
     db.add(concept_db)
     db.commit()
+    db.refresh(concept_db)
+
+    add_concept_to_index(vocabulary_id, concept_db)
 
     return MessageOutput(message="Concept added")
 
@@ -142,5 +160,7 @@ def delete_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(ge
     
     db.delete(concept_db)
     db.commit()
+
+    delete_concept_from_index(vocabulary_id, concept_id)
 
     return MessageOutput(message="Concept deleted")

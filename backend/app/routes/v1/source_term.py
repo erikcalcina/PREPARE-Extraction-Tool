@@ -8,7 +8,9 @@ from sqlmodel import Session, select
 
 from app.core.database import get_db
 from app.models import MessageOutput, SourceTermCreate
-from app.models_db import Concept, Record, SourceTerm
+from app.models_db import Concept, Record, SourceTerm, SourceToConceptMap
+
+from concept_mapping.es import es_map_term_to_concept
 
 
 router = APIRouter(tags=["Source Term"])
@@ -86,14 +88,27 @@ def add_alternative(term_id: int, alternative_id: int, db: Session = Depends(get
 # def download_source_terms_csv(db: Session = Depends(get_db)):
 #     pass
 
-@router.get("/{term_id}/map", response_model=list[Concept])
-def map_term_to_concept(term_id: int, db: Session = Depends(get_db)):
+@router.get("/{term_id}/map", response_model=Concept)
+def map_term_to_concept(term_id: int, vocabulary_id: int, db: Session = Depends(get_db)):
     """Map the source term to the vocabulary concepts"""
 
     term_db = db.get(SourceTerm, term_id)
     if term_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source term not found")
 
-    concepts = [m.concept for m in term_db.mappings if m.concept is not None]
+    # map to concept
+    concept_id = es_map_term_to_concept(term_db, vocabulary_id)
+    concept_db = db.get(Concept, concept_id)
 
-    return concepts
+    # add the mapping to the database
+    map_db = SourceToConceptMap(
+        source_term_id=term_id,
+        concept_id=concept_id
+    )
+    db.add(map_db)
+    db.commit()
+
+    return concept_db
+
+
+# TODO: add function to retrive the mappings
