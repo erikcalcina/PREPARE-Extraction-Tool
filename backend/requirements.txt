@@ -4,5 +4,3 @@ pydantic-settings
 python-dotenv
 sqlmodel
 passlib[bcrypt]
-httpx
-sqlalchemy

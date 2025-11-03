@@ -1,7 +1,6 @@
-import httpx
+import requests
 from typing import List
-from sqlmodel import Session
-from sqlalchemy import select
+from sqlmodel import Session, select
 from fastapi import APIRouter, HTTPException, Depends, status
 
 from app.models import MessageOutput
@@ -20,11 +19,14 @@ def extract_entities(
     Extract named entities from medical text using the BioNER service.
     """
     try:
-        with httpx.Client(timeout=300.0) as client:
-            response = client.post(f"{settings.BIONER_SERVICE_URL}/ner", json=request.dict())
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
+        response = requests.post(
+            f"{settings.BIONER_SERVICE_URL}/ner",
+            json=request.dict(),
+            timeout=300
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"BioNER service error: {str(e)}"
@@ -58,14 +60,14 @@ def extract_entities_from_record(
     }
     
     try:
-        with httpx.Client(timeout=300.0) as client:
-            response = client.post(
-                f"{settings.BIONER_SERVICE_URL}/ner",
-                json=request_data
-            )
-            response.raise_for_status()
-            entities = response.json()
-    except httpx.HTTPError as e:
+        response = requests.post(
+            f"{settings.BIONER_SERVICE_URL}/ner",
+            json=request_data,
+            timeout=300
+        )
+        response.raise_for_status()
+        entities = response.json()
+    except requests.RequestException as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"BioNER service error: {str(e)}"
