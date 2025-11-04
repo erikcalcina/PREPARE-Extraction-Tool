@@ -1,7 +1,7 @@
 from elasticsearch import Elasticsearch
 
 
-ELASTIC_URL = "http://localhost:9200"
+ELASTIC_URL = "http://elasticsearch:9200"
 
 es_client = Elasticsearch(ELASTIC_URL)
 

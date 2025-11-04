@@ -9,9 +9,7 @@ from sqlmodel import Session, select
 from app.core.database import get_db
 from app.models import MessageOutput, SourceTermCreate
 from app.models_db import Concept, Record, SourceTerm, SourceToConceptMap
-
-from concept_mapping.es import es_map_term_to_concept
-
+from concept_mapping.es import indexer
 
 router = APIRouter(tags=["Source Term"])
 
@@ -88,18 +86,32 @@ def add_alternative(term_id: int, alternative_id: int, db: Session = Depends(get
 # def download_source_terms_csv(db: Session = Depends(get_db)):
 #     pass
 
-@router.get("/{term_id}/map", response_model=Concept)
-def map_term_to_concept(term_id: int, vocabulary_id: int, db: Session = Depends(get_db)):
+@router.get("/{term_id}/map", response_model=List[Concept])
+def map_term_to_concept(term_id: int, vocabulary_ids: list[int], db: Session = Depends(get_db)):
     """Map the source term to the vocabulary concepts"""
 
     term_db = db.get(SourceTerm, term_id)
     if term_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source term not found")
 
-    # map to concept
-    concept_id = es_map_term_to_concept(term_db, vocabulary_id)
-    concept_db = db.get(Concept, concept_id)
+    concept_ids = indexer.es_map_term_to_concept(term_db, vocabulary_ids)
 
+    statement = select(Concept).where(Concept.id.in_(concept_ids))
+    results = db.exec(statement)
+
+    return results.all()
+
+@router.post("/{term_id}/map/{concept_id}", response_model=MessageOutput)
+def create_mapping(term_id: int, concept_id: int, db: Session = Depends(get_db)):
+    
+    concept_db = db.get(Concept, concept_id)
+    if concept_db is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found")
+    
+    term_db = db.get(SourceTerm, term_id)
+    if term_db is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source term not found")
+    
     # add the mapping to the database
     map_db = SourceToConceptMap(
         source_term_id=term_id,
@@ -108,7 +120,7 @@ def map_term_to_concept(term_id: int, vocabulary_id: int, db: Session = Depends(
     db.add(map_db)
     db.commit()
 
-    return concept_db
+    return MessageOutput(message="Mapping created")
 
 
 # TODO: add function to retrive the mappings
