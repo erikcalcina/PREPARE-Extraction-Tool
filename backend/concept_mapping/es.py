@@ -1,11 +1,10 @@
 from math import ceil
 
-from es_client import es_client
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
 
+from .es_client import es_client, embedding_model
 from app.models_db import SourceTerm, Concept
-from app.main import embedding_model
 
 
 class ConceptIndexer:

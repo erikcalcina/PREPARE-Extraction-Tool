@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-from sentence_transformers import SentenceTransformer
 
 from app.routes.v1 import api_router
 from app.core.settings import settings
@@ -23,6 +22,3 @@ if settings.BACKEND_CORS_ORIGINS:
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
-# initialize embedding model
-embedding_model = SentenceTransformer("neuml/pubmedbert-base-embeddings")
