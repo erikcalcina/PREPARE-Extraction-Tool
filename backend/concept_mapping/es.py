@@ -65,8 +65,8 @@ class ConceptIndexer:
                     }
                 }
                 actions.append(doc)
-
-            bulk(es_client, actions)
+                
+            bulk(es_client, actions)       
 
 
     def add_concept_to_index(self, vocab_id: int, concept_db: Concept):
@@ -98,29 +98,39 @@ class ConceptIndexer:
         term_text = term_db.value
         term_embedding = self._calculate_embedding(term_text)
 
+        # query = {
+        #     "size": 10,
+        #     "query": {
+        #         "script_score": {
+        #             "query": {
+        #                 # BM25 match (only text)
+        #                 "multi_match": {
+        #                     "query": term_text,
+        #                     "fields": ["vocab_term_name"]
+        #                 }
+        #             },
+        #             "script": {
+        #                 # + 1.0 to make score positive
+        #                 "source": "0.3 * _score + 0.7 * (cosineSimilarity(params.query_vector, 'embedding') + 1.0)",
+        #                 "params": {"query_vector": term_embedding}
+        #             }
+        #         }
+        #     }
+        # }
         query = {
             "size": 10,
             "query": {
-                # modify relevance score using a custom script
                 "script_score": {
-                    "query": {
-                        # BM25 match (only text)
-                        "multi_match": {
-                            "query": term_text,
-                            "fields": ["vocab_term_name"]
-                        }
-                    },
+                    "query": {"match_all": {}},
                     "script": {
-                        # + 1.0 to make score positive
-                        "source": "0.3 * _score + 0.7 * (cosineSimilarity(params.query_vector, 'embedding') + 1.0)",
+                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
                         "params": {"query_vector": term_embedding}
                     }
                 }
             }
         }
-        
         response = es_client.search(index=relevant_indices, body=query)
-        concept_ids = [hit["_source"]["id"] for hit in response["hits"]["hits"]]
+        concept_ids = [int(hit["_id"]) for hit in response["hits"]["hits"]]
 
         # TODO: implement reranking
         

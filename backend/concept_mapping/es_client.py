@@ -1,8 +1,9 @@
 from elasticsearch import Elasticsearch
 from sentence_transformers import SentenceTransformer
+import os
 
-ELASTIC_URL = "http://elasticsearch:9200"
-
+# ELASTIC_URL = "http://elasticsearch:9200"
+ELASTIC_URL = "http://localhost:9200"
 es_client = Elasticsearch(ELASTIC_URL)
 
 
@@ -18,4 +19,4 @@ def check_connection():
     except Exception as e:
         print("Error connecting to Elasticsearch:", e)
 
-print(check_connection())
+check_connection()
