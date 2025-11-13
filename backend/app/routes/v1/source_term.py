@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from app.core.database import get_db
-from app.models import MessageOutput, SourceTermCreate
+from app.models import MessageOutput, SourceTermCreate, MapRequest
 from app.models_db import Concept, Record, SourceTerm, SourceToConceptMap
 from concept_mapping.es import indexer
 
@@ -86,20 +86,23 @@ def add_alternative(term_id: int, alternative_id: int, db: Session = Depends(get
 # def download_source_terms_csv(db: Session = Depends(get_db)):
 #     pass
 
-@router.get("/{term_id}/map", response_model=List[Concept])
-def map_term_to_concept(term_id: int, vocabulary_ids: list[int], db: Session = Depends(get_db)):
+@router.post("/{term_id}/map", response_model=List[Concept])
+def map_term_to_concept(term_id: int, request: MapRequest, db: Session = Depends(get_db)):
     """Map the source term to the vocabulary concepts"""
 
     term_db = db.get(SourceTerm, term_id)
     if term_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source term not found")
 
-    concept_ids = indexer.es_map_term_to_concept(term_db, vocabulary_ids)
+    concept_ids = indexer.es_map_term_to_concept(term_db, request.vocabulary_ids)
 
     statement = select(Concept).where(Concept.id.in_(concept_ids))
     results = db.exec(statement)
 
-    return results.all()
+    concept_map = {concept.id: concept for concept in results}
+    ordered_results = [concept_map[concept_id] for concept_id in concept_ids if concept_id in concept_map]
+    
+    return ordered_results
 
 @router.post("/{term_id}/map/{concept_id}", response_model=MessageOutput)
 def create_mapping(term_id: int, concept_id: int, db: Session = Depends(get_db)):

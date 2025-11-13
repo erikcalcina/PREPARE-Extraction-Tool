@@ -3,6 +3,6 @@ uvicorn[standard]
 pydantic-settings
 python-dotenv
 sqlmodel
-elasticsearch
+elasticsearch==8.15.1
 sentence_transformers
 passlib[bcrypt]
