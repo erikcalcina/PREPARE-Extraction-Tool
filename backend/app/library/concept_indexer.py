@@ -3,14 +3,32 @@ from math import ceil
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
 
-from .es_client import es_client, embedding_model
+from app.core.elastic import es_client
+from app.core.model_registry import model_registry
 from app.models_db import SourceTerm, Concept
 
 
+# ================================================
+# Concept indexer in elasticsearch
+# ================================================
+
 class ConceptIndexer:
 
-    def __init__(self, embedding_dim: int = 768):
-        self.embedding_dim = embedding_dim
+    def __init__(self):
+        self._model = None
+        self._embedding_dim = None
+
+    @property
+    def model(self):
+        if self._model is None:
+            self._model = model_registry.get_model("embedding")
+        return self._model
+
+    @property
+    def embedding_dim(self):
+        if self._embedding_dim is None:
+            self._embedding_dim = self.model.get_sentence_embedding_dimension()
+        return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
         index_name = f"concepts_{vocab_id}"
@@ -31,7 +49,7 @@ class ConceptIndexer:
 
     def delete_index(self, vocab_id: int):
         index_name= f"concepts_{vocab_id}"
-        
+
         if es_client.indices.exists(index=index_name):
             es_client.indices.delete(index=index_name)
             print(f"Index {index_name} deleted")
@@ -39,8 +57,8 @@ class ConceptIndexer:
             print(f"Index {index_name} not found")
 
     def _calculate_embedding(self, text: str | list[str]) -> list:
-        return embedding_model.encode(text).tolist()
-    
+        return self.model.embed(text)
+
     def add_bulk_to_index(self, vocab_id: int, concepts: list[Concept], batch_size: int = 10):
         index_name = f"concepts_{vocab_id}"
 
@@ -65,15 +83,15 @@ class ConceptIndexer:
                     }
                 }
                 actions.append(doc)
-                
-            bulk(es_client, actions)       
+
+            bulk(es_client, actions)
 
 
     def add_concept_to_index(self, vocab_id: int, concept_db: Concept):
         # create embedding vector + add to index
         concept_text = concept_db.vocab_term_name
         vect_embedding = self._calculate_embedding(concept_text)
-        
+
         doc = {
             "vocab_term_id": concept_db.vocab_term_id,
             "vocab_term_name": concept_text,
@@ -85,7 +103,7 @@ class ConceptIndexer:
 
     def delete_concept_from_index(self, vocab_id: int, concept_id: int):
         index_name= f"concepts_{vocab_id}"
-        
+
         try:
             es_client.delete(index=index_name, id=concept_id)
             print(f"Document {concept_id} deleted from {index_name}")
@@ -133,9 +151,9 @@ class ConceptIndexer:
         concept_ids = [int(hit["_id"]) for hit in response["hits"]["hits"]]
 
         # TODO: implement reranking
-        
+
         return concept_ids
-    
+
 
 # --- GLOBAL INSTANCE ---
 indexer = ConceptIndexer()

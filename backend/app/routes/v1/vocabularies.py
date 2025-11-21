@@ -1,22 +1,28 @@
-import csv
 import io
+import csv
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from app.core.database import get_db
+from app.core.database import get_session, Vocabulary, Concept
 from app.models import ConceptCreate, MessageOutput, VocabularyCreate
-from app.models_db import Concept, Vocabulary
-from concept_mapping.es import indexer
+from app.library.concept_indexer import indexer
 
-router = APIRouter(tags=["Vocabularies"])
+# ================================================
+# Route definitions
+# ================================================
 
-# VOCABULARIES
+router = APIRouter()
+
+# ================================================
+# Vocabularies routes
+# ================================================
+
 
 @router.post("/", response_model=MessageOutput, status_code=status.HTTP_201_CREATED)
-def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_db)):
+def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_session)):
     vocab_db = Vocabulary(
         name=vocab.name,
         version=vocab.version
@@ -42,19 +48,19 @@ def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_db)):
         db.refresh(c)
 
     db.refresh(vocab_db)
-    
+
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocab_id, vocab_db.concepts)
 
     return MessageOutput(message="Vocabulary created")
 
 @router.get("/", response_model=List[Vocabulary])
-def get_vocabularies(db: Session = Depends(get_db)):
+def get_vocabularies(db: Session = Depends(get_session)):
     vocabularies = db.exec(select(Vocabulary)).all()
     return vocabularies
 
 @router.get("/{vocabulary_id}", response_model=Vocabulary)
-def get_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
+def get_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
     vocab_db = db.get(Vocabulary, vocabulary_id)
     if vocab_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
@@ -62,11 +68,11 @@ def get_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     return vocab_db
 
 @router.delete("/{vocabulary_id}", response_model=MessageOutput)
-def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
+def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
     vocab_db = db.get(Vocabulary, vocabulary_id)
     if vocab_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
-    
+
     db.delete(vocab_db)
     db.commit()
 
@@ -75,7 +81,7 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     return MessageOutput(message="Vocabulary deleted")
 
 @router.get("/{vocabulary_id}/download", response_class=StreamingResponse)
-def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_db)):
+def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_session)):
     vocab_db = db.get(Vocabulary, vocabulary_id)
     if vocab_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
@@ -103,14 +109,16 @@ def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_db)):
     )
 
 
-# CONCEPTS
+# ================================================
+# Concepts routes
+# ================================================
 
 @router.post("/{vocabulary_id}/concepts", response_model=MessageOutput, status_code=status.HTTP_201_CREATED)
-def add_concept(vocabulary_id: int, concept: ConceptCreate, db: Session = Depends(get_db)):
+def add_concept(vocabulary_id: int, concept: ConceptCreate, db: Session = Depends(get_session)):
     vocab_db = db.get(Vocabulary, vocabulary_id)
     if vocab_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
-    
+
     concept_db = Concept(
         vocabulary_id=vocabulary_id,
         vocab_term_id=concept.vocab_term_id,
@@ -125,15 +133,15 @@ def add_concept(vocabulary_id: int, concept: ConceptCreate, db: Session = Depend
     return MessageOutput(message="Concept added")
 
 @router.get("/{vocabulary_id}/concepts", response_model=List[Concept])
-def get_concepts(vocabulary_id: int, db: Session = Depends(get_db)):
+def get_concepts(vocabulary_id: int, db: Session = Depends(get_session)):
     vocab_db = db.get(Vocabulary, vocabulary_id)
     if vocab_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found")
-    
+
     return vocab_db.concepts
 
 @router.get("/{vocabulary_id}/concepts/{concept_id}", response_model=Concept)
-def get_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_db)):
+def get_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_session)):
     statement = (
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
@@ -143,11 +151,11 @@ def get_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_d
 
     if concept_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found")
-    
+
     return concept_db
 
 @router.delete("/{vocabulary_id}/concepts/{concept_id}", response_model=MessageOutput)
-def delete_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_db)):
+def delete_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(get_session)):
     statement = (
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
@@ -156,7 +164,7 @@ def delete_concept(vocabulary_id: int, concept_id: int, db: Session = Depends(ge
 
     if concept_db is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found")
-    
+
     db.delete(concept_db)
     db.commit()
 

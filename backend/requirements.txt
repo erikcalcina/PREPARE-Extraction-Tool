@@ -3,6 +3,8 @@ uvicorn[standard]
 pydantic-settings
 python-dotenv
 sqlmodel
+psycopg2-binary==2.9.11
 elasticsearch==8.15.1
 sentence_transformers
 passlib[bcrypt]
+bcrypt==3.2.2

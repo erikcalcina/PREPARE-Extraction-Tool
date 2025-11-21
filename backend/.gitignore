@@ -158,3 +158,10 @@ cython_debug/
 *.key
 *.pem
 secrets/
+
+# ===========================
+# Additional files
+# ===========================
+
+.env
+*.db

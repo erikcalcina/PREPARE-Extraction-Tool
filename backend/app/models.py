@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field
 
 
 class UserModel(SQLModel):
-    name: str
+    username: str
     password: str
 
 class MessageOutput(SQLModel):
