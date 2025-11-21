@@ -10,6 +10,9 @@ class UserModel(SQLModel):
 class MessageOutput(SQLModel):
     message: str
 
+class MapRequest(SQLModel):
+    vocabulary_ids: List[int]
+
 class SourceTermCreate(SQLModel):
     value: str
     label: str
