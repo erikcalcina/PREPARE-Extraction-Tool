@@ -1,8 +1,11 @@
 services:
 
-  db:
-    image: postgres:17
-    restart: always
+  postgres:
+    image: postgres:18
+    container_name: PREPARE-USAGI-POSTGRESQL
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -21,100 +24,31 @@ services:
 
   adminer:
     image: adminer
-    restart: always
+    container_name: PREPARE-USAGI-ADMINER
+    restart: unless-stopped
     ports:
       - "8080:8080"
     networks:
       - default
     depends_on:
-      - db
+      - postgres
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
 
-  prestart:
-    build:
-      context: ./backend
-    restart: "no"
-    networks:
-      - default
-    depends_on:
-      db:
-        condition: service_healthy
-    command: bash scripts/prestart.sh
-    env_file:
-      - .env
-    environment:
-      - DOMAIN=${DOMAIN}
-      - FRONTEND_HOST=${FRONTEND_HOST?Variable not set}
-      - ENVIRONMENT=${ENVIRONMENT}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY?Variable not set}
-      - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
-      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - SENTRY_DSN=${SENTRY_DSN}
-
-  backend:
-    image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
-    restart: always
-    ports:
-      - "8000:8000"
-    networks:
-      - prepare-usagi-public
-      - default
-    depends_on:
-      db:
-        condition: service_healthy
-      prestart:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    environment:
-      - DOMAIN=${DOMAIN}
-      - FRONTEND_HOST=${FRONTEND_HOST?Variable not set}
-      - ENVIRONMENT=${ENVIRONMENT}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY?Variable not set}
-      - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
-      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - SENTRY_DSN=${SENTRY_DSN}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    build:
-      context: ./backend
-
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
-    container_name: elasticsearch
+    image: elasticsearch:8.19.7
+    container_name: PREPARE-USAGI-ELASTICSEARCH
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
-      - es-data:/usr/share/elasticsearch/data
+      - app-es-data:/usr/share/elasticsearch/data
     networks:
+      - prepare-usagi-public
       - default
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
@@ -123,9 +57,46 @@ services:
       start_period: 30s
       timeout: 10s
 
+  backend:
+    image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
+    container_name: PREPARE-USAGI-BACKEND
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - prepare-usagi-public
+      - default
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DOMAIN=${DOMAIN}
+      - FRONTEND_HOST=${FRONTEND_HOST?Variable not set}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - SECRET_KEY=${SECRET_KEY?Variable not set}
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/check"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    build:
+      context: ./backend
+
   frontend:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
-    restart: always
+    container_name: PREPARE-USAGI-FRONTEND
+    restart: unless-stopped
     ports:
       - "3000:3000"
     networks:
@@ -142,30 +113,31 @@ services:
       args:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
         - NODE_ENV=production
-  
-  bioner:
-    image: '${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}'
-    restart: always
-    ports:
-      - "${BIONER_HOST_PORT:-8001}:8000"
-    env_file:
-      - .env
-    environment:
-      - MODEL_TYPE=${BIONER_MODEL_TYPE:?Variable not set}
-      - MODEL_PATH=${BIONER_MODEL_PATH:?Variable not set}
-      - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
-      - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
-    networks:
-      - prepare-usagi-public
-      - default
-    build:
-      context: ./bioner
-    
+
+  # bioner:
+  #   image: '${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}'
+  #   container_name: PREPARE-USAGI-BIONER
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${BIONER_HOST_PORT:-8001}:8000"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - MODEL_TYPE=${BIONER_MODEL_TYPE:?Variable not set}
+  #     - MODEL_PATH=${BIONER_MODEL_PATH:?Variable not set}
+  #     - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
+  #     - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
+  #   networks:
+  #     - prepare-usagi-public
+  #     - default
+  #   build:
+  #     context: ./bioner
 
 volumes:
   app-db-data:
+  app-es-data:
 
 networks:
   prepare-usagi-public:
-    # Allow setting it to false for testing
-    external: true
+    # Set to true if the network is already created
+    external: false
