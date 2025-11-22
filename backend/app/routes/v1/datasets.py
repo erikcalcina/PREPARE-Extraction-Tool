@@ -7,7 +7,15 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from app.core.database import get_session, Dataset, Record
-from app.models import DatasetCreate, MessageOutput, RecordCreate
+from app.models import (
+    DatasetCreate,
+    DatasetsOutput,
+    DatasetOutput,
+    RecordsOutput,
+    RecordCreate,
+    RecordOutput,
+    MessageOutput,
+)
 
 # ================================================
 # Route definitions
@@ -20,6 +28,19 @@ router = APIRouter()
 # ================================================
 
 
+@router.get(
+    "/",
+    response_model=DatasetsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="List all datasets",
+    description="Retrieves a list of all datasets in the system",
+    response_description="List of datasets with their metadata",
+)
+def get_datasets(db: Session = Depends(get_session)):
+    datasets = db.exec(select(Dataset)).all()
+    return DatasetsOutput(datasets=datasets)
+
+
 @router.post(
     "/",
     response_model=MessageOutput,
@@ -29,36 +50,26 @@ router = APIRouter()
     response_description="Confirmation message that the dataset was created successfully",
 )
 def create_dataset(dataset: DatasetCreate, db: Session = Depends(get_session)):
-    db_dataset = Dataset(name=dataset.name, labels=dataset.labels)
-    db.add(db_dataset)
+    # TODO: Enable uploading datasets in multiple formats (e.g. JSON, CSV, etc.)
+    #       IMPORTANT: At least CSV format should be supported, as this is the
+    #                  format the data is usually provided.
+    database = Dataset(name=dataset.name, labels=dataset.labels)
+    db.add(database)
     db.commit()
-    # Refresh the instance so db_dataset now has its generated ID
-    db.refresh(db_dataset)
+    # Refresh the instance so database now has its generated ID
+    db.refresh(database)
 
     for r in dataset.records:
-        db_record = Record(text=r.text, dataset_id=db_dataset.id)
-        db.add(db_record)
-    db.commit()
+        record = Record(text=r.text, dataset_id=database.id)
+        db.add(record)
+    db.flush()
 
     return MessageOutput(message="Dataset created successfully")
 
 
 @router.get(
-    "/",
-    response_model=List[Dataset],
-    status_code=status.HTTP_200_OK,
-    summary="List all datasets",
-    description="Retrieves a list of all datasets in the system",
-    response_description="List of datasets with their metadata",
-)
-def get_datasets(db: Session = Depends(get_session)):
-    datasets = db.exec(select(Dataset)).all()
-    return {"datasets": datasets}
-
-
-@router.get(
     "/{dataset_id}",
-    response_model=Dataset,
+    response_model=DatasetOutput,
     status_code=status.HTTP_200_OK,
     summary="Get a specific dataset",
     description="Retrieves a single dataset by its ID",
@@ -70,8 +81,7 @@ def get_dataset(dataset_id: int, db: Session = Depends(get_session)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
         )
-
-    return {"dataset": dataset}
+    return DatasetOutput(dataset=dataset)
 
 
 @router.delete(
@@ -100,11 +110,13 @@ def delete_dataset(dataset_id: int, db: Session = Depends(get_session)):
     "/{dataset_id}/download",
     response_class=StreamingResponse,
     status_code=status.HTTP_200_OK,
-    summary="Download dataset as CSV",
-    description="Downloads a dataset's records as a CSV file",
-    response_description="CSV file containing the dataset records",
+    summary="Download dataset",
+    description="Downloads a dataset's records as a file",
+    response_description="The file containing the dataset records",
 )
-def download_dataset_csv(dataset_id: int, db: Session = Depends(get_session)):
+def download_dataset(dataset_id: int, db: Session = Depends(get_session)):
+    # TODO: enable dataset download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
+
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
@@ -119,6 +131,9 @@ def download_dataset_csv(dataset_id: int, db: Session = Depends(get_session)):
         )
 
     # TODO: make a separate function for this
+    # FIX: the solution below does not parse the text correctly. There should be
+    #      one column containing the whole text (parsed accordingly) - newlines
+    #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
     output = io.StringIO()
     writer = csv.writer(output)
 
@@ -157,17 +172,17 @@ def add_record(
             status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
         )
 
-    record_db = Record(text=record.text, dataset_id=dataset_id)
-    db.add(record_db)
+    record = Record(text=record.text, dataset_id=dataset_id)
+    db.add(record)
     db.commit()
-    db.refresh(record_db)
+    db.refresh(record)
 
     return MessageOutput(message="Record added successfully")
 
 
 @router.get(
     "/{dataset_id}/records",
-    response_model=List[Record],
+    response_model=RecordsOutput,
     status_code=status.HTTP_200_OK,
     summary="List all records in a dataset",
     description="Retrieves all records belonging to a specific dataset",
@@ -180,12 +195,12 @@ def get_records(dataset_id: int, db: Session = Depends(get_session)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
         )
 
-    return {"records": dataset.records}
+    return RecordsOutput(records=dataset.records)
 
 
 @router.get(
     "/{dataset_id}/records/{record_id}",
-    response_model=Record,
+    response_model=RecordOutput,
     status_code=status.HTTP_200_OK,
     summary="Get a specific record",
     description="Retrieves a single record by its ID from a specific dataset",
@@ -204,34 +219,7 @@ def get_record(dataset_id: int, record_id: int, db: Session = Depends(get_sessio
             status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
         )
 
-    return {"record": record}
-
-
-@router.delete(
-    "/{dataset_id}/records/{record_id}",
-    response_model=MessageOutput,
-    status_code=status.HTTP_200_OK,
-    summary="Delete a record",
-    description="Deletes a specific record from a dataset",
-    response_description="Confirmation message that the record was deleted successfully",
-)
-def delete_record(dataset_id: int, record_id: int, db: Session = Depends(get_session)):
-    statement = (
-        select(Record)
-        .where(Record.dataset_id == dataset_id)
-        .where(Record.id == record_id)
-    )
-    record = db.exec(statement).one_or_none()
-
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
-        )
-
-    db.delete(record)
-    db.commit()
-
-    return MessageOutput(message="Record deleted successfully")
+    return RecordOutput(record=record)
 
 
 @router.put(
@@ -264,3 +252,30 @@ def update_record(
     db.commit()
 
     return MessageOutput(message="Record updated successfully")
+
+
+@router.delete(
+    "/{dataset_id}/records/{record_id}",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Delete a record",
+    description="Deletes a specific record from a dataset",
+    response_description="Confirmation message that the record was deleted successfully",
+)
+def delete_record(dataset_id: int, record_id: int, db: Session = Depends(get_session)):
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.id == record_id)
+    )
+    record = db.exec(statement).one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    db.delete(record)
+    db.commit()
+
+    return MessageOutput(message="Record deleted successfully")

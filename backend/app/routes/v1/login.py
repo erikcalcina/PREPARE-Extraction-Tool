@@ -49,6 +49,7 @@ def register_user(data: UserModel, db: Session = Depends(get_session)):
     user = User(username=data.username, hashed_password=hashed_password)
     db.add(user)
     db.commit()
+    db.refresh(user)  # loads the auto-generated id
 
     return MessageOutput(message=f"User registered successfully")
 

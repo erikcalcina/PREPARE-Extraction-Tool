@@ -62,7 +62,7 @@ def get_source_terms(record_id: int, db: Session = Depends(get_session)):
 
 
 @router.get(
-    "{record_id}/{term_id}",
+    "/{record_id}/{term_id}",
     response_model=SourceTerm,
     status_code=status.HTTP_200_OK,
     summary="Get a specific source term",
@@ -86,7 +86,7 @@ def get_source_term(record_id: int, term_id: str, db: Session = Depends(get_sess
 
 
 @router.delete(
-    "{record_id}/{term_id}",
+    "/{record_id}/{term_id}",
     response_model=MessageOutput,
     status_code=status.HTTP_200_OK,
     summary="Delete a source term",
@@ -114,7 +114,7 @@ def delete_source_term(
 
 
 @router.put(
-    "{term_id}/alternative/{alternative_id}",
+    "/{term_id}/alternative/{alternative_id}",
     response_model=MessageOutput,
     status_code=status.HTTP_200_OK,
     summary="Set alternative source term",

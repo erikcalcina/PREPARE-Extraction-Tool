@@ -1,6 +1,7 @@
 from typing import List
 
 from sqlmodel import SQLModel, Field
+from app.models_db import Dataset, Record, Vocabulary, Concept
 
 
 class UserModel(SQLModel):
@@ -40,3 +41,35 @@ class DatasetCreate(SQLModel):
     name: str
     labels: List[str] = Field(default_factory=list)
     records: List[RecordCreate] = Field(default_factory=list)
+
+
+class DatasetsOutput(SQLModel):
+    datasets: List[Dataset]
+
+
+class DatasetOutput(SQLModel):
+    dataset: Dataset
+
+
+class RecordsOutput(SQLModel):
+    records: List[Record]
+
+
+class RecordOutput(SQLModel):
+    record: Record
+
+
+class VocabulariesOutput(SQLModel):
+    vocabularies: List[Vocabulary]
+
+
+class VocabularyOutput(SQLModel):
+    vocabulary: Vocabulary
+
+
+class ConceptsOutput(SQLModel):
+    concepts: List[Concept]
+
+
+class ConceptOutput(SQLModel):
+    concept: Concept
