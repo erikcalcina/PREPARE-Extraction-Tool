@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 # Settings configuration
 # ======================================================
 
+
 class Settings(BaseSettings):
     # Database settings
     DATABASE_URL: Union[str, None] = None
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
@@ -49,7 +51,6 @@ class Settings(BaseSettings):
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         return self
 
-
     # ======================================================
     # Model settings
     # ======================================================
@@ -60,6 +61,9 @@ class Settings(BaseSettings):
     # Environment setting
     # ======================================================
 
-    model_config = SettingsConfigDict(env_file=str(PROJECT_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore"
+    )
+
 
 settings = Settings()

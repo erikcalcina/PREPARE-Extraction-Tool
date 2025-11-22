@@ -14,22 +14,21 @@ from app.core.model_registry import register_models
 # Application setup
 # ================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Register the models
     register_models()
     # Initialize the database
     init_db()
-    # Check the connection to Elasticsearch
+    # Check connection to elasticsearch
     check_es_connection()
     yield
 
 
 # initialize the FastAPI app
 app = FastAPI(
-    title=settings.SERVICE_NAME,
-    openapi_url="/api/openapi.json",
-    lifespan=lifespan
+    title=settings.SERVICE_NAME, openapi_url="/api/openapi.json", lifespan=lifespan
 )
 
 # set all CORS enabled origins

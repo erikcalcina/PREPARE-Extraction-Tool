@@ -15,10 +15,24 @@ engine = create_engine(settings.DATABASE_URL, echo=True)
 # ================================================
 
 def init_db():
-    """Create all tables if not already created"""
+    """Initialize the database by creating all tables."""
     SQLModel.metadata.create_all(engine)
 
 def get_session():
-    """Get a session from the engine"""
+    """Get a database session from the engine.
+
+    This is a generator function that yields a SQLModel Session object.
+    It is designed to be used as a dependency in FastAPI endpoints.
+    The session is automatically closed when the context exits.
+
+    Yields:
+        Session: A SQLModel database session.
+
+    Example:
+        >>> from fastapi import Depends
+        >>> def my_endpoint(session: Session = Depends(get_session)):
+        ...     # Use session here
+        ...     pass
+    """
     with Session(engine) as session:
         yield session

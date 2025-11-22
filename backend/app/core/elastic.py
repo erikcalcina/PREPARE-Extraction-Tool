@@ -12,6 +12,7 @@ es_client = Elasticsearch(settings.ELASTICSEARCH_URL)
 # ================================================
 
 def check_es_connection():
+    """Check the connection to Elasticsearch and print the connection status."""
     try:
         if es_client.ping():
             print("Connected to Elasticsearch")

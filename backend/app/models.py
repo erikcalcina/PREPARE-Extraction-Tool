@@ -7,27 +7,34 @@ class UserModel(SQLModel):
     username: str
     password: str
 
+
 class MessageOutput(SQLModel):
     message: str
 
+
 class MapRequest(SQLModel):
     vocabulary_ids: List[int]
+
 
 class SourceTermCreate(SQLModel):
     value: str
     label: str
 
+
 class ConceptCreate(SQLModel):
     vocab_term_id: str
     vocab_term_name: str
+
 
 class VocabularyCreate(SQLModel):
     name: str
     version: str
     concepts: List[ConceptCreate] = Field(default_factory=list)
 
+
 class RecordCreate(SQLModel):
     text: str
+
 
 class DatasetCreate(SQLModel):
     name: str
