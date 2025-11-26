@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import List, Dict
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
+from hdbscan import HDBSCAN
 
 from app.core.database import get_db
 from app.models import DatasetCreate, MessageOutput, RecordCreate, EntityCluster, ClusteredTerm
@@ -260,13 +260,32 @@ def get_entity_clusters(
     )
     X = vectorizer.fit_transform(unique_texts)
 
-    # --- 6) Run KMeans clustering ---
-    kmeans = KMeans(
-        n_clusters=k,
-        random_state=0,
-        n_init="auto",         # modern sklearn uses this style
+        # --- 6) Run HDBSCAN clustering ---
+    
+
+    clusterer = HDBSCAN(
+        min_cluster_size=2,           # smallest size of a meaningful cluster
+        metric='euclidean',           # good with TF-IDF
+        cluster_selection_method='eom'
     )
-    labels_arr = kmeans.fit_predict(X)
+
+    labels_arr = clusterer.fit_predict(X.toarray())
+
+    # You can skip noise points (-1)
+    filtered_texts = []
+    filtered_labels = []
+    for t, cid in zip(unique_texts, labels_arr):
+        if cid == -1:
+            # optional: skip noise
+            continue
+        filtered_texts.append(t)
+        filtered_labels.append(cid)
+
+    unique_texts = filtered_texts
+    labels_arr = filtered_labels
+
+
+    
 
     #group texts by cluster id
     clusters_raw: Dict[int, List[str]] = defaultdict(list)
