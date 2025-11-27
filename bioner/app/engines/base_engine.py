@@ -4,11 +4,11 @@ from app.interfaces import Entity
 
 class BaseEngine:
     def __init__(self, 
-                 model_path: str, 
+                 model: str, 
                  *args, 
                  device: str = "cpu", 
                  **kwargs):
-        self.model_path = model_path
+        self.model = model
         self.device = device
 
     def extract_entities(self, 

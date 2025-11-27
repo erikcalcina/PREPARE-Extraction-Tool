@@ -44,17 +44,17 @@ Example (LLM engine):
 
 ```bash
 python app/main.py \
-  --model_type huggingface \
-  --model_path model_hf_id \
+  --engine huggingface \
+  --model model_hf_id \
   --prompt_path /full/path/to/prompts.json \
-  --adapter_path /full/path/to/adapter_or_empty \
+  --adapter_model /full/path/to/adapter_or_empty \
   --use_gpu
 ```
 
 Example (Gliner engine):
 
 ```bash
-python app/main.py --model_type gliner --model_path /full/path/to/gliner/config
+python app/main.py --engine gliner --model /full/path/to/gliner/config
 ```
 
 Server listens on port 8000 by default. Test with curl:

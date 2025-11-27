@@ -6,17 +6,17 @@ from .base_engine import BaseEngine
 
 class GlinerEngine(BaseEngine):
     def __init__(self, 
-                 model_path="urchade/gliner_medium-v2.1", 
+                 model="urchade/gliner_medium-v2.1", 
                  device="cuda", 
                  labels: list[str] | None = None, 
                  threshold=0.5):
-        super().__init__(model_path=model_path, device=device)
+        super().__init__(model=model, device=device)
         self.labels = labels
         self.threshold = threshold
         self._initialize()
 
     def _initialize(self):
-        self.model = GLiNER.from_pretrained(self.model_path, 
+        self.model = GLiNER.from_pretrained(self.model, 
                                             load_tokenizer=False, 
                                             local_files_only=False)
         self.model.to(self.device)

@@ -11,17 +11,17 @@ from ..utils.prompts import Prompts
 
 class LLMEngineHuggingFace(BaseEngine):
     def __init__(self, 
-                 model_path="meta-llama/Llama-3.1-8B-Instruct", 
+                 model="meta-llama/Llama-3.1-8B-Instruct", 
                  device="cuda", 
                  labels: list[str] | None = None, 
-                 adapter_path: str | None = None, 
+                 adapter_model: str | None = None, 
                  prompts_path: str | None = None,
                  max_new_tokens=4000, 
                  temperature=0.001, 
                  top_p=0.95):
-        super().__init__(model_path=model_path, device=device)
+        super().__init__(model=model, device=device)
         self.labels = labels
-        self.adapter_path = adapter_path
+        self.adapter_model = adapter_model
         self.prompts_path = prompts_path
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
@@ -31,19 +31,19 @@ class LLMEngineHuggingFace(BaseEngine):
     def _initialize(self):
         # Initialize tokenizer and model with quantization and optional adapter
         # TODO: make quantization optional in the future and give log warning if adapter is added but model is not quantized (the performance might not be optimal)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path, 
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model, 
                                                        padding_side="right", 
                                                        use_fast=False)
         self.tokenizer.pad_token = self.tokenizer.eos_token
         quantization_config = BitsAndBytesConfig(load_in_4bit=True, 
                                                  bnb_4bit_compute_dtype=torch.bfloat16)
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_path,
+            self.model,
             quantization_config=quantization_config,
         )
-        if self.adapter_path:
+        if self.adapter_model:
             self.model = PeftModel.from_pretrained(self.model, 
-                                                   self.adapter_path)
+                                                   self.adapter_model)
         self.model = self.model.to(self.device)
 
     def extract_entities(self, 
