@@ -1,13 +1,15 @@
 from fastapi import APIRouter
-from app.routes.v1 import login, vocabularies, datasets, source_term, health
+from app.routes.v1 import auth, vocabularies, datasets, source_term, health
 
 api_router = APIRouter()
 
 # Health check route
 api_router.include_router(health.router, prefix="/health", tags=["Health"])
 
+# Authentication routes
+api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
+
 # Main routes
-api_router.include_router(login.router, prefix="/login", tags=["Login"])
 api_router.include_router(datasets.router, prefix="/datasets", tags=["Datasets"])
 api_router.include_router(
     vocabularies.router, prefix="/vocabularies", tags=["Vocabularies"]

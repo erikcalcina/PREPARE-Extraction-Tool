@@ -1,20 +1,23 @@
 import io
 import csv
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
-from app.core.database import get_session, Vocabulary, Concept
-from app.models import (
-    ConceptCreate,
+from app.core.database import get_session, Vocabulary, Concept, User
+from app.routes.v1.auth import get_current_user
+from app.schemas import (
     MessageOutput,
     VocabularyCreate,
-    ConceptsOutput,
+    VocabularyResponse,
     VocabulariesOutput,
     VocabularyOutput,
+    ConceptCreate,
+    ConceptsOutput,
     ConceptOutput,
+    PaginationParams,
+    create_pagination_metadata,
 )
 from app.library.concept_indexer import indexer
 
@@ -24,21 +27,89 @@ from app.library.concept_indexer import indexer
 
 router = APIRouter()
 
+
+# ================================================
+# Helper functions
+# ================================================
+
+
+def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int):
+    """Verify that the user owns the vocabulary."""
+    if vocabulary.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this vocabulary",
+        )
+
+
 # ================================================
 # Vocabularies routes
 # ================================================
 
 
+@router.get(
+    "/",
+    response_model=VocabulariesOutput,
+    status_code=status.HTTP_200_OK,
+    summary="List all vocabularies",
+    description="Retrieves a list of all vocabularies owned by the authenticated user",
+    response_description="List of vocabularies with their metadata",
+)
+def get_vocabularies(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
+    # Get total count
+    total = db.exec(
+        select(func.count())
+        .select_from(Vocabulary)
+        .where(Vocabulary.user_id == current_user.id)
+    ).one()
+
+    # Get paginated vocabularies
+    vocabularies = db.exec(
+        select(Vocabulary)
+        .where(Vocabulary.user_id == current_user.id)
+        .offset(pagination.offset)
+        .limit(pagination.limit)
+    ).all()
+
+    vocabulary_responses = [
+        VocabularyResponse(
+            id=vocabulary.id,
+            name=vocabulary.name,
+            uploaded=vocabulary.uploaded,
+            version=vocabulary.version,
+            concept_count=len(vocabulary.concepts),
+        )
+        for vocabulary in vocabularies
+    ]
+
+    return VocabulariesOutput(
+        vocabularies=vocabulary_responses,
+        pagination=create_pagination_metadata(
+            total, pagination.limit, pagination.offset
+        ),
+    )
+
+
 @router.post(
     "/",
-    response_model=MessageOutput,
+    response_model=VocabularyOutput,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new vocabulary",
     description="Creates a new vocabulary with its concepts and indexes them in Elasticsearch for semantic search",
     response_description="Confirmation message that the vocabulary was created successfully",
 )
-def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_session)):
-    vocabulary = Vocabulary(name=vocab.name, version=vocab.version)
+def create_vocabulary(
+    vocab: VocabularyCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    vocabulary = Vocabulary(
+        name=vocab.name, version=vocab.version, user_id=current_user.id
+    )
     db.add(vocabulary)
     db.commit()
     db.refresh(vocabulary)
@@ -54,7 +125,7 @@ def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_session
             vocab_term_name=c.vocab_term_name,
         )
         db.add(concept)
-    db.commit()  # Might use db.flush() to commit and generate the ID for the concepts
+    db.commit()
 
     for c in vocabulary.concepts:
         db.refresh(c)
@@ -63,20 +134,14 @@ def create_vocabulary(vocab: VocabularyCreate, db: Session = Depends(get_session
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
 
-    return MessageOutput(message="Vocabulary created successfully")
-
-
-@router.get(
-    "/",
-    response_model=VocabulariesOutput,
-    status_code=status.HTTP_200_OK,
-    summary="List all vocabularies",
-    description="Retrieves a list of all vocabularies in the system",
-    response_description="List of vocabularies with their metadata",
-)
-def get_vocabularies(db: Session = Depends(get_session)):
-    vocabularies = db.exec(select(Vocabulary)).all()
-    return VocabulariesOutput(vocabularies=vocabularies)
+    vocabulary_response = VocabularyResponse(
+        id=vocabulary.id,
+        name=vocabulary.name,
+        uploaded=vocabulary.uploaded,
+        version=vocabulary.version,
+        concept_count=len(vocabulary.concepts),
+    )
+    return VocabularyOutput(vocabulary=vocabulary_response)
 
 
 @router.get(
@@ -87,14 +152,26 @@ def get_vocabularies(db: Session = Depends(get_session)):
     description="Retrieves a single vocabulary by its ID",
     response_description="The requested vocabulary with its metadata",
 )
-def get_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
+def get_vocabulary(
+    vocabulary_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     vocabulary = db.get(Vocabulary, vocabulary_id)
     if vocabulary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
 
-    return VocabularyOutput(vocabulary=vocabulary)
+    vocabulary_response = VocabularyResponse(
+        id=vocabulary.id,
+        name=vocabulary.name,
+        uploaded=vocabulary.uploaded,
+        version=vocabulary.version,
+        concept_count=len(vocabulary.concepts),
+    )
+    return VocabularyOutput(vocabulary=vocabulary_response)
 
 
 @router.delete(
@@ -105,12 +182,17 @@ def get_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
     description="Deletes a vocabulary, its concepts, and removes it from the Elasticsearch index",
     response_description="Confirmation message that the vocabulary was deleted successfully",
 )
-def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
+def delete_vocabulary(
+    vocabulary_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     vocabulary = db.get(Vocabulary, vocabulary_id)
     if vocabulary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
 
     db.delete(vocabulary)
     db.commit()
@@ -128,7 +210,11 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
     description="Downloads a vocabulary's concepts as a file",
     response_description="The file containing the vocabulary concepts",
 )
-def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_session)):
+def download_vocabulary_csv(
+    vocabulary_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     # TODO: enable vocabulary download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
 
     vocabulary = db.get(Vocabulary, vocabulary_id)
@@ -136,6 +222,7 @@ def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_sessio
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
 
     concepts = vocabulary.concepts
 
@@ -179,14 +266,40 @@ def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_sessio
     description="Retrieves all concepts belonging to a specific vocabulary",
     response_description="List of concepts in the vocabulary",
 )
-def get_concepts(vocabulary_id: int, db: Session = Depends(get_session)):
+def get_concepts(
+    vocabulary_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
     vocabulary = db.get(Vocabulary, vocabulary_id)
     if vocabulary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
 
-    return ConceptsOutput(concepts=vocabulary.concepts)
+    # Get total count
+    total = db.exec(
+        select(func.count())
+        .select_from(Concept)
+        .where(Concept.vocabulary_id == vocabulary_id)
+    ).one()
+
+    # Get paginated concepts
+    concepts = db.exec(
+        select(Concept)
+        .where(Concept.vocabulary_id == vocabulary_id)
+        .offset(pagination.offset)
+        .limit(pagination.limit)
+    ).all()
+
+    return ConceptsOutput(
+        concepts=concepts,
+        pagination=create_pagination_metadata(
+            total, pagination.limit, pagination.offset
+        ),
+    )
 
 
 @router.post(
@@ -198,13 +311,17 @@ def get_concepts(vocabulary_id: int, db: Session = Depends(get_session)):
     response_description="Confirmation message that the concept was added successfully",
 )
 def add_concept(
-    vocabulary_id: int, concept: ConceptCreate, db: Session = Depends(get_session)
+    vocabulary_id: int,
+    concept: ConceptCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
     vocabulary = db.get(Vocabulary, vocabulary_id)
     if vocabulary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
 
     concept = Concept(
         vocabulary_id=vocabulary_id,
@@ -229,8 +346,18 @@ def add_concept(
     response_description="The requested concept",
 )
 def get_concept(
-    vocabulary_id: int, concept_id: int, db: Session = Depends(get_session)
+    vocabulary_id: int,
+    concept_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
+    vocabulary = db.get(Vocabulary, vocabulary_id)
+    if vocabulary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
+        )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
+
     statement = (
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
@@ -255,8 +382,18 @@ def get_concept(
     response_description="Confirmation message that the concept was deleted successfully",
 )
 def delete_concept(
-    vocabulary_id: int, concept_id: int, db: Session = Depends(get_session)
+    vocabulary_id: int,
+    concept_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
+    vocabulary = db.get(Vocabulary, vocabulary_id)
+    if vocabulary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
+        )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
+
     statement = (
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
