@@ -1,0 +1,961 @@
+.page {
+    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.titleSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.backButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s ease;
+}
+
+.backButton:hover {
+    background: #f3f4f6;
+    color: #1e3a5f;
+}
+
+.title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e3a5f;
+}
+
+.subtitle {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Stats Cards */
+.statsGrid {
+    display: flex;
+    gap: 12px;
+}
+
+.statCard {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 10px 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.statLabel {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.statValue {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e3a5f;
+}
+
+.statValue.processed {
+    color: #059669;
+}
+
+.statValue.pending {
+    color: #d97706;
+}
+
+.statValue.terms {
+    color: #7c3aed;
+}
+
+/* Main Content Area */
+.content {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    min-height: calc(100vh - 280px);
+}
+
+/* Records List Panel */
+.recordsPanel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 280px);
+}
+
+.recordsPanelHeader {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.recordsPanelTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 10px 14px;
+    margin-top: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background: #f9fafb;
+    transition: all 0.2s ease;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.searchInput::placeholder {
+    color: #9ca3af;
+}
+
+.recordsList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.recordItem {
+    padding: 14px 16px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 2px solid transparent;
+}
+
+.recordItem:hover {
+    background: #f3f4f6;
+}
+
+.recordItem.selected {
+    background: #ecfdf5;
+    border-color: #059669;
+}
+
+.recordItemHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.recordId {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+.recordTime {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.recordPreview {
+    font-size: 13px;
+    color: #6b7280;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+.recordStatus {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.statusBadge.processed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.statusBadge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.statusBadge.reviewed {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.termCount {
+    font-size: 11px;
+    color: #6b7280;
+    background: #f3f4f6;
+    padding: 3px 8px;
+    border-radius: 12px;
+}
+
+.loadingMore {
+    padding: 16px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.loadMoreTrigger {
+    height: 1px;
+}
+
+/* Detail Panels Container */
+.detailPanels {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: calc(100vh - 280px);
+    overflow: hidden;
+}
+
+/* Record Text Panel */
+.recordTextPanel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 200px;
+    overflow: hidden;
+}
+
+.recordTextHeader {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.recordTextTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+.detailActions {
+    display: flex;
+    gap: 8px;
+}
+
+.actionButton {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-family: inherit;
+}
+
+.actionButton.primary {
+    background: #059669;
+    color: #ffffff;
+}
+
+.actionButton.primary:hover {
+    background: #047857;
+}
+
+.actionButton.secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.actionButton.secondary:hover {
+    background: #e5e7eb;
+}
+
+.recordTextContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.recordText {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #374151;
+    margin: 0;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    white-space: pre-wrap;
+}
+
+/* Extracted Terms Panel */
+.termsPanel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    max-height: 280px;
+    overflow: hidden;
+}
+
+.termsPanelHeader {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.termsPanelTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+.termsPanelContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.highlightedTerm {
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+/* Highlighted term colors - 9 distinct colors matching labels */
+.highlightedTerm.label1 {
+    background: #fca5a5;
+    color: #7f1d1d;
+}
+.highlightedTerm.label1:hover {
+    background: #f87171;
+}
+
+.highlightedTerm.label2 {
+    background: #86efac;
+    color: #14532d;
+}
+.highlightedTerm.label2:hover {
+    background: #4ade80;
+}
+
+.highlightedTerm.label3 {
+    background: #93c5fd;
+    color: #1e3a8a;
+}
+.highlightedTerm.label3:hover {
+    background: #60a5fa;
+}
+
+.highlightedTerm.label4 {
+    background: #fde047;
+    color: #713f12;
+}
+.highlightedTerm.label4:hover {
+    background: #facc15;
+}
+
+.highlightedTerm.label5 {
+    background: #f0abfc;
+    color: #701a75;
+}
+.highlightedTerm.label5:hover {
+    background: #e879f9;
+}
+
+.highlightedTerm.label6 {
+    background: #5eead4;
+    color: #134e4a;
+}
+.highlightedTerm.label6:hover {
+    background: #2dd4bf;
+}
+
+.highlightedTerm.label7 {
+    background: #fdba74;
+    color: #7c2d12;
+}
+.highlightedTerm.label7:hover {
+    background: #fb923c;
+}
+
+.highlightedTerm.label8 {
+    background: #c4b5fd;
+    color: #4c1d95;
+}
+.highlightedTerm.label8:hover {
+    background: #a78bfa;
+}
+
+.highlightedTerm.label9 {
+    background: #94a3b8;
+    color: #1e293b;
+}
+.highlightedTerm.label9:hover {
+    background: #64748b;
+}
+
+/* Focused term (when scrolled to via View button) */
+.focusedTerm {
+    animation: focusPulse 2s ease-out;
+    outline: 3px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+@keyframes focusPulse {
+    0% {
+        outline-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        outline-color: #3b82f6;
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
+    }
+    100% {
+        outline-color: transparent;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+
+/* Terms List */
+.termsList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.termItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.termInfo {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.termValue {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e3a5f;
+}
+
+.termMeta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.termLabel {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* termLabel colors are defined with labelButton classes above */
+
+.termPosition {
+    color: #9ca3af;
+}
+
+.termViewButton {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #059669;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.termViewButton:hover {
+    text-decoration: underline;
+}
+
+/* Empty States */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 120px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 20px;
+}
+
+.emptyStateIcon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.emptyStateText {
+    font-size: 14px;
+    margin: 0;
+}
+
+.emptyStateSubtext {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* Loading */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.error {
+    padding: 16px 20px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #dc2626;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .content {
+        grid-template-columns: 1fr;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ================================================
+   Annotation Sidebar Styles
+   ================================================ */
+
+/* Two-column layout */
+.annotationSidebarLayout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    height: calc(100vh - 100px);
+}
+
+/* Left panel - Text */
+.annotationTextPanel {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.annotationTextHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.annotationHelpText {
+    font-size: 13px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.annotationTextContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+/* Right panel - Controls */
+.annotationControlsPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Instructions */
+.annotationInstructions {
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.annotationInstructions p {
+    margin: 0;
+    font-size: 13px;
+    color: #0369a1;
+    line-height: 1.5;
+}
+
+.annotationInstructions p + p {
+    margin-top: 8px;
+}
+
+.annotationInstructions kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #374151;
+}
+
+/* Label Section */
+.labelSection {
+    flex-shrink: 0;
+}
+
+.sectionTitle {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a5f;
+    flex-shrink: 0;
+}
+
+.labelButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.labelButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.labelButton .labelShortcut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* Label colors - 9 distinct colors */
+.labelButton.label1, .termLabel.label1, .annotationLabel.label1 {
+    background: #fecaca;
+    color: #7f1d1d;
+}
+.labelButton.label1:hover, .labelButton.label1.active {
+    background: #fca5a5;
+    border-color: #f87171;
+}
+
+.labelButton.label2, .termLabel.label2, .annotationLabel.label2 {
+    background: #bbf7d0;
+    color: #14532d;
+}
+.labelButton.label2:hover, .labelButton.label2.active {
+    background: #86efac;
+    border-color: #4ade80;
+}
+
+.labelButton.label3, .termLabel.label3, .annotationLabel.label3 {
+    background: #bfdbfe;
+    color: #1e3a8a;
+}
+.labelButton.label3:hover, .labelButton.label3.active {
+    background: #93c5fd;
+    border-color: #60a5fa;
+}
+
+.labelButton.label4, .termLabel.label4, .annotationLabel.label4 {
+    background: #fef08a;
+    color: #713f12;
+}
+.labelButton.label4:hover, .labelButton.label4.active {
+    background: #fde047;
+    border-color: #facc15;
+}
+
+.labelButton.label5, .termLabel.label5, .annotationLabel.label5 {
+    background: #f5d0fe;
+    color: #701a75;
+}
+.labelButton.label5:hover, .labelButton.label5.active {
+    background: #f0abfc;
+    border-color: #e879f9;
+}
+
+.labelButton.label6, .termLabel.label6, .annotationLabel.label6 {
+    background: #99f6e4;
+    color: #134e4a;
+}
+.labelButton.label6:hover, .labelButton.label6.active {
+    background: #5eead4;
+    border-color: #2dd4bf;
+}
+
+.labelButton.label7, .termLabel.label7, .annotationLabel.label7 {
+    background: #fed7aa;
+    color: #7c2d12;
+}
+.labelButton.label7:hover, .labelButton.label7.active {
+    background: #fdba74;
+    border-color: #fb923c;
+}
+
+.labelButton.label8, .termLabel.label8, .annotationLabel.label8 {
+    background: #ddd6fe;
+    color: #4c1d95;
+}
+.labelButton.label8:hover, .labelButton.label8.active {
+    background: #c4b5fd;
+    border-color: #c084fc;
+}
+
+.labelButton.label9, .termLabel.label9, .annotationLabel.label9 {
+    background: #cbd5e1;
+    color: #1e293b;
+}
+.labelButton.label9:hover, .labelButton.label9.active {
+    background: #94a3b8;
+    border-color: #64748b;
+}
+
+.noLabels {
+    font-size: 13px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* Annotation Section */
+.annotationSection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.annotationList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.annotationItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.annotationItem:hover {
+    background: #f3f4f6;
+}
+
+.annotationItem.selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.annotationContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.annotationValue {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e3a5f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.annotationLabel {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    width: fit-content;
+}
+
+.deleteAnnotationButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.deleteAnnotationButton:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.noAnnotations {
+    font-size: 13px;
+    color: #6b7280;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* ================================================
+   Annotatable Text Styles
+   ================================================ */
+
+.annotatableText {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #374151;
+    margin: 0;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    position: relative;
+}
+
+.annotatableText.annotating {
+    cursor: text;
+    user-select: text;
+}
+
+.annotatableText.annotating::selection,
+.annotatableText.annotating *::selection {
+    background: rgba(59, 130, 246, 0.3);
+}
+
+/* Selected annotation highlight */
+.highlightedTerm.selectedAnnotation {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+
+/* Annotation hint */
+.annotationHint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    background: rgba(30, 58, 95, 0.9);
+    color: #ffffff;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+

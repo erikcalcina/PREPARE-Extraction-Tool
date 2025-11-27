@@ -1,0 +1,114 @@
+.dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 40px;
+    background-color: #f8fafc;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.dropzone:hover {
+    border-color: #1e3a5f;
+    background-color: #f1f5f9;
+}
+
+.dropzone.dragging {
+    border-color: #1e3a5f;
+    background-color: #e8f4fc;
+    border-style: solid;
+}
+
+.dropzone.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.dropzone.hasFile {
+    border-color: #4CAF50;
+    background-color: #f0fdf4;
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.icon {
+    color: #9ca3af;
+    margin-bottom: 8px;
+}
+
+.dropzone:hover .icon,
+.dropzone.dragging .icon {
+    color: #1e3a5f;
+}
+
+.dropzone.hasFile .icon {
+    color: #4CAF50;
+}
+
+.text {
+    font-size: 16px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.or {
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.browseButton {
+    padding: 10px 20px;
+    background-color: #1e3a5f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-family: inherit;
+}
+
+.browseButton:hover {
+    background-color: #2c4a6f;
+}
+
+.selectedInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.fileName {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.fileSize {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.error {
+    font-size: 13px;
+    color: #dc2626;
+    margin-top: 8px;
+}
+

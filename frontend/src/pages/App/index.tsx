@@ -1,33 +1,89 @@
-import { useState } from "react";
-import classNames from "classnames";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+import AuthProvider from 'components/AuthProvider';
+import ProtectedRoute from 'components/ProtectedRoute';
 
-import reactLogo from "assets/images/react.svg";
-import viteLogo from "assets/images/vite.svg";
-import styles from "./styles.module.css";
+import Login from 'pages/Login';
+import Datasets from 'pages/Datasets';
+import DatasetRecords from 'pages/DatasetRecords';
+import DatasetUpload from 'pages/DatasetUpload';
+import Vocabularies from 'pages/Vocabularies';
+import VocabularyUpload from 'pages/VocabularyUpload';
+import Monitor from 'pages/Monitor';
+import UserProfile from 'pages/UserProfile';
 
 function App() {
-    const [count, setCount] = useState(0);
-
     return (
-        <>
-            <div>
-                <a href="https://vite.dev" target="_blank">
-                    <img src={viteLogo} className={styles.logo} alt="Vite logo" />
-                </a>
-                <a href="https://react.dev" target="_blank">
-                    <img src={reactLogo} className={classNames(styles.logo, styles.react)} alt="React logo" />
-                </a>
-            </div>
-            <h1>Vite + React</h1>
-            <div className={styles.card}>
-                <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
-                <p>
-                    Edit <code>src/pages/App</code> and save to test HMR
-                </p>
-            </div>
-            <p className={styles['read-the-docs']}>Click on the Vite and React logos to learn more</p>
-        </>
+        <BrowserRouter>
+            <AuthProvider>
+                <Routes>
+                    {/* Public routes */}
+                    <Route path="/login" element={<Login />} />
+
+                    {/* Protected routes */}
+                    <Route
+                        path="/datasets"
+                        element={
+                            <ProtectedRoute>
+                                <Datasets />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/upload"
+                        element={
+                            <ProtectedRoute>
+                                <DatasetUpload />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/:datasetId"
+                        element={
+                            <ProtectedRoute>
+                                <DatasetRecords />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/vocabularies"
+                        element={
+                            <ProtectedRoute>
+                                <Vocabularies />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/vocabularies/upload"
+                        element={
+                            <ProtectedRoute>
+                                <VocabularyUpload />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/monitor"
+                        element={
+                            <ProtectedRoute>
+                                <Monitor />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <UserProfile />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Default redirect */}
+                    <Route path="/" element={<Navigate to="/datasets" replace />} />
+                    <Route path="*" element={<Navigate to="/datasets" replace />} />
+                </Routes>
+            </AuthProvider>
+        </BrowserRouter>
     );
 }
 

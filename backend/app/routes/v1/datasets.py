@@ -11,9 +11,11 @@ from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetCreate,
     DatasetResponse,
+    DatasetStatsResponse,
     DatasetsOutput,
     DatasetOutput,
     RecordCreate,
+    RecordResponse,
     RecordsOutput,
     RecordOutput,
     SourceTermCreate,
@@ -169,6 +171,63 @@ def get_dataset(
     return DatasetOutput(dataset=dataset_response)
 
 
+@router.get(
+    "/{dataset_id}/stats",
+    response_model=DatasetStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get dataset statistics",
+    description="Retrieves statistics for a dataset including record counts and processing status",
+    response_description="Dataset statistics",
+)
+def get_dataset_stats(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Total records count
+    total_records = db.exec(
+        select(func.count()).select_from(Record).where(Record.dataset_id == dataset_id)
+    ).one()
+
+    # Processed count: records with at least one source term
+    processed_count = db.exec(
+        select(func.count(func.distinct(Record.id)))
+        .select_from(Record)
+        .join(SourceTerm, Record.id == SourceTerm.record_id)
+        .where(Record.dataset_id == dataset_id)
+    ).one()
+
+    # Pending review count: records that have not been reviewed yet
+    pending_review_count = db.exec(
+        select(func.count())
+        .select_from(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.reviewed == False)  # noqa: E712
+    ).one()
+
+    # Total extracted terms count
+    extracted_terms_count = db.exec(
+        select(func.count())
+        .select_from(SourceTerm)
+        .join(Record, SourceTerm.record_id == Record.id)
+        .where(Record.dataset_id == dataset_id)
+    ).one()
+
+    return DatasetStatsResponse(
+        total_records=total_records,
+        processed_count=processed_count,
+        pending_review_count=pending_review_count,
+        extracted_terms_count=extracted_terms_count,
+    )
+
+
 @router.delete(
     "/{dataset_id}",
     response_model=MessageOutput,
@@ -309,7 +368,7 @@ def get_records(
         select(func.count()).select_from(Record).where(Record.dataset_id == dataset_id)
     ).one()
 
-    # Get paginated records
+    # Get paginated records with source term counts
     records = db.exec(
         select(Record)
         .where(Record.dataset_id == dataset_id)
@@ -317,8 +376,32 @@ def get_records(
         .limit(pagination.limit)
     ).all()
 
+    # Get source term counts for these records
+    record_ids = [r.id for r in records]
+    term_counts = {}
+    if record_ids:
+        counts = db.exec(
+            select(SourceTerm.record_id, func.count(SourceTerm.id))
+            .where(SourceTerm.record_id.in_(record_ids))
+            .group_by(SourceTerm.record_id)
+        ).all()
+        term_counts = {record_id: count for record_id, count in counts}
+
+    # Build response with term counts
+    records_with_counts = [
+        RecordResponse(
+            id=r.id,
+            text=r.text,
+            uploaded=r.uploaded,
+            dataset_id=r.dataset_id,
+            reviewed=r.reviewed,
+            source_term_count=term_counts.get(r.id, 0),
+        )
+        for r in records
+    ]
+
     return RecordsOutput(
-        records=records,
+        records=records_with_counts,
         pagination=create_pagination_metadata(
             total, pagination.limit, pagination.offset
         ),
@@ -448,6 +531,48 @@ def delete_record(
     return MessageOutput(message="Record deleted successfully")
 
 
+@router.put(
+    "/{dataset_id}/records/{record_id}/review",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Mark record as reviewed",
+    description="Marks a specific record as reviewed or unreviewed",
+    response_description="Confirmation message that the record review status was updated",
+)
+def review_record(
+    dataset_id: int,
+    record_id: int,
+    reviewed: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.id == record_id)
+    )
+    db_record = db.exec(statement).one_or_none()
+
+    if db_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    db_record.reviewed = reviewed
+    db.commit()
+
+    return MessageOutput(
+        message=f"Record marked as {'reviewed' if reviewed else 'not reviewed'}"
+    )
+
+
 # ================================================
 # Source terms routes (nested under records)
 # ================================================
@@ -489,7 +614,13 @@ def create_source_term(
             status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
         )
 
-    source_term = SourceTerm(record_id=record_id, value=term.value, label=term.label)
+    source_term = SourceTerm(
+        record_id=record_id,
+        value=term.value,
+        label=term.label,
+        start_position=term.start_position,
+        end_position=term.end_position,
+    )
     db.add(source_term)
     db.commit()
     db.refresh(source_term)
