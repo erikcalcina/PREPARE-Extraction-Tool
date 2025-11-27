@@ -16,10 +16,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
-    # Database settings
-    DATABASE_URL: Union[str, None] = None
-    ELASTICSEARCH_URL: Union[str, None] = None
-
     # App settings
     SERVICE_NAME: str = "PREPARE USAGI"
     API_V1_STR: str = "/api/v1"
@@ -31,6 +27,35 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+
+    # Database settings
+    DATABASE_URL: str
+    ELASTICSEARCH_URL: str
+
+    # Model settings
+    EMBEDDING_MODEL: Union[str, None] = None
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate that DATABASE_URL is a valid PostgreSQL connection string."""
+        if not v.startswith(("postgresql://", "postgresql+psycopg2://")):
+            raise ValueError(
+                "DATABASE_URL must be a valid PostgreSQL URL starting with "
+                "'postgresql://' or 'postgresql+psycopg2://'"
+            )
+        return v
+
+    @field_validator("ELASTICSEARCH_URL")
+    @classmethod
+    def validate_elasticsearch_url(cls, v: str) -> str:
+        """Validate that ELASTICSEARCH_URL is a valid HTTP(S) URL."""
+        if not v.startswith(("http://", "https://")):
+            raise ValueError(
+                "ELASTICSEARCH_URL must be a valid HTTP(S) URL starting with "
+                "'http://' or 'https://'"
+            )
+        return v
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
@@ -55,12 +80,6 @@ class Settings(BaseSettings):
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         return self
-
-    # ======================================================
-    # Model settings
-    # ======================================================
-
-    EMBEDDING_MODEL: Union[str, None] = None
 
     # ======================================================
     # Environment setting

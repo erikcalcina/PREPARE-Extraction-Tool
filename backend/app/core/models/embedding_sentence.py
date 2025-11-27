@@ -22,7 +22,9 @@ class SentenceEmbeddingModel(BaseModel):
         super().__init__(model_name_or_path)
         self.model = SentenceTransformer(model_name_or_path)
 
-    def embed(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
+    def embed(
+        self, text: Union[str, List[str]]
+    ) -> Union[List[float], List[List[float]]]:
         """Convert text into vector embeddings using SentenceTransformers.
 
         Args:

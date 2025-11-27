@@ -1,7 +1,7 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.settings import settings
-from app.models_db import *
+from app.models_db import *  # noqa: F403
 
 # ================================================
 # Database engine initialization

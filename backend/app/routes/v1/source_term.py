@@ -185,7 +185,6 @@ def create_mapping(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-
     concept = db.get(Concept, concept_id)
     if concept is None:
         raise HTTPException(
