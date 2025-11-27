@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from app.models import MessageOutput
+from app.schemas import MessageOutput
 
 # ================================================
 # Route definitions

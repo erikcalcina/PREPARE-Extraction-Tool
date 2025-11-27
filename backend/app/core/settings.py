@@ -22,8 +22,13 @@ class Settings(BaseSettings):
 
     # App settings
     SERVICE_NAME: str = "PREPARE USAGI"
-    SECRET_KEY: str = secrets.token_urlsafe(32)
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = "local"
+
+    # Security settings
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 

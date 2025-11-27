@@ -17,10 +17,10 @@ from app.core.model_registry import register_models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Register the models
-    register_models()
     # Initialize the database
     init_db()
+    # Register the models
+    register_models()
     # Check connection to elasticsearch
     check_es_connection()
     yield
