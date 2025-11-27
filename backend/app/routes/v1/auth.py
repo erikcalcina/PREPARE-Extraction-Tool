@@ -13,8 +13,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.settings import settings
 from app.core.database import get_session, User
-from app.schemas import MessageOutput, UserRegister, UserResponse
-from sqlmodel import Session, select
+from app.schemas import MessageOutput, UserRegister, UserResponse, UserStatsResponse
+from app.models_db import Dataset, Vocabulary
+from sqlmodel import Session, select, func
 
 
 # ================================================
@@ -280,4 +281,32 @@ async def read_users_me(
         disabled=current_user.disabled,
         created_at=current_user.created_at,
         last_login=current_user.last_login,
+    )
+
+
+@router.get(
+    "/me/stats",
+    response_model=UserStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get current user statistics",
+    description="Retrieves statistics for the currently authenticated user, including counts of datasets and vocabularies they have uploaded",
+    response_description="User statistics with dataset and vocabulary counts",
+)
+async def read_user_stats(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_session),
+):
+    # Count datasets owned by user
+    dataset_count = db.exec(
+        select(func.count(Dataset.id)).where(Dataset.user_id == current_user.id)
+    ).one()
+
+    # Count vocabularies owned by user
+    vocabulary_count = db.exec(
+        select(func.count(Vocabulary.id)).where(Vocabulary.user_id == current_user.id)
+    ).one()
+
+    return UserStatsResponse(
+        dataset_count=dataset_count,
+        vocabulary_count=vocabulary_count,
     )

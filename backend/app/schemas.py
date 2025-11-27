@@ -128,6 +128,13 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = None
 
 
+class UserStatsResponse(BaseModel):
+    """Model for user statistics response."""
+
+    dataset_count: int
+    vocabulary_count: int
+
+
 # ================================================
 # Dataset models
 # ================================================
@@ -165,6 +172,15 @@ class DatasetsOutput(BaseModel):
     pagination: PaginationMetadata
 
 
+class DatasetStatsResponse(BaseModel):
+    """Model for dataset statistics."""
+
+    total_records: int
+    processed_count: int
+    pending_review_count: int
+    extracted_terms_count: int
+
+
 # ================================================
 # Record models
 # ================================================
@@ -176,6 +192,17 @@ class RecordCreate(BaseModel):
     text: str
 
 
+class RecordResponse(BaseModel):
+    """Model for record API responses with metadata."""
+
+    id: int
+    text: str
+    uploaded: datetime
+    dataset_id: int
+    reviewed: bool
+    source_term_count: int = 0
+
+
 class RecordOutput(BaseModel):
     """Wrapper for single record response."""
 
@@ -185,7 +212,7 @@ class RecordOutput(BaseModel):
 class RecordsOutput(BaseModel):
     """Wrapper for paginated list of records."""
 
-    records: List[Record]
+    records: List[RecordResponse]
     pagination: PaginationMetadata
 
 
@@ -260,6 +287,8 @@ class SourceTermCreate(BaseModel):
 
     value: str
     label: str
+    start_position: Optional[int] = None
+    end_position: Optional[int] = None
 
 
 class SourceTermOutput(BaseModel):

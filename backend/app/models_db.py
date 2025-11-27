@@ -67,6 +67,7 @@ class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reviewed: bool = Field(default=False)
 
     # Relationship back to Dataset (many-to-one)
     dataset_id: int = Field(
@@ -95,6 +96,8 @@ class SourceTerm(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     value: str
     label: str
+    start_position: Optional[int] = Field(default=None)
+    end_position: Optional[int] = Field(default=None)
 
     # Relationship back to Record (many-to-one)
     record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
