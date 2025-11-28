@@ -128,7 +128,7 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_session)):
     description="Downloads a vocabulary's concepts as a file",
     response_description="The file containing the vocabulary concepts",
 )
-def download_vocabulary_csv(vocabulary_id: int, db: Session = Depends(get_session)):
+def download_vocabulary_csv(vocabulary_id: int, fomrat: str = "csv", db: Session = Depends(get_session)):
     # TODO: enable vocabulary download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
 
     vocabulary = db.get(Vocabulary, vocabulary_id)

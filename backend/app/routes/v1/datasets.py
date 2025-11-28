@@ -2,7 +2,7 @@ import csv
 import io
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
@@ -49,23 +49,75 @@ def get_datasets(db: Session = Depends(get_session)):
     description="Creates a new dataset with its associated records",
     response_description="Confirmation message that the dataset was created successfully",
 )
-def create_dataset(dataset: DatasetCreate, db: Session = Depends(get_session)):
-    # TODO: Enable uploading datasets in multiple formats (e.g. JSON, CSV, etc.)
-    #       IMPORTANT: At least CSV format should be supported, as this is the
-    #                  format the data is usually provided.
-    database = Dataset(name=dataset.name, labels=dataset.labels)
-    db.add(database)
+def create_dataset(
+    name: str = Form(...),
+    labels: str = Form(...),    # sent as "name,age,location"
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_session)
+):
+    record_list = parse_file(file)
+
+    label_list = [label for label in labels.split(",")]
+    dataset = Dataset(name=name, labels=label_list)
+    db.add(dataset)
     db.commit()
     # Refresh the instance so database now has its generated ID
-    db.refresh(database)
+    db.refresh(dataset)
 
-    for r in dataset.records:
-        record = Record(text=r.text, dataset_id=database.id)
+    for r in record_list:
+        record = Record(text=r.text, dataset_id=dataset.id)
         db.add(record)
     db.flush()
 
     return MessageOutput(message="Dataset created successfully")
 
+async def parse_file(file: UploadFile) -> List[str]:
+    """Parse a file into a list of records."""
+    raw = await file.read()
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        import csv
+        try:
+            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
+            if reader.fieldnames is None or "text" not in reader.fieldnames:
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"CSV must have a 'text' column."
+            )
+
+            records = [row["text"] for row in reader if row.get("text")]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse CSV: {e}"
+        )
+
+    elif filename.endswith(".json"):
+        import json
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, list):
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"JSON file must be a list of records."
+            )
+            
+            records = [
+                r["text"]
+                for r in data
+                if isinstance(r.get("text"), str) and r.get("text").strip()
+            ]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse JSON: {e}"
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+        )
+    
+    return records
 
 @router.get(
     "/{dataset_id}",
@@ -114,7 +166,7 @@ def delete_dataset(dataset_id: int, db: Session = Depends(get_session)):
     description="Downloads a dataset's records as a file",
     response_description="The file containing the dataset records",
 )
-def download_dataset(dataset_id: int, db: Session = Depends(get_session)):
+def download_dataset(dataset_id: int, format: str ="csv", db: Session = Depends(get_session)):
     # TODO: enable dataset download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
 
     dataset = db.get(Dataset, dataset_id)
