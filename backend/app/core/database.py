@@ -1,22 +1,24 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.settings import settings
-from app.models_db import *
+from app.models_db import *  # noqa: F403
 
 # ================================================
 # Database engine initialization
 # ================================================
 
 # TODO: Add echo=False in production
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(settings.DATABASE_URL, echo=settings.ENVIRONMENT == "local")
 
 # ================================================
 # Database functions
 # ================================================
 
+
 def init_db():
     """Initialize the database by creating all tables."""
     SQLModel.metadata.create_all(engine)
+
 
 def get_session():
     """Get a database session from the engine.

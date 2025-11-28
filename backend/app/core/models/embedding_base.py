@@ -1,5 +1,6 @@
 from typing import Union, List
 
+
 class BaseModel:
     """Base class for embedding models.
 
@@ -19,7 +20,9 @@ class BaseModel:
         """
         self.model_name_or_path = model_name_or_path
 
-    def embed(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
+    def embed(
+        self, text: Union[str, List[str]]
+    ) -> Union[List[float], List[List[float]]]:
         """Convert text into vector embeddings.
 
         This method must be implemented by subclasses to provide the actual

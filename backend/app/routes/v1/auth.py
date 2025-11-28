@@ -1,0 +1,283 @@
+from datetime import datetime, timedelta, timezone
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
+
+import jwt
+from pwdlib import PasswordHash
+from jwt.exceptions import InvalidTokenError
+from sqlalchemy.exc import IntegrityError
+
+from app.core.settings import settings
+from app.core.database import get_session, User
+from app.schemas import MessageOutput, UserRegister, UserResponse
+from sqlmodel import Session, select
+
+
+# ================================================
+# Token classes
+# ================================================
+
+
+class TokenData(BaseModel):
+    """Internal model for decoded JWT token data."""
+
+    username: str
+
+
+class Token(BaseModel):
+    """OAuth2 token response model."""
+
+    access_token: str
+    token_type: str
+
+
+# ================================================
+# Helper functions
+# ================================================
+
+password_hash = PasswordHash.recommended()
+
+
+def get_password_hash(password: str) -> str:
+    """Hash a plain text password using the recommended hashing algorithm.
+
+    Args:
+        password: Plain text password to hash
+
+    Returns:
+        Hashed password
+    """
+    return password_hash.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain text password against a hashed password.
+
+    Args:
+        plain_password: Plain text password to verify
+        hashed_password: Hashed password to verify against
+
+    Returns:
+        True if password is verified, False otherwise
+    """
+    return password_hash.verify(plain_password, hashed_password)
+
+
+# ================================================
+# Security functions
+# ================================================
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+def get_user(db, username: str):
+    """
+    Retrieve a user from the database by username.
+
+    Args:
+        db: Database session
+        username: Username to look up
+
+    Returns:
+        User object if found, None otherwise
+    """
+    statement = select(User).where(User.username == username)
+    user = db.exec(statement).one_or_none()
+    return user
+
+
+def authenticate_user(db: Session, username: str, password: str):
+    """
+    Authenticate a user by username and password.
+
+    Args:
+        db: Database session
+        username: Username to authenticate
+        password: Plain text password to verify
+
+    Returns:
+        User object if authentication successful, False otherwise
+    """
+    user = get_user(db, username)
+
+    if user is None:
+        return False
+
+    if not verify_password(password, user.hashed_password):
+        return False
+
+    return user
+
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    """
+    Create a JWT access token.
+
+    Args:
+        data: Dictionary of claims to encode in the token
+        expires_delta: Optional expiration time delta (defaults to 15 minutes)
+
+    Returns:
+        Encoded JWT token string
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    return encoded_jwt
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[Session, Depends(get_session)],
+):
+    """
+    Dependency to get the current authenticated user from JWT token.
+
+    Args:
+        token: JWT token from Authorization header
+        db: Database session
+
+    Returns:
+        Authenticated User object
+
+    Raises:
+        HTTPException: If token is invalid or user not found
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentials_exception
+    user = get_user(db, token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+# ================================================
+# Route definitions
+# ================================================
+
+router = APIRouter()
+
+
+@router.post(
+    "/register",
+    response_model=MessageOutput,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user",
+    description="Creates a new user account with username and password. Password must meet complexity requirements (minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit)",
+    response_description="Confirmation message that the user was registered successfully",
+)
+async def register(user_data: UserRegister, db: Session = Depends(get_session)):
+    # Check if username already exists
+    existing_user = get_user(db, user_data.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+
+    # Hash password and create user
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        username=user_data.username,
+        hashed_password=hashed_password,
+        disabled=False,
+    )
+
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+
+    return MessageOutput(message="User registered successfully")
+
+
+@router.post(
+    "/login",
+    response_model=Token,
+    status_code=status.HTTP_200_OK,
+    summary="Login and get access token",
+    description="Authenticates a user with username and password via OAuth2 password flow. Returns a JWT access token for subsequent API requests and updates the user's last login timestamp",
+    response_description="JWT access token and token type (bearer)",
+)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_session),
+):
+    user = authenticate_user(
+        db, username=form_data.username, password=form_data.password
+    )
+    if not user:
+        # Generic error message to prevent username enumeration
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check if user is disabled
+    if user.disabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
+    # Update last login timestamp
+    user.last_login = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
+
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get current user information",
+    description="Retrieves the profile of the currently authenticated user based on their JWT token. Returns user information excluding sensitive data such as the hashed password",
+    response_description="User profile with id, username, disabled status, and timestamps",
+)
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        disabled=current_user.disabled,
+        created_at=current_user.created_at,
+        last_login=current_user.last_login,
+    )
