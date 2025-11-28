@@ -12,7 +12,15 @@ from sqlmodel import Session, select, func
 from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
-from app.core.database import get_session, Dataset, Record, User, SourceTerm
+from app.core.database import (
+    get_session,
+    Dataset,
+    Record,
+    User,
+    SourceTerm,
+    EntityCluster,
+    ClusteredTerm,
+)
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
@@ -26,8 +34,6 @@ from app.schemas import (
     SourceTermsOutput,
     MessageOutput,
     PaginationParams,
-    EntityCluster,
-    ClusteredTerm,
     create_pagination_metadata,
 )
 
