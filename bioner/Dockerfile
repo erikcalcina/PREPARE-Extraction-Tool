@@ -15,4 +15,5 @@ COPY ./app /code/app
 
 # Set the command to run the lightning server
 #, "--host", "0.0.0.0", "--port", "4000"
-CMD ["python", "-m", "app.main", "--use_gpu"]
+#CMD ["python", "-m", "app.main", "--host", "0.0.0.0", "--port", "8000", "--engine", "gliner", "--model", "urchade/gliner_medium-v2.1", "--use_gpu"]
+CMD ["python", "-m", "app.main", "--host", "0.0.0.0", "--port", "8000", "--engine", "huggingface", "--model", "meta-llama/Llama-3.1-8B-Instruct", "--adapter_model", "app/adapters/Ita_adapter/meta-llama/Llama-3.1-8B-Instruct/", "--use_gpu"]
