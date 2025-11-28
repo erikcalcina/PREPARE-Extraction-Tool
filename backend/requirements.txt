@@ -8,3 +8,5 @@ elasticsearch==8.15.1
 sentence_transformers
 pyjwt
 pwdlib[argon2]
+scikit-learn
+hdbscan
