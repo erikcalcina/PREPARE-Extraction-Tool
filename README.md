@@ -76,15 +76,23 @@ The frontend is built with **TypeScript** and **React 19** using:
     # Edit .env with your configuration
     ```
 
+    Key host configuration variables:
+
+    | Variable | Default | Description |
+    |----------|---------|-------------|
+    | `FRONTEND_HOST` | `http://localhost:3000` | URL where the frontend is accessible |
+    | `BACKEND_HOST` | `http://localhost:8000` | URL where the backend API is accessible |
+    | `EXTRACT_HOST` | `http://localhost:5600` | URL where the extraction service is accessible |
+
 3. **Start all services:**
 
     ```bash
     docker-compose up -d
     ```
 
-4. **Access the application:**
+4. **Access the application:** (using default host values)
 
-    - Frontend: http://localhost:3000
-    - Backend API: http://localhost:8000
+    - Frontend: http://localhost:3000 (configured via `FRONTEND_HOST`)
+    - Backend API: http://localhost:8000 (configured via `BACKEND_HOST`)
     - API Documentation: http://localhost:8000/docs
     - Database Admin: http://localhost:8080

@@ -22,10 +22,10 @@ import type {
 // Configuration
 // ================================================
 
-// Use VITE_API_URL from environment if set (production/docker),
+// Use VITE_BACKEND_HOST from environment if set (production/docker),
 // otherwise use relative path for development (proxied by Vite)
-const API_BASE_URL = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/api/v1`
+const API_BASE_URL = import.meta.env.VITE_BACKEND_HOST
+    ? `${import.meta.env.VITE_BACKEND_HOST}/api/v1`
     : '/api/v1';
 
 // ================================================
