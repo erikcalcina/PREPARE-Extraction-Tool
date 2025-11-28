@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     ELASTICSEARCH_URL: str
 
+    # Service settings
+    EXTRACT_HOST: str = "http://0.0.0.0:5600"
+
     # Model settings
     EMBEDDING_MODEL: Union[str, None] = None
 

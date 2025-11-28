@@ -61,7 +61,6 @@ class ConceptIndexer:
             mapping = {
                 "mappings": {
                     "properties": {
-                        # TODO: check if they are unique
                         "vocab_term_id": {"type": "keyword"},
                         "vocab_term_name": {"type": "text"},
                         "embedding": {
@@ -190,36 +189,40 @@ class ConceptIndexer:
         term_text = term_db.value
         term_embedding = self._calculate_embedding(term_text)
 
-        # query = {
-        #     "size": 10,
-        #     "query": {
-        #         "script_score": {
-        #             "query": {
-        #                 # BM25 match (only text)
-        #                 "multi_match": {
-        #                     "query": term_text,
-        #                     "fields": ["vocab_term_name"]
-        #                 }
-        #             },
-        #             "script": {
-        #                 # + 1.0 to make score positive
-        #                 "source": "0.3 * _score + 0.7 * (cosineSimilarity(params.query_vector, 'embedding') + 1.0)",
-        #                 "params": {"query_vector": term_embedding}
-        #             }
-        #         }
-        #     }
-        # }
         query = {
             "size": 10,
             "query": {
-                "script_score": {
-                    "query": {"match_all": {}},
-                    "script": {
-                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                        "params": {"query_vector": term_embedding},
-                    },
+                "rrf": {
+                    "queries": [
+                        # text search: 1/3
+                        {
+                            "multi_match": {
+                                "query": term_text,
+                                "fields": ["vocab_term_name"]
+                            }
+                        },
+                        # vector search: 2/3
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": term_embedding,
+                                "k": 50,    # returns top 50 results
+                                "num_candidates": 100   # finds 100 most similar
+                            }
+                        },
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": term_embedding,
+                                "k": 50,
+                                "num_candidates": 100
+                            }
+                        }
+                    ],
+                    "rank_constant": 60,    # 1 / (rank_constant + rank)
+                    "window_size": 100  # how many to consider from each category
                 }
-            },
+            }
         }
         response = es_client.search(index=relevant_indices, body=query)
         concept_ids = [int(hit["_id"]) for hit in response["hits"]["hits"]]

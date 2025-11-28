@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.routes.v1 import auth, vocabularies, datasets, source_term, health
+from app.routes.v1 import auth, vocabularies, datasets, source_term, health, bioner
 
 api_router = APIRouter()
 
@@ -17,3 +17,4 @@ api_router.include_router(
 api_router.include_router(
     source_term.router, prefix="/source-terms", tags=["Source Terms"]
 )
+api_router.include_router(bioner.router, prefix="/bioner", tags=["BioNER"])
