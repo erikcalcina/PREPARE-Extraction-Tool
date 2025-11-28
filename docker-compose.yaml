@@ -111,7 +111,7 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_BACKEND_HOST=${BACKEND_HOST?Variable not set}
+        - BACKEND_HOST=${BACKEND_HOST?Variable not set}
         - NODE_ENV=production
 
   # bioner:
