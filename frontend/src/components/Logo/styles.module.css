@@ -1,0 +1,60 @@
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.icon svg {
+    display: block;
+}
+
+.text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.prepare {
+    font-weight: 700;
+    color: #1e3a5f;
+    letter-spacing: 0.5px;
+}
+
+.rehab {
+    font-weight: 400;
+    color: #4CAF50;
+    letter-spacing: 0.5px;
+}
+
+/* Size variants */
+.small .icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.small .prepare,
+.small .rehab {
+    font-size: 12px;
+}
+
+.medium .icon svg {
+    width: 36px;
+    height: 36px;
+}
+
+.medium .prepare,
+.medium .rehab {
+    font-size: 14px;
+}
+
+.large .icon svg {
+    width: 48px;
+    height: 48px;
+}
+
+.large .prepare,
+.large .rehab {
+    font-size: 18px;
+}
+

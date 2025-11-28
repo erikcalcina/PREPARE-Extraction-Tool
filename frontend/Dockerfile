@@ -5,11 +5,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Accept build arguments
-ARG VITE_API_URL
+ARG VITE_BACKEND_HOST
 ARG NODE_ENV=production
 
 # Set environment variables for Vite build
-ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_BACKEND_HOST=$VITE_BACKEND_HOST
 ENV NODE_ENV=$NODE_ENV
 
 # Copy package files
