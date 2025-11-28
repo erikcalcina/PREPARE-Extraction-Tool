@@ -7,6 +7,7 @@ from app.core.settings import settings
 # Model registry
 # ================================================
 
+
 class ModelRegistry:
     """Registry for managing machine learning models.
 
@@ -48,6 +49,7 @@ class ModelRegistry:
         """
         return self.models[model_name]
 
+
 # Initialize the model registry
 model_registry = ModelRegistry()
 
@@ -55,10 +57,13 @@ model_registry = ModelRegistry()
 # Register models function
 # ================================================
 
+
 def register_models():
     """Register all configured models with the model registry."""
     # Register the embedding model
     if settings.EMBEDDING_MODEL is not None:
-        model_registry.add_model("embedding", SentenceEmbeddingModel(settings.EMBEDDING_MODEL))
+        model_registry.add_model(
+            "embedding", SentenceEmbeddingModel(settings.EMBEDDING_MODEL)
+        )
 
     # TODO: Register the other models
