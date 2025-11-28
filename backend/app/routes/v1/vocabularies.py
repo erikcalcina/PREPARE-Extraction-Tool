@@ -212,6 +212,7 @@ def delete_vocabulary(
 )
 def download_vocabulary_csv(
     vocabulary_id: int,
+    format: str = "csv",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):

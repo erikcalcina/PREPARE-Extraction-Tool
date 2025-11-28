@@ -2,7 +2,7 @@ import csv
 import io
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
@@ -107,37 +107,84 @@ def get_datasets(
     response_description="The created dataset with its metadata",
 )
 def create_dataset(
-    dataset: DatasetCreate,
+    name: str = Form(...),
+    labels: str = Form(...),    # sent as "name,age,location"
+    file: UploadFile = File(...), 
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_session)
 ):
-    # TODO: Enable uploading datasets in multiple formats (e.g. JSON, CSV, etc.)
-    #       IMPORTANT: At least CSV format should be supported, as this is the
-    #                  format the data is usually provided.
-    db_dataset = Dataset(
-        name=dataset.name, labels=dataset.labels, user_id=current_user.id
-    )
-    db.add(db_dataset)
+    record_list = parse_file(file)
+
+    label_list = [label for label in labels.split(",")]
+    dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
+    db.add(dataset)
     db.commit()
     # Refresh the instance so database now has its generated ID
-    db.refresh(db_dataset)
+    db.refresh(dataset)
 
-    for r in dataset.records:
-        record = Record(text=r.text, dataset_id=db_dataset.id)
+    for r in record_list:
+        record = Record(text=r.text, dataset_id=dataset.id)
         db.add(record)
     db.commit()
-    db.refresh(db_dataset)
+    db.refresh(dataset)
 
     dataset_response = DatasetResponse(
-        id=db_dataset.id,
-        name=db_dataset.name,
-        uploaded=db_dataset.uploaded,
-        last_modified=db_dataset.last_modified,
-        labels=db_dataset.labels,
-        record_count=len(db_dataset.records),
+        id=dataset.id,
+        name=dataset.name,
+        uploaded=dataset.uploaded,
+        last_modified=dataset.last_modified,
+        labels=dataset.labels,
+        record_count=len(dataset.records),
     )
     return DatasetOutput(dataset=dataset_response)
 
+async def parse_file(file: UploadFile) -> List[str]:
+    """Parse a file into a list of records."""
+    raw = await file.read()
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        import csv
+        try:
+            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
+            if reader.fieldnames is None or "text" not in reader.fieldnames:
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"CSV must have a 'text' column."
+            )
+
+            records = [row["text"] for row in reader if row.get("text")]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse CSV: {e}"
+        )
+
+    elif filename.endswith(".json"):
+        import json
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, list):
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"JSON file must be a list of records."
+            )
+            
+            records = [
+                r["text"]
+                for r in data
+                if isinstance(r.get("text"), str) and r.get("text").strip()
+            ]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse JSON: {e}"
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+        )
+    
+    return records
 
 @router.get(
     "/{dataset_id}",
@@ -206,9 +253,11 @@ def delete_dataset(
 )
 def download_dataset(
     dataset_id: int,
+    format: str ="csv"
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
+
     # TODO: enable dataset download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
 
     dataset = db.get(Dataset, dataset_id)
