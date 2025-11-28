@@ -2,95 +2,196 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import Column, JSON
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import SQLModel, Field, Relationship
 
 
-# SQLModel TABLE DEFINITIONS
+# ================================================
+# SQLModel table definitions
+# ================================================
+
 
 class User(SQLModel, table=True):
+    """
+    User account model for authentication and resource ownership.
+
+    Each user owns datasets and vocabularies. Deleting a user cascades
+    to delete all their owned resources.
+    """
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
+    username: str = Field(unique=True, index=True)
     hashed_password: str
+    disabled: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_login: Optional[datetime] = Field(default=None)
+
+    # Relationships to owned resources
+    datasets: list["Dataset"] = Relationship(back_populates="user")
+    vocabularies: list["Vocabulary"] = Relationship(back_populates="user")
+
 
 class Dataset(SQLModel, table=True):
+    """
+    Dataset model representing a collection of records.
+
+    Datasets are owned by users and contain records (source terms).
+    Deleting a dataset cascades to delete all its records.
+    """
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    labels: List[str] = Field(sa_column=Column(JSON))   # TODO: need to specify a structure for the labels
+    last_modified: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # TODO: need to specify a structure for the labels
+    labels: List[str] = Field(sa_column=Column(JSON))
 
-    # relationship to Records
-    records: list["Record"] = Relationship(back_populates="dataset", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    # Relationship to User (owner)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    user: Optional["User"] = Relationship(back_populates="datasets")
+
+    # Relationship to Records (one-to-many)
+    records: list["Record"] = Relationship(
+        back_populates="dataset",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
 
 class Record(SQLModel, table=True):
+    """
+    Record model representing a text entry within a dataset.
+
+    Records contain the raw text data and can have multiple extracted
+    source terms. Deleting a record cascades to delete all its source terms.
+    """
+
     id: Optional[int] = Field(default=None, primary_key=True)
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    # relationship back to Dataset
-    dataset_id: int = Field(foreign_key="dataset.id", ondelete="CASCADE", nullable=False)
+    # Relationship back to Dataset (many-to-one)
+    dataset_id: int = Field(
+        foreign_key="dataset.id", ondelete="CASCADE", nullable=False
+    )
     dataset: Optional["Dataset"] = Relationship(back_populates="records")
 
-    # relationship to SourceTerm
-    source_terms: list["SourceTerm"] = Relationship(back_populates="record", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    # Relationship to SourceTerms (one-to-many)
+    source_terms: list["SourceTerm"] = Relationship(
+        back_populates="record",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
 
 class SourceTerm(SQLModel, table=True):
+    """
+    Source term model representing an extracted term from a record.
+
+    Source terms can be mapped to vocabulary concepts and can have alternative
+    terms (self-referencing relationship). Deleting a source term cascades to
+    delete all its concept mappings.
+    """
+
     __tablename__ = "source_term"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     value: str
     label: str
 
-    # relationship back to Record
+    # Relationship back to Record (many-to-one)
     record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
     record: Optional["Record"] = Relationship(back_populates="source_terms")
 
-    # relationship to SourceToConceptMap
-    mappings: list["SourceToConceptMap"] = Relationship(back_populates="source_term", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-
-    # self-referencing relationship
-    alternative_id: Optional[int] = Field(default=None, foreign_key="source_term.id", ondelete="SET NULL")
-    alternative: Optional["SourceTerm"] = Relationship(
-        back_populates="alternative_children",
-        sa_relationship_kwargs={"remote_side": "SourceTerm.id"}
+    # Relationship to SourceToConceptMap (one-to-many)
+    mappings: list["SourceToConceptMap"] = Relationship(
+        back_populates="source_term",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
-    # reverse relationship: all SourceTerms that point to this one
+    # Self-referencing relationship for alternative terms
+    alternative_id: Optional[int] = Field(
+        default=None, foreign_key="source_term.id", ondelete="SET NULL"
+    )
+    alternative: Optional["SourceTerm"] = Relationship(
+        back_populates="alternative_children",
+        sa_relationship_kwargs={"remote_side": "SourceTerm.id"},
+    )
+
+    # Reverse relationship: all SourceTerms that point to this one as alternative
     alternative_children: list["SourceTerm"] = Relationship(
         back_populates="alternative"
     )
 
+
 class Vocabulary(SQLModel, table=True):
+    """
+    Vocabulary model representing a standardized terminology system.
+
+    Vocabularies are owned by users and contain concepts that can be mapped
+    to source terms. Deleting a vocabulary cascades to delete all its concepts.
+    """
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     version: str
 
-    # relationship to Concept
-    concepts: list["Concept"] = Relationship(back_populates="vocabulary", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    # Relationship to User (owner)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    user: Optional["User"] = Relationship(back_populates="vocabularies")
+
+    # Relationship to Concepts (one-to-many)
+    concepts: list["Concept"] = Relationship(
+        back_populates="vocabulary",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
 
 class Concept(SQLModel, table=True):
+    """
+    Concept model representing a standardized term within a vocabulary.
+
+    Concepts belong to vocabularies and can be mapped to source terms.
+    Deleting a concept cascades to delete all its source term mappings.
+    """
+
     id: Optional[int] = Field(default=None, primary_key=True)
     vocab_term_id: str
     vocab_term_name: str
-    #vocab_term_*: *
+    # TODO: add other vocab_term fields as needed
 
-    # relationship back to Vocabulary
-    vocabulary_id: int = Field(foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False)
+    # Relationship back to Vocabulary (many-to-one)
+    vocabulary_id: int = Field(
+        foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False
+    )
     vocabulary: Optional["Vocabulary"] = Relationship(back_populates="concepts")
 
-    # relationship to SourceToConceptMap
-    mappings: list["SourceToConceptMap"] = Relationship(back_populates="concept", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    # Relationship to SourceToConceptMap (one-to-many)
+    mappings: list["SourceToConceptMap"] = Relationship(
+        back_populates="concept",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
 
 class SourceToConceptMap(SQLModel, table=True):
+    """
+    Junction table mapping source terms to vocabulary concepts.
+
+    This many-to-many relationship table connects source terms extracted
+    from records to standardized concepts in vocabularies. Mappings are
+    automatically deleted when either the source term or concept is deleted.
+    """
+
     __tablename__ = "source_to_concept_map"
 
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    # relationship back to SourceTerm
-    source_term_id: int = Field(foreign_key="source_term.id", ondelete="CASCADE", nullable=False)
+    # Relationship back to SourceTerm (many-to-one)
+    source_term_id: int = Field(
+        foreign_key="source_term.id", ondelete="CASCADE", nullable=False
+    )
     source_term: Optional["SourceTerm"] = Relationship(back_populates="mappings")
 
-    # relationship back to Concept
-    concept_id: int = Field(foreign_key="concept.id", ondelete="CASCADE", nullable=False)
+    # Relationship back to Concept (many-to-one)
+    concept_id: int = Field(
+        foreign_key="concept.id", ondelete="CASCADE", nullable=False
+    )
     concept: Optional["Concept"] = Relationship(back_populates="mappings")

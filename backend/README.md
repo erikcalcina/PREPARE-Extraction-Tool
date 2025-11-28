@@ -42,10 +42,10 @@ pip install -e .[dev]
 To start the app in development mode, run the following command in the terminal:
 
 ```bash
-fastapi dev ./app/main.py --port 4000
+fastapi dev ./app/main.py --port 8000
 ```
 
-This will start the app and listen it on port 4000.
+This will start the app and listen it on port 8000.
 
 ### API Docs
 
@@ -53,21 +53,21 @@ To see the API documentation, visit either:
 
 | URL                         | Description                                         |
 | --------------------------- | --------------------------------------------------- |
-| http://127.0.0.1:4000/docs  | Automatic iteractive API documentation (Swagger UI) |
-| http://127.0.0.1:4000/redoc | Alternative automatic documentation (ReDoc)         |
+| http://127.0.0.1:8000/docs  | Automatic iteractive API documentation (Swagger UI) |
+| http://127.0.0.1:8000/redoc | Alternative automatic documentation (ReDoc)         |
 
 ## 🚀 Production
 
 To start the app in production mode, run the following command in the terminal:
 
 ```bash
-fastapi run ./app/main.py --port 4000
+fastapi run ./app/main.py --port 8000
 ```
 
 or, alternatively,
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 4000
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 ## 🐳 Dockerize
@@ -76,13 +76,13 @@ To dockerize the app, run the following command in the terminal:
 
 ```bash
 # build the docker image
-docker build -t template .
+docker build -t backend .
 
 # run the docker container
-docker run -d --name template -p 4000:4000 template
+docker run -d --name backend -p 8000:8000 backend
 ```
 
-To change the port, change the `4000` to your desired port.
+To change the port, change the `8000` to your desired port.
 
 [FastAPI]: https://fastapi.tiangolo.com/
 [python]: https://www.python.org/

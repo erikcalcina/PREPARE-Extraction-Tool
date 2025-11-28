@@ -1,121 +1,400 @@
 import csv
 import io
-from typing import List
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
-from app.core.database import get_db
-from app.models import DatasetCreate, MessageOutput, RecordCreate
-from app.models_db import Dataset, Record
+from app.core.database import get_session, Dataset, Record, User, SourceTerm
+from app.routes.v1.auth import get_current_user
+from app.schemas import (
+    DatasetCreate,
+    DatasetResponse,
+    DatasetsOutput,
+    DatasetOutput,
+    RecordCreate,
+    RecordsOutput,
+    RecordOutput,
+    SourceTermCreate,
+    SourceTermOutput,
+    SourceTermsOutput,
+    MessageOutput,
+    PaginationParams,
+    create_pagination_metadata,
+)
+
+# ================================================
+# Route definitions
+# ================================================
+
+router = APIRouter()
 
 
-router = APIRouter(tags=["Datasets"])
+# ================================================
+# Helper functions
+# ================================================
 
 
-# DATASETS
-
-@router.post("/", response_model=MessageOutput, status_code=status.HTTP_201_CREATED)
-def create_dataset(dataset: DatasetCreate, db: Session = Depends(get_db)):
-    db_dataset = Dataset(
-        name=dataset.name,
-        labels=dataset.labels
-    )
-    db.add(db_dataset)
-    db.commit()
-    # Refresh the instance so db_dataset now has its generated ID
-    db.refresh(db_dataset)
-
-    for r in dataset.records:
-        db_record = Record(
-            text=r.text,
-            dataset_id=db_dataset.id
+def verify_dataset_ownership(dataset: Dataset, user_id: int):
+    """Verify that the user owns the dataset."""
+    if dataset.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this dataset",
         )
-        db.add(db_record)
+
+
+# ================================================
+# Datasets routes
+# ================================================
+
+
+@router.get(
+    "/",
+    response_model=DatasetsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="List all datasets",
+    description="Retrieves a list of all datasets owned by the authenticated user",
+    response_description="List of datasets with their metadata",
+)
+def get_datasets(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
+    # Get total count
+    total = db.exec(
+        select(func.count())
+        .select_from(Dataset)
+        .where(Dataset.user_id == current_user.id)
+    ).one()
+
+    # Get paginated datasets
+    datasets = db.exec(
+        select(Dataset)
+        .where(Dataset.user_id == current_user.id)
+        .offset(pagination.offset)
+        .limit(pagination.limit)
+    ).all()
+
+    dataset_responses = [
+        DatasetResponse(
+            id=dataset.id,
+            name=dataset.name,
+            uploaded=dataset.uploaded,
+            last_modified=dataset.last_modified,
+            labels=dataset.labels,
+            record_count=len(dataset.records),
+        )
+        for dataset in datasets
+    ]
+
+    return DatasetsOutput(
+        datasets=dataset_responses,
+        pagination=create_pagination_metadata(
+            total, pagination.limit, pagination.offset
+        ),
+    )
+
+
+@router.post(
+    "/",
+    response_model=DatasetOutput,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new dataset",
+    description="Creates a new dataset with its associated records",
+    response_description="The created dataset with its metadata",
+)
+def create_dataset(
+    name: str = Form(...),
+    labels: str = Form(...),    # sent as "name,age,location"
+    file: UploadFile = File(...), 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    record_list = parse_file(file)
+
+    label_list = [label for label in labels.split(",")]
+    dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
+    db.add(dataset)
     db.commit()
+    # Refresh the instance so database now has its generated ID
+    db.refresh(dataset)
 
-    return MessageOutput(message="Dataset created")
+    for r in record_list:
+        record = Record(text=r.text, dataset_id=dataset.id)
+        db.add(record)
+    db.commit()
+    db.refresh(dataset)
 
-@router.get("/", response_model=List[Dataset])
-def get_datasets(db: Session = Depends(get_db)):
-    datasets = db.exec(select(Dataset)).all()  
-    return datasets
+    dataset_response = DatasetResponse(
+        id=dataset.id,
+        name=dataset.name,
+        uploaded=dataset.uploaded,
+        last_modified=dataset.last_modified,
+        labels=dataset.labels,
+        record_count=len(dataset.records),
+    )
+    return DatasetOutput(dataset=dataset_response)
 
-@router.get("/{dataset_id}", response_model=Dataset)
-def get_dataset(dataset_id: int, db: Session = Depends(get_db)):
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+async def parse_file(file: UploadFile) -> List[str]:
+    """Parse a file into a list of records."""
+    raw = await file.read()
+    filename = file.filename.lower()
 
-    return dataset
+    if filename.endswith(".csv"):
+        import csv
+        try:
+            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
+            if reader.fieldnames is None or "text" not in reader.fieldnames:
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"CSV must have a 'text' column."
+            )
 
-@router.delete("/{dataset_id}", response_model=MessageOutput)
-def delete_dataset(dataset_id: int, db: Session = Depends(get_db)):
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+            records = [row["text"] for row in reader if row.get("text")]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse CSV: {e}"
+        )
+
+    elif filename.endswith(".json"):
+        import json
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, list):
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"JSON file must be a list of records."
+            )
+            
+            records = [
+                r["text"]
+                for r in data
+                if isinstance(r.get("text"), str) and r.get("text").strip()
+            ]
+
+        except Exception as e:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse JSON: {e}"
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+        )
     
+    return records
+
+@router.get(
+    "/{dataset_id}",
+    response_model=DatasetOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get a specific dataset",
+    description="Retrieves a single dataset by its ID",
+    response_description="The requested dataset with its metadata",
+)
+def get_dataset(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+    dataset_response = DatasetResponse(
+        id=dataset.id,
+        name=dataset.name,
+        uploaded=dataset.uploaded,
+        last_modified=dataset.last_modified,
+        labels=dataset.labels,
+        record_count=len(dataset.records),
+    )
+    return DatasetOutput(dataset=dataset_response)
+
+
+@router.delete(
+    "/{dataset_id}",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Delete a dataset",
+    description="Deletes a dataset and all its associated records (cascade delete)",
+    response_description="Confirmation message that the dataset was deleted successfully",
+)
+def delete_dataset(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
     db.delete(dataset)
     db.commit()
     # Cascade delete – also deletes all records linked to this dataset
 
-    return MessageOutput(message="Dataset deleted")
+    return MessageOutput(message="Dataset deleted successfully")
 
-@router.get("/{dataset_id}/download", response_class=StreamingResponse)
-def download_dataset_csv(dataset_id: int, db: Session = Depends(get_db)):
+
+@router.get(
+    "/{dataset_id}/download",
+    response_class=StreamingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Download dataset",
+    description="Downloads a dataset's records as a file",
+    response_description="The file containing the dataset records",
+)
+def download_dataset(
+    dataset_id: int,
+    format: str ="csv"
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+
+    # TODO: enable dataset download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
+
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
 
     records = dataset.records
     if not records:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No records found for this dataset")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No records found for this dataset",
+        )
 
+    # TODO: make a separate function for this
+    # FIX: the solution below does not parse the text correctly. There should be
+    #      one column containing the whole text (parsed accordingly) - newlines
+    #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
     output = io.StringIO()
     writer = csv.writer(output)
 
     writer.writerow(["text"])
     for record in records:
+        # TODO: add other fields (extracted, clusters, etc.)
         writer.writerow([record.text])
-    # TODO: add other fields (extracted, clusters, etc.)
     output.seek(0)
 
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={dataset.name}.csv"}
+        headers={"Content-Disposition": f"attachment; filename={dataset.name}.csv"},
     )
 
 
-# RECORDS
+# ================================================
+# Dataset records routes
+# ================================================
 
-@router.post("/{dataset_id}/records", response_model=MessageOutput, status_code=status.HTTP_201_CREATED)
-def add_record(dataset_id: int, record: RecordCreate, db: Session = Depends(get_db)):
+
+@router.post(
+    "/{dataset_id}/records",
+    response_model=MessageOutput,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a record to a dataset",
+    description="Creates a new record and adds it to the specified dataset",
+    response_description="Confirmation message that the record was added successfully",
+)
+def add_record(
+    dataset_id: int,
+    record: RecordCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
-    
-    record_db = Record(
-        text=record.text,
-        dataset_id=dataset_id
-    )
-    db.add(record_db)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    record = Record(text=record.text, dataset_id=dataset_id)
+    db.add(record)
+
+    # Update dataset's last_modified timestamp
+    dataset.last_modified = datetime.now(timezone.utc)
+
     db.commit()
-    db.refresh(record_db)
+    db.refresh(record)
 
-    return MessageOutput(message="Record added")
+    return MessageOutput(message="Record added successfully")
 
-@router.get("/{dataset_id}/records", response_model=List[Record])
-def get_records(dataset_id: int, db: Session = Depends(get_db)):
+
+@router.get(
+    "/{dataset_id}/records",
+    response_model=RecordsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="List all records in a dataset",
+    description="Retrieves all records belonging to a specific dataset",
+    response_description="List of records in the dataset",
+)
+def get_records(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
-    
-    return dataset.records
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
 
-@router.get("/{dataset_id}/records/{record_id}", response_model=Record)
-def get_record(dataset_id: int, record_id: int, db: Session = Depends(get_db)):
+    # Get total count
+    total = db.exec(
+        select(func.count()).select_from(Record).where(Record.dataset_id == dataset_id)
+    ).one()
+
+    # Get paginated records
+    records = db.exec(
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .offset(pagination.offset)
+        .limit(pagination.limit)
+    ).all()
+
+    return RecordsOutput(
+        records=records,
+        pagination=create_pagination_metadata(
+            total, pagination.limit, pagination.offset
+        ),
+    )
+
+
+@router.get(
+    "/{dataset_id}/records/{record_id}",
+    response_model=RecordOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get a specific record",
+    description="Retrieves a single record by its ID from a specific dataset",
+    response_description="The requested record",
+)
+def get_record(
+    dataset_id: int,
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
     statement = (
         select(Record)
         .where(Record.dataset_id == dataset_id)
@@ -124,29 +403,35 @@ def get_record(dataset_id: int, record_id: int, db: Session = Depends(get_db)):
     record = db.exec(statement).one_or_none()
 
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")   
-    
-    return record
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
 
-@router.delete("/{dataset_id}/records/{record_id}", response_model=MessageOutput)
-def delete_record(dataset_id: int, record_id: int, db: Session = Depends(get_db)):
-    statement = (
-        select(Record)
-        .where(Record.dataset_id == dataset_id)
-        .where(Record.id == record_id)
-    )
-    record = db.exec(statement).one_or_none()
+    return RecordOutput(record=record)
 
-    if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
-    
-    db.delete(record)
-    db.commit()
 
-    return MessageOutput(message="Record deleted")
+@router.put(
+    "/{dataset_id}/records/{record_id}",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Update a record",
+    description="Updates the text content of a specific record in a dataset",
+    response_description="Confirmation message that the record was updated successfully",
+)
+def update_record(
+    dataset_id: int,
+    record_id: int,
+    record: RecordCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
 
-@router.put("/{dataset_id}/records/{record_id}", response_model=MessageOutput)
-def update_record(dataset_id: int, record_id: int, record: RecordCreate, db: Session = Depends(get_db)):
     statement = (
         select(Record)
         .where(Record.dataset_id == dataset_id)
@@ -155,9 +440,165 @@ def update_record(dataset_id: int, record_id: int, record: RecordCreate, db: Ses
     db_record = db.exec(statement).one_or_none()
 
     if db_record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")   
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
     db_record.text = record.text
+
+    # Update dataset's last_modified timestamp
+    dataset.last_modified = datetime.now(timezone.utc)
+
     db.commit()
 
-    return MessageOutput(message="Record updated")
+    return MessageOutput(message="Record updated successfully")
+
+
+@router.delete(
+    "/{dataset_id}/records/{record_id}",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Delete a record",
+    description="Deletes a specific record from a dataset",
+    response_description="Confirmation message that the record was deleted successfully",
+)
+def delete_record(
+    dataset_id: int,
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.id == record_id)
+    )
+    record = db.exec(statement).one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    db.delete(record)
+
+    # Update dataset's last_modified timestamp
+    dataset.last_modified = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return MessageOutput(message="Record deleted successfully")
+
+
+# ================================================
+# Source terms routes (nested under records)
+# ================================================
+
+
+@router.post(
+    "/{dataset_id}/records/{record_id}/source-terms",
+    response_model=SourceTermOutput,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a source term",
+    description="Creates a new source term associated with a specific record",
+    response_description="The created source term",
+)
+def create_source_term(
+    dataset_id: int,
+    record_id: int,
+    term: SourceTermCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Verify record exists and belongs to dataset
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.id == record_id)
+    )
+    record = db.exec(statement).one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    source_term = SourceTerm(record_id=record_id, value=term.value, label=term.label)
+    db.add(source_term)
+    db.commit()
+    db.refresh(source_term)
+    return SourceTermOutput(source_term=source_term)
+
+
+@router.get(
+    "/{dataset_id}/records/{record_id}/source-terms",
+    response_model=SourceTermsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="List all source terms for a record",
+    description="Retrieves all source terms associated with a specific record",
+    response_description="List of source terms in the record",
+)
+def get_source_terms(
+    dataset_id: int,
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Verify record exists and belongs to dataset
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.id == record_id)
+    )
+    record = db.exec(statement).one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Record not found"
+        )
+
+    # Get total count
+    total = db.exec(
+        select(func.count())
+        .select_from(SourceTerm)
+        .where(SourceTerm.record_id == record_id)
+    ).one()
+
+    # Get paginated source terms
+    source_terms = db.exec(
+        select(SourceTerm)
+        .where(SourceTerm.record_id == record_id)
+        .offset(pagination.offset)
+        .limit(pagination.limit)
+    ).all()
+
+    return SourceTermsOutput(
+        source_terms=source_terms,
+        pagination=create_pagination_metadata(
+            total, pagination.limit, pagination.offset
+        ),
+    )
