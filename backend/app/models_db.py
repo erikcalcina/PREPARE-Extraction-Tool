@@ -65,6 +65,8 @@ class Record(SQLModel, table=True):
     """
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    patient_id: str
+    seq_number: Optional[str] = Field(default=None)
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed: bool = Field(default=False)
@@ -205,6 +207,7 @@ class SourceToConceptMap(SQLModel, table=True):
 # ================================================
 
 
+# TODO: check if this should be a SQLModel table or only a Pydantic model
 class ClusteredTerm(SQLModel):
     """
        One term variant inside a cluster.
@@ -219,6 +222,7 @@ class ClusteredTerm(SQLModel):
     record_ids: List[int]  # IDs of records that contain this text
 
 
+# TODO: check if this should be a SQLModel table or only a Pydantic model
 class EntityCluster(SQLModel):
     """
     One cluster of similar terms (entities). Example:

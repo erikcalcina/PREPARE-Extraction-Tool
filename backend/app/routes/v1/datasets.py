@@ -59,6 +59,76 @@ def verify_dataset_ownership(dataset: Dataset, user_id: int):
         )
 
 
+async def parse_file(file: UploadFile) -> List[str]:
+    """Parse a file into a list of records."""
+    raw = await file.read()
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        import csv
+
+        try:
+            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
+            if reader.fieldnames is None or "text" not in reader.fieldnames:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"CSV must have a 'text' column.",
+                )
+
+            records = [
+                RecordCreate(
+                    patient_id=row.get("patient_id"),
+                    seq_number=row.get("seq_number"),
+                    text=row.get("text"),
+                )
+                for row in reader
+                if row.get("patient_id") and row.get("text")
+            ]
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to parse CSV: {e}",
+            )
+
+    elif filename.endswith(".json"):
+        import json
+
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, list):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"JSON file must be a list of records.",
+                )
+
+            records = [
+                RecordCreate(
+                    patient_id=r.get("patient_id"),
+                    seq_number=r.get("seq_number"),
+                    text=r.get("text"),
+                )
+                for r in data
+                if r.get("patient_id")
+                and r.get("text")
+                and isinstance(r.get("text"), str)
+                and r.get("text").strip()
+            ]
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to parse JSON: {e}",
+            )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+        )
+
+    return records
+
+
 # ================================================
 # Datasets routes
 # ================================================
@@ -120,14 +190,14 @@ def get_datasets(
     description="Creates a new dataset with its associated records",
     response_description="The created dataset with its metadata",
 )
-def create_dataset(
+async def create_dataset(
     name: str = Form(...),
     labels: str = Form(...),  # sent as "name,age,location"
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    record_list = parse_file(file)
+    record_list = await parse_file(file)
 
     label_list = [label for label in labels.split(",")]
     dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
@@ -137,7 +207,12 @@ def create_dataset(
     db.refresh(dataset)
 
     for r in record_list:
-        record = Record(text=r.text, dataset_id=dataset.id)
+        record = Record(
+            patient_id=r.patient_id,
+            seq_number=r.seq_number,
+            text=r.text,
+            dataset_id=dataset.id,
+        )
         db.add(record)
     db.commit()
     db.refresh(dataset)
@@ -151,61 +226,6 @@ def create_dataset(
         record_count=len(dataset.records),
     )
     return DatasetOutput(dataset=dataset_response)
-
-
-async def parse_file(file: UploadFile) -> List[str]:
-    """Parse a file into a list of records."""
-    raw = await file.read()
-    filename = file.filename.lower()
-
-    if filename.endswith(".csv"):
-        import csv
-
-        try:
-            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
-            if reader.fieldnames is None or "text" not in reader.fieldnames:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"CSV must have a 'text' column.",
-                )
-
-            records = [row["text"] for row in reader if row.get("text")]
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to parse CSV: {e}",
-            )
-
-    elif filename.endswith(".json"):
-        import json
-
-        try:
-            data = json.loads(raw)
-            if not isinstance(data, list):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"JSON file must be a list of records.",
-                )
-
-            records = [
-                r["text"]
-                for r in data
-                if isinstance(r.get("text"), str) and r.get("text").strip()
-            ]
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to parse JSON: {e}",
-            )
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
-        )
-
-    return records
 
 
 @router.get(
@@ -378,11 +398,11 @@ def download_dataset(
 
 @router.post(
     "/{dataset_id}/records",
-    response_model=MessageOutput,
+    response_model=RecordOutput,
     status_code=status.HTTP_201_CREATED,
     summary="Add a record to a dataset",
     description="Creates a new record and adds it to the specified dataset",
-    response_description="Confirmation message that the record was added successfully",
+    response_description="The created record with its metadata",
 )
 def add_record(
     dataset_id: int,
@@ -397,16 +417,21 @@ def add_record(
         )
     verify_dataset_ownership(dataset, current_user.id)
 
-    record = Record(text=record.text, dataset_id=dataset_id)
-    db.add(record)
+    new_record = Record(
+        patient_id=record.patient_id,
+        seq_number=record.seq_number,
+        text=record.text,
+        dataset_id=dataset_id,
+    )
+    db.add(new_record)
 
     # Update dataset's last_modified timestamp
     dataset.last_modified = datetime.now(timezone.utc)
 
     db.commit()
-    db.refresh(record)
+    db.refresh(new_record)
 
-    return MessageOutput(message="Record added successfully")
+    return RecordOutput(record=new_record)
 
 
 @router.get(

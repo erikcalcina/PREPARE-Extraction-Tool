@@ -189,6 +189,8 @@ class DatasetStatsResponse(BaseModel):
 class RecordCreate(BaseModel):
     """Model for creating a new record (source term)."""
 
+    patient_id: str
+    seq_number: Optional[str] = None
     text: str
 
 
