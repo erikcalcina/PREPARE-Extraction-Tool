@@ -91,18 +91,33 @@ class SourceTerm(SQLModel, table=True):
     Source terms can be mapped to vocabulary concepts and can have alternative
     terms (self-referencing relationship). Deleting a source term cascades to
     delete all its concept mappings.
+
+    NEW:? check once more 
+    SourceTerm can now belong to a persistent Cluster (cluster of similar terms).
+    This allows stable clustering (no need to rerun HDBSCAN every time) 
+     and incremental assignment of new terms to existing clusters. (if it is correct :)
     """
 
     __tablename__ = "source_term"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Term text, "ACL rupture"
     value: str
+
+    # Entity label, category: "Diagnosis", "Procedure"
     label: str
+
+    # Optional character offsets inside the original text
     start_position: Optional[int] = Field(default=None)
     end_position: Optional[int] = Field(default=None)
 
-    # Relationship back to Record (many-to-one)
-    record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
+    # Relationship back to Record (many-to-one) 
+    record_id: int = Field(
+        foreign_key="record.id",
+        ondelete="CASCADE",
+        nullable=False
+    )
     record: Optional["Record"] = Relationship(back_populates="source_terms")
 
     # Relationship to SourceToConceptMap (one-to-many)
@@ -113,17 +128,30 @@ class SourceTerm(SQLModel, table=True):
 
     # Self-referencing relationship for alternative terms
     alternative_id: Optional[int] = Field(
-        default=None, foreign_key="source_term.id", ondelete="SET NULL"
+        default=None,
+        foreign_key="source_term.id",
+        ondelete="SET NULL"
     )
     alternative: Optional["SourceTerm"] = Relationship(
         back_populates="alternative_children",
         sa_relationship_kwargs={"remote_side": "SourceTerm.id"},
     )
 
-    # Reverse relationship: all SourceTerms that point to this one as alternative
+    # Reverse relationship: all SourceTerms that reference this one as alternative
     alternative_children: list["SourceTerm"] = Relationship(
         back_populates="alternative"
     )
+    # Link SourcwTerm → Cluster (optional, because clustering may be done later or incrementally)
+
+    cluster_id: Optional[int] = Field(
+        default=None,
+        foreign_key="cluster.id",     # refers to Cluster table 
+        ondelete="SET NULL",
+        nullable=True
+    )
+
+    # Relationship to the Cluster this term belongs to
+    cluster: Optional["Cluster"] = Relationship(back_populates="source_terms")
 
 
 class Vocabulary(SQLModel, table=True):
@@ -207,36 +235,61 @@ class SourceToConceptMap(SQLModel, table=True):
 # ================================================
 
 
+class Cluster(SQLModel, table=True):
+    """
+    Persistent cluster of similar source terms.
+
+    A cluster belongs to one dataset and one entity label (e.g. 'Diagnosis').
+    It has:
+      - dataset_id: which dataset it belongs to
+      - label: entity type
+      - title: human-editable name of the cluster
+      - source_terms: all SourceTerms assigned to this cluster
+    """
+
+    __tablename__ = "cluster"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # dataset this cluster belongs to
+    dataset_id: int = Field(
+        foreign_key="dataset.id",
+        nullable=False,
+        index=True
+    )
+
+    # label/category: Diagnosis, Procedure, BodyPart...
+    label: str
+
+    # human-readable cluster name (default = first term in cluster)
+    title: str
+
+    # list of terms that belong to this cluster
+    source_terms: list["SourceTerm"] = Relationship(
+        back_populates="cluster"
+    )
+
+
+
 # TODO: check if this should be a SQLModel table or only a Pydantic model
-class ClusteredTerm(SQLModel):
-    """
-       One term variant inside a cluster.
-    one row in the "Clustered terms" table
-       in the UI: the text itself, how often it appears and in which revords ?
-    """
-
-    term_id: int  # ID of SourceTerm in the database
-    text: str  # The actual term text (SourceTerm.value)
-    frequency: int  # How many times this text appears in all SourceTerms
-    n_records: int  # In how many distinct records this text appears
-    record_ids: List[int]  # IDs of records that contain this text
+# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
+# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
+# ClusteredTerm and EntityCluster are just response objects, created in memory.
+# So they should be Pydantic models, not SQLModel tables.
+class ClusteredTerm(BaseModel):
+    term_id: int
+    text: str
+    frequency: int
+    n_records: int
+    record_ids: List[int]
 
 
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-class EntityCluster(SQLModel):
-    """
-    One cluster of similar terms (entities). Example:
-      label = "Diagnosis"
-      main_term = "ruptura LCA"
-      terms = all different spellings or languages of the same idea.
-    """
+class EntityCluster(BaseModel):
+    id: int
+    main_term: str
+    label: str
+    total_terms: int
+    total_occurrences: int
+    n_records: int
+    terms: List[ClusteredTerm]
 
-    id: int  # Cluster index (0....)
-    main_term: str  # Suggested main/representative term
-    label: str  # Entity label/category (diagnosis, operation...)
-
-    total_terms: int  # How many different term variants in this cluster
-    total_occurrences: int  # Sum of frequencies of all terms in this cluster
-    n_records: int  # In how many records any term from this cluster appears
-
-    terms: List[ClusteredTerm] = Field(default_factory=list)
