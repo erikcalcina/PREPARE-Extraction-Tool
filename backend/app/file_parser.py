@@ -1,15 +1,17 @@
-import csv
-import io
 from collections import defaultdict
 from datetime import datetime, timezone
-
+from dateutil import parser
 from typing import List, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
-from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
+from fastapi import HTTPException, status, UploadFile
 
 from app.models_db import Record, Concept
+
+
+# ================================================
+# Functions to parse uploaded files
+# ================================================
+
 
 async def parse_records_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[Record]:
     """Parse a file into a list of records."""
@@ -29,7 +31,9 @@ async def parse_records_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[R
         )
 
 def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
+    """Parse a CSV file into a list of records."""
     import csv
+    import io
 
     try:
         reader = csv.DictReader(io.StringIO(text))
@@ -57,9 +61,10 @@ def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
 
             records.append(
                 Record(
-                patient_id=row.get("patient_id"),
+                patient_id=row["patient_id"],
                 seq_number=row.get("seq_number"),
-                text=row.get("text")
+                date=row.get("date"),
+                text=row["text"]
                 )
             ) 
 
@@ -72,6 +77,7 @@ def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
         )
     
 def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
+    """Parse a JSON file into a list of records."""
     import json
 
     try:
@@ -102,12 +108,22 @@ def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
         for obj in items:
             if not obj.get("text"):
                 continue
+            
+            date_str = obj.get("date")
+            if date_str:
+                try:
+                    date_obj = parser.parse(date_str)
+                except (ValueError, TypeError):
+                    date_obj = None
+            else:
+                date_obj = None
 
             records.append(
                 Record(
-                patient_id=obj.get("patient_id"),
+                patient_id=obj["patient_id"],
                 seq_number=obj.get("seq_number"),
-                text=obj.get("text")
+                date=date_obj,
+                text=obj["text"]
                 )
             ) 
 
@@ -120,8 +136,10 @@ def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
         )
     
 
-async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[Record]:
+async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[Concept]:
+    """Parse a CSV file into a list of concepts."""
     import csv
+    import io
 
     raw = await file.read()
     filename = file.filename.lower()
@@ -133,7 +151,7 @@ async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[
         )
 
     try:
-        reader = csv.DictReader(io.StringIO(text))
+        reader = csv.DictReader(io.StringIO(text), delimiter="\t")
         csv_columns = reader.fieldnames
 
         if csv_columns is None:
@@ -152,17 +170,18 @@ async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[
 
         concepts = []
         for row in reader:
-            if not row.get("concept_id"):
+            value = row.get("concept_name")
+            if not value or not value.strip():
                 continue
 
             concepts.append(
                 Concept(
                     vocab_term_id=row["concept_id"],
-                    vocab_term_name=row["concept_name"],
+                    vocab_term_name=value,
                     domain_id=row["domain_id"],
                     concept_class_id=row["concept_class_id"],
-                    standard_concept=row["standard_concept"],
-                    concept_code=row["concept_code"],
+                    standard_concept=row.get("standard_concept"),
+                    concept_code=row.get("concept_code"),
                     valid_start_date=datetime.strptime(row["valid_start_date"], "%Y%m%d"),
                     valid_end_date=datetime.strptime(row["valid_end_date"], "%Y%m%d"),
                     invalid_reason=row.get("invalid_reason")
@@ -176,3 +195,8 @@ async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {e}",
         )
+    
+
+# ================================================
+# Functions to download files
+# ================================================
