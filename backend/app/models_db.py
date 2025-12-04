@@ -161,7 +161,13 @@ class Concept(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     vocab_term_id: str
     vocab_term_name: str
-    # TODO: add other vocab_term fields as needed
+    domain_id: str
+    concept_class_id: str
+    standard_concept: str
+    concept_code: str
+    valid_start_date: datetime
+    valid_end_date: datetime
+    invalid_reason: Optional[str]
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(

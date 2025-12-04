@@ -107,6 +107,7 @@ def create_vocabulary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
+    REQUIRED_COLUMNS = ["concept_id", "concept_name", "domain_id", "concept_class_id", "standard_concept", "concept_code", "valid_start_date", "valid_end_date", "invalid_reason"]
     vocabulary = Vocabulary(
         name=vocab.name, version=vocab.version, user_id=current_user.id
     )

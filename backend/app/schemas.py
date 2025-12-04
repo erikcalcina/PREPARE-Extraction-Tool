@@ -264,8 +264,13 @@ class ConceptCreate(BaseModel):
 
     vocab_term_id: str
     vocab_term_name: str
-    # TODO: add other fields as needed
-
+    domain_id: str
+    concept_class_id: str
+    standard_concept: str
+    concept_code: str
+    valid_start_date: datetime
+    valid_end_date: datetime
+    invalid_reason: Optional[str]
 
 class ConceptOutput(BaseModel):
     """Wrapper for single concept response."""
