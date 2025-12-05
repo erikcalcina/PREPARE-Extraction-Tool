@@ -191,6 +191,7 @@ class RecordCreate(BaseModel):
 
     patient_id: str
     seq_number: Optional[str] = None
+    date: Optional[datetime]
     text: str
 
 
@@ -198,6 +199,9 @@ class RecordResponse(BaseModel):
     """Model for record API responses with metadata."""
 
     id: int
+    patient_id: str
+    seq_number: Optional[str]
+    date: Optional[datetime]
     text: str
     uploaded: datetime
     dataset_id: int
@@ -264,8 +268,13 @@ class ConceptCreate(BaseModel):
 
     vocab_term_id: str
     vocab_term_name: str
-    # TODO: add other fields as needed
-
+    domain_id: str
+    concept_class_id: str
+    standard_concept: Optional[str]
+    concept_code: Optional[str]
+    valid_start_date: datetime
+    valid_end_date: datetime
+    invalid_reason: Optional[str]
 
 class ConceptOutput(BaseModel):
     """Wrapper for single concept response."""

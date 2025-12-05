@@ -21,6 +21,7 @@ from app.core.database import (
     EntityCluster,
     ClusteredTerm,
 )
+from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
@@ -57,77 +58,7 @@ def verify_dataset_ownership(dataset: Dataset, user_id: int):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this dataset",
         )
-
-
-async def parse_file(file: UploadFile) -> List[str]:
-    """Parse a file into a list of records."""
-    raw = await file.read()
-    filename = file.filename.lower()
-
-    if filename.endswith(".csv"):
-        import csv
-
-        try:
-            reader = csv.reader(io.StringIO(raw.decode("utf-8")))
-            if reader.fieldnames is None or "text" not in reader.fieldnames:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"CSV must have a 'text' column.",
-                )
-
-            records = [
-                RecordCreate(
-                    patient_id=row.get("patient_id"),
-                    seq_number=row.get("seq_number"),
-                    text=row.get("text"),
-                )
-                for row in reader
-                if row.get("patient_id") and row.get("text")
-            ]
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to parse CSV: {e}",
-            )
-
-    elif filename.endswith(".json"):
-        import json
-
-        try:
-            data = json.loads(raw)
-            if not isinstance(data, list):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"JSON file must be a list of records.",
-                )
-
-            records = [
-                RecordCreate(
-                    patient_id=r.get("patient_id"),
-                    seq_number=r.get("seq_number"),
-                    text=r.get("text"),
-                )
-                for r in data
-                if r.get("patient_id")
-                and r.get("text")
-                and isinstance(r.get("text"), str)
-                and r.get("text").strip()
-            ]
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to parse JSON: {e}",
-            )
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
-        )
-
-    return records
-
+ 
 
 # ================================================
 # Datasets routes
@@ -197,7 +128,8 @@ async def create_dataset(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    record_list = await parse_file(file)
+    REQUIRED_COLUMNS = ["text", "patient_id"]
+    record_list = await parse_records_file(file, REQUIRED_COLUMNS)
 
     label_list = [label for label in labels.split(",")]
     dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
@@ -206,14 +138,11 @@ async def create_dataset(
     # Refresh the instance so database now has its generated ID
     db.refresh(dataset)
 
+    dataset_id = dataset.id
     for r in record_list:
-        record = Record(
-            patient_id=r.patient_id,
-            seq_number=r.seq_number,
-            text=r.text,
-            dataset_id=dataset.id,
-        )
-        db.add(record)
+        r.dataset_id = dataset_id
+    
+    db.add_all(record_list)
     db.commit()
     db.refresh(dataset)
 
@@ -420,6 +349,7 @@ def add_record(
     new_record = Record(
         patient_id=record.patient_id,
         seq_number=record.seq_number,
+        date=record.date,
         text=record.text,
         dataset_id=dataset_id,
     )
@@ -483,6 +413,9 @@ def get_records(
     records_with_counts = [
         RecordResponse(
             id=r.id,
+            patient_id=r.patient_id,
+            seq_number=r.seq_number,
+            date=r.date,
             text=r.text,
             uploaded=r.uploaded,
             dataset_id=r.dataset_id,

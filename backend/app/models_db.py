@@ -67,6 +67,7 @@ class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_id: str
     seq_number: Optional[str] = Field(default=None)
+    date: Optional[datetime]
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed: bool = Field(default=False)
@@ -189,7 +190,13 @@ class Concept(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     vocab_term_id: str
     vocab_term_name: str
-    # TODO: add other vocab_term fields as needed
+    domain_id: str
+    concept_class_id: str
+    standard_concept: Optional[str]
+    concept_code: Optional[str]
+    valid_start_date: datetime
+    valid_end_date: datetime
+    invalid_reason: Optional[str]
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(
