@@ -13,24 +13,24 @@ from app.models_db import Record, Concept
 # ================================================
 
 
-async def parse_records_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[Record]:
+async def parse_records_file(file: UploadFile, required_columns: list) -> List[Record]:
     """Parse a file into a list of records."""
     raw = await file.read()
     filename = file.filename.lower()
     text = raw.decode("utf-8")
 
     if filename.endswith(".csv"):
-        return parse_csv(text, REQUIRED_COLUMNS)
+        return parse_csv(text, required_columns)
         
     elif filename.endswith(".json"):
-        return parse_json(text, REQUIRED_COLUMNS)
+        return parse_json(text, required_columns)
 
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
         )
 
-def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
+def parse_csv(text, required_columns) -> List[Record]:
     """Parse a CSV file into a list of records."""
     import csv
     import io
@@ -46,7 +46,7 @@ def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
             )
         
         # Validate that all required fields exist
-        missing = [col for col in REQUIRED_COLUMNS if col not in csv_columns]
+        missing = [col for col in required_columns if col not in csv_columns]
 
         if missing:
             raise HTTPException(
@@ -85,7 +85,7 @@ def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
             detail=f"Failed to parse CSV: {e}",
         )
     
-def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
+def parse_json(text, required_columns) -> List[Record]:
     """Parse a JSON file into a list of records."""
     import json
 
@@ -105,7 +105,7 @@ def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
             )
         
         # Validate that all required fields exist
-        missing = [col for col in REQUIRED_COLUMNS if col not in items[0]]
+        missing = [col for col in required_columns if col not in items[0]]
 
         if missing:
             raise HTTPException(
@@ -145,7 +145,7 @@ def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
         )
     
 
-async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[Concept]:
+async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[Concept]:
     """Parse a CSV file into a list of concepts."""
     import csv
     import io
@@ -169,7 +169,7 @@ async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[
                 detail="CSV file is empty or invalid.",
             )
         
-        missing = [col for col in REQUIRED_COLUMNS if col not in csv_columns]
+        missing = [col for col in required_columns if col not in csv_columns]
 
         if missing:
             raise HTTPException(
