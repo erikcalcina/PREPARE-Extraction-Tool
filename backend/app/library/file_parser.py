@@ -51,19 +51,28 @@ def parse_csv(text, REQUIRED_COLUMNS) -> List[Record]:
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {", ".join(missing)}",
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
 
         records = []
         for row in reader:
             if not row.get("text"):
                 continue
+            
+            date_str = row.get("date")
+            if date_str:
+                try:
+                    date_obj = parser.parse(date_str)
+                except (ValueError, TypeError):
+                    date_obj = None
+            else:
+                date_obj = None
 
             records.append(
                 Record(
                 patient_id=row["patient_id"],
                 seq_number=row.get("seq_number"),
-                date=row.get("date"),
+                date=date_obj,
                 text=row["text"]
                 )
             ) 
@@ -101,7 +110,7 @@ def parse_json(text, REQUIRED_COLUMNS) -> List[Record]:
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {", ".join(missing)}",
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
         
         records = []
@@ -165,7 +174,7 @@ async def parse_concepts_file(file: UploadFile, REQUIRED_COLUMNS: list) -> List[
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {", ".join(missing)}",
+                detail=f"Missing required columns: {', '.join(missing)}",
             )
 
         concepts = []

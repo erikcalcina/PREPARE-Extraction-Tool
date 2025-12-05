@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
 from app.core.database import get_session, Vocabulary, Concept, User
-from app.file_parser import parse_concepts_file
+from app.library.file_parser import parse_concepts_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,

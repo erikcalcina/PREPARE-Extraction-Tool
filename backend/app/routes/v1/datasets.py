@@ -21,7 +21,7 @@ from app.core.database import (
     EntityCluster,
     ClusteredTerm,
 )
-from app.file_parser import parse_records_file
+from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
