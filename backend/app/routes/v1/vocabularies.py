@@ -1,11 +1,12 @@
 import io
 import csv
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
 from app.core.database import get_session, Vocabulary, Concept, User
+from app.library.file_parser import parse_concepts_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,
@@ -102,13 +103,18 @@ def get_vocabularies(
     description="Creates a new vocabulary with its concepts and indexes them in Elasticsearch for semantic search",
     response_description="Confirmation message that the vocabulary was created successfully",
 )
-def create_vocabulary(
-    vocab: VocabularyCreate,
+async def create_vocabulary(
+    name: str = Form(...),
+    version: str = Form(...),
+    file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
+    REQUIRED_COLUMNS = ["concept_id", "concept_name", "domain_id", "concept_class_id", "standard_concept", "concept_code", "valid_start_date", "valid_end_date", "invalid_reason"]
+    concept_list = await parse_concepts_file(file, REQUIRED_COLUMNS)
+
     vocabulary = Vocabulary(
-        name=vocab.name, version=vocab.version, user_id=current_user.id
+        name=name, version=version, user_id=current_user.id
     )
     db.add(vocabulary)
     db.commit()
@@ -118,21 +124,17 @@ def create_vocabulary(
     # NEED TO CREATE NEW ES ALSO
     indexer.create_concept_index(vocabulary_id)
 
-    for c in vocab.concepts:
-        concept = Concept(
-            vocabulary_id=vocabulary_id,
-            vocab_term_id=c.vocab_term_id,
-            vocab_term_name=c.vocab_term_name,
-        )
-        db.add(concept)
-    db.commit()
-
-    for c in vocabulary.concepts:
-        db.refresh(c)
+    for c in concept_list:
+        c.vocabulary_id = vocabulary_id
+    
+    db.add_all(concept_list)
+    db.flush()
     db.refresh(vocabulary)
-
+    
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
+
+    db.commit()
 
     vocabulary_response = VocabularyResponse(
         id=vocabulary.id,
@@ -324,16 +326,24 @@ def add_concept(
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
 
-    concept = Concept(
+    new_concept = Concept(
         vocabulary_id=vocabulary_id,
         vocab_term_id=concept.vocab_term_id,
         vocab_term_name=concept.vocab_term_name,
+        domain_id=concept.vocab_term_name,
+        concept_class_id=concept.concept_class_id,
+        standard_concept=concept.standard_concept,
+        concept_code=concept.concept_code,
+        valid_start_date=concept.valid_start_date,
+        valid_end_date=concept.valid_end_date,
+        invalid_reason=concept.invalid_reason
     )
-    db.add(concept)
-    db.commit()
-    db.refresh(concept)
 
-    indexer.add_concept_to_index(vocabulary_id, concept)
+    db.add(new_concept)
+    db.commit()
+    db.refresh(new_concept)
+
+    indexer.add_concept_to_index(vocabulary_id, new_concept)
 
     return MessageOutput(message="Concept added successfully")
 
