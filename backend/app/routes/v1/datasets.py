@@ -938,3 +938,330 @@ def get_entity_clusters(
     clusters.sort(key=lambda c: c.total_occurrences, reverse=True)
 
     return clusters
+
+@router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
+def rebuild_clusters(
+    dataset_id: int,
+    label: str,
+    db: Session = Depends(get_db)
+):
+
+
+    # --- 1. Check dataset exists ---
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found"
+        )
+
+    # --- 2. Load SourceTerms belonging to this dataset & label ---
+    source_terms = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.label == label)
+    ).all()
+
+    if not source_terms:
+        raise HTTPException(
+            status_code=400,
+            detail="No source terms for this label in dataset"
+        )
+
+    # --- 3. Prepare texts ---
+    texts = [st.value for st in source_terms]
+    if len(texts) == 0:
+        return MessageOutput(message="No terms to cluster")
+
+    # --- 4. TF-IDF vectorization ---
+    vectorizer = TfidfVectorizer(
+        analyzer="char",
+        ngram_range=(3, 5)
+    )
+    X = vectorizer.fit_transform(texts)
+
+    # --- 5. Run HDBSCAN ---
+    clusterer = HDBSCAN(
+        min_cluster_size=2,
+        metric="euclidean",
+        cluster_selection_method="eom"
+    )
+
+    labels_arr = clusterer.fit_predict(X.toarray())
+
+    # --- 6. Remove existing clusters for this dataset/label ---
+    old_clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == label)
+    ).all()
+
+    for c in old_clusters:
+        db.delete(c)
+    db.commit()
+
+    # --- 7. Create new clusters ---
+    cluster_map = {}  # cluster_id (from HDBSCAN) -> Cluster DB object
+
+    for st, cid in zip(source_terms, labels_arr):
+
+        if cid == -1:
+            # HDBSCAN noise → create a one-term cluster
+            new_cluster = Cluster(
+                dataset_id=dataset_id,
+                label=label,
+                title=st.value  # title = first term
+            )
+            db.add(new_cluster)
+            db.commit()
+            db.refresh(new_cluster)
+
+            st.cluster_id = new_cluster.id
+            db.add(st)
+            continue
+
+        # If the cluster is seen for the first time
+        if cid not in cluster_map:
+            new_cluster = Cluster(
+                dataset_id=dataset_id,
+                label=label,
+                title=st.value  # first term becomes cluster title
+            )
+            db.add(new_cluster)
+            db.commit()
+            db.refresh(new_cluster)
+
+            cluster_map[cid] = new_cluster
+
+        # Assign term to cluster
+        st.cluster_id = cluster_map[cid].id
+        db.add(st)
+
+    db.commit()
+
+    return MessageOutput(message="Clusters rebuilt and saved to database.")
+
+@router.post("/source-terms/{term_id}/auto-assign", response_model=MessageOutput)
+def auto_assign_source_term(
+    term_id: int,
+    db: Session = Depends(get_db),
+):
+    # --- 1. Load term ---
+    term = db.get(SourceTerm, term_id)
+    if not term:
+        raise HTTPException(404, "SourceTerm not found")
+
+    # Need record.dataset_id
+    record = db.get(Record, term.record_id)
+    if not record:
+        raise HTTPException(404, "Record not found")
+
+    dataset_id = record.dataset_id
+
+    # --- 2. Load all clusters for this dataset + label ---
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == term.label)
+    ).all()
+
+    if not clusters:
+        # No clusters yet → create new
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=term.label,
+            title=term.value,
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
+
+        term.cluster_id = new_cluster.id
+        db.add(term)
+        db.commit()
+
+        return MessageOutput(
+            message=f"Created new cluster {new_cluster.id} (no existing clusters)."
+        )
+
+    # --- 3. Build TF-IDF vectors for comparing term with clusters ---
+    # Collect representatives: cluster.title is our reference term
+    cluster_titles = [c.title for c in clusters]
+    items_for_vectorizer = cluster_titles + [term.value]
+
+    vectorizer = TfidfVectorizer(
+        analyzer="char",
+        ngram_range=(3, 5)
+    )
+    X = vectorizer.fit_transform(items_for_vectorizer)
+
+    # Last vector = term
+    term_vec = X[-1]
+
+    # All others = cluster titles
+    cluster_vecs = X[:-1]
+
+    # --- 4. Compute cosine similarity ---
+    from sklearn.metrics.pairwise import cosine_similarity
+
+    sims = cosine_similarity(term_vec, cluster_vecs)[0]
+
+    best_idx = sims.argmax()
+    best_sim = sims[best_idx]
+    best_cluster = clusters[best_idx]
+
+    # --- 5. Threshold decision ---
+    SIM_THRESHOLD = 0.35  # Can tune later
+
+    if best_sim >= SIM_THRESHOLD:
+        # Assign to existing cluster
+        term.cluster_id = best_cluster.id
+        db.add(term)
+        db.commit()
+
+        return MessageOutput(
+            message=f"Assigned to existing cluster {best_cluster.id} (sim={best_sim:.2f})"
+        )
+
+    else:
+        # --- 6. Create a new cluster ---
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=term.label,
+            title=term.value
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
+
+        term.cluster_id = new_cluster.id
+        db.add(term)
+        db.commit()
+
+        return MessageOutput(
+            message=f"Created new cluster {new_cluster.id} (sim={best_sim:.2f})"
+        )
+    
+@router.get("/{dataset_id}/clusters/db")
+def get_clusters_from_db(
+    dataset_id: int,
+    label: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns all persistent clusters for a dataset.
+    If label is provided, filters by entity label
+    """
+
+    query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+
+    if label:
+        query = query.where(Cluster.label == label)
+
+    clusters = db.exec(query).all()
+
+    return clusters
+
+@router.get("/clusters/{cluster_id}")
+def get_cluster(cluster_id: int, db: Session = Depends(get_db)):
+    """
+    Returns details of a single cluster, including its source terms.
+    """
+
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster:
+        raise HTTPException(404, "Cluster not found")
+
+    return cluster
+
+@router.put("/clusters/{cluster_id}")
+def rename_cluster(
+    cluster_id: int,
+    title: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Rename a cluster (title).
+    """
+
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster:
+        raise HTTPException(404, "Cluster not found")
+
+    cluster.title = title
+    db.add(cluster)
+    db.commit()
+
+    return {"message": "Cluster renamed", "new_title": title}
+
+@router.delete("/clusters/{cluster_id}")
+def delete_cluster(
+    cluster_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a cluster.
+    All SourceTerms in this cluster get cluster_id = NULL.
+    """
+
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster:
+        raise HTTPException(404, "Cluster not found")
+
+    # Remove cluster assignment from terms
+    for term in cluster.source_terms:
+        term.cluster_id = None
+        db.add(term)
+
+    db.delete(cluster)
+    db.commit()
+
+    return {"message": "Cluster deleted"}
+
+@router.post("/source-terms/{term_id}/assign/{cluster_id}")
+def assign_term_to_cluster(
+    term_id: int,
+    cluster_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Manually assign a SourceTerm to a cluster.
+    """
+
+    term = db.get(SourceTerm, term_id)
+    cluster = db.get(Cluster, cluster_id)
+
+    if not term:
+        raise HTTPException(404, "SourceTerm not found")
+    if not cluster:
+        raise HTTPException(404, "Cluster not found")
+
+    term.cluster_id = cluster.id
+    db.add(term)
+    db.commit()
+
+    return {"message": f"SourceTerm {term_id} assigned to cluster {cluster_id}"}
+
+@router.post("/source-terms/{term_id}/unassign")
+def unassign_term_from_cluster(
+    term_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Remove SourceTerm from its cluster (cluster_id = NULL).
+    """
+
+    term = db.get(SourceTerm, term_id)
+    if not term:
+        raise HTTPException(404, "SourceTerm not found")
+
+    term.cluster_id = None
+    db.add(term)
+    db.commit()
+
+    return {"message": f"SourceTerm {term_id} unassigned from cluster"}
+
+
+
+
