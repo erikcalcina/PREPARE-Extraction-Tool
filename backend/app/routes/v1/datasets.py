@@ -3,16 +3,18 @@ import io
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
 from app.core.database import (
+    get_db,
     get_session,
     Dataset,
     Record,

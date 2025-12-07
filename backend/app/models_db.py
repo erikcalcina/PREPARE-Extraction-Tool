@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlalchemy import Column, JSON
 from sqlmodel import SQLModel, Field, Relationship
-
+from pydantic import BaseModel
 
 # ================================================
 # SQLModel table definitions

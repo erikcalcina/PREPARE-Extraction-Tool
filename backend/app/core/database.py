@@ -13,7 +13,9 @@ engine = create_engine(settings.DATABASE_URL, echo=settings.ENVIRONMENT == "loca
 # ================================================
 # Database functions
 # ================================================
-
+def get_db():
+    with Session(engine) as session:
+        yield session
 
 def init_db():
     """Initialize the database by creating all tables."""
