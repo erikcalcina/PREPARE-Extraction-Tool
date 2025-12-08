@@ -68,7 +68,14 @@ def extract_entities_from_record(
         )
     # Save entities as source terms
     source_terms = [
-        SourceTerm(record_id=record_id, value=entity["text"], label=entity["label"])
+        SourceTerm(record_id=record_id, 
+                   value=entity["text"], 
+                   label=entity["label"],
+                   start_position=entity.get("start"),
+                   end_position=entity.get("end"),
+                   score=entity.get("score"),
+                   automatically_extracted=True
+                   )
         for entity in entities
     ]
     db.add_all(source_terms)
@@ -115,7 +122,13 @@ def extract_entities_from_records(
             )
 
         source_terms.extend(
-            SourceTerm(record_id=record.id, value=entity["text"], label=entity["label"])
+            SourceTerm(record_id=record.id, value=entity["text"],
+                       label=entity["label"],
+                       start_position=entity.get("start"),
+                       end_position=entity.get("end"),
+                       score=entity.get("score"),
+                       automatically_extracted=True
+                       )
             for entity in entities
         )
 
