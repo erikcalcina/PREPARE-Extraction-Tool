@@ -191,7 +191,7 @@ class RecordCreate(BaseModel):
 
     patient_id: str
     seq_number: Optional[str] = None
-    date: Optional[datetime]
+    date: Optional[datetime] = None
     text: str
 
 
@@ -200,8 +200,8 @@ class RecordResponse(BaseModel):
 
     id: int
     patient_id: str
-    seq_number: Optional[str]
-    date: Optional[datetime]
+    seq_number: Optional[str] = None
+    date: Optional[datetime] = None
     text: str
     uploaded: datetime
     dataset_id: int
@@ -270,11 +270,11 @@ class ConceptCreate(BaseModel):
     vocab_term_name: str
     domain_id: str
     concept_class_id: str
-    standard_concept: Optional[str]
-    concept_code: Optional[str]
+    standard_concept: Optional[str] = None
+    concept_code: Optional[str] = None
     valid_start_date: datetime
     valid_end_date: datetime
-    invalid_reason: Optional[str]
+    invalid_reason: Optional[str] = None
 
 
 class ConceptOutput(BaseModel):
