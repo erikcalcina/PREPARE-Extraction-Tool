@@ -276,6 +276,7 @@ class ConceptCreate(BaseModel):
     valid_end_date: datetime
     invalid_reason: Optional[str]
 
+
 class ConceptOutput(BaseModel):
     """Wrapper for single concept response."""
 
@@ -324,3 +325,26 @@ class MapRequest(BaseModel):
     """Request model for mapping source terms to vocabularies."""
 
     vocabulary_ids: List[int]
+
+
+# TODO: check if this should be a SQLModel table or only a Pydantic model
+# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
+# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
+# ClusteredTerm and EntityCluster are just response objects, created in memory.
+# So they should be Pydantic models, not SQLModel tables.
+class ClusteredTerm(BaseModel):
+    term_id: int
+    text: str
+    frequency: int
+    n_records: int
+    record_ids: List[int]
+
+
+class EntityCluster(BaseModel):
+    id: int
+    main_term: str
+    label: str
+    total_terms: int
+    total_occurrences: int
+    n_records: int
+    terms: List[ClusteredTerm]

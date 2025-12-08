@@ -93,9 +93,9 @@ class SourceTerm(SQLModel, table=True):
     terms (self-referencing relationship). Deleting a source term cascades to
     delete all its concept mappings.
 
-    NEW:? check once more 
+    NEW:? check once more
     SourceTerm can now belong to a persistent Cluster (cluster of similar terms).
-    This allows stable clustering (no need to rerun HDBSCAN every time) 
+    This allows stable clustering (no need to rerun HDBSCAN every time)
      and incremental assignment of new terms to existing clusters. (if it is correct :)
     """
 
@@ -113,12 +113,8 @@ class SourceTerm(SQLModel, table=True):
     start_position: Optional[int] = Field(default=None)
     end_position: Optional[int] = Field(default=None)
 
-    # Relationship back to Record (many-to-one) 
-    record_id: int = Field(
-        foreign_key="record.id",
-        ondelete="CASCADE",
-        nullable=False
-    )
+    # Relationship back to Record (many-to-one)
+    record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
     record: Optional["Record"] = Relationship(back_populates="source_terms")
 
     # Relationship to SourceToConceptMap (one-to-many)
@@ -129,9 +125,7 @@ class SourceTerm(SQLModel, table=True):
 
     # Self-referencing relationship for alternative terms
     alternative_id: Optional[int] = Field(
-        default=None,
-        foreign_key="source_term.id",
-        ondelete="SET NULL"
+        default=None, foreign_key="source_term.id", ondelete="SET NULL"
     )
     alternative: Optional["SourceTerm"] = Relationship(
         back_populates="alternative_children",
@@ -146,9 +140,9 @@ class SourceTerm(SQLModel, table=True):
 
     cluster_id: Optional[int] = Field(
         default=None,
-        foreign_key="cluster.id",     # refers to Cluster table 
+        foreign_key="cluster.id",  # refers to Cluster table
         ondelete="SET NULL",
-        nullable=True
+        nullable=True,
     )
 
     # Relationship to the Cluster this term belongs to
@@ -259,11 +253,7 @@ class Cluster(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
     # dataset this cluster belongs to
-    dataset_id: int = Field(
-        foreign_key="dataset.id",
-        nullable=False,
-        index=True
-    )
+    dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
 
     # label/category: Diagnosis, Procedure, BodyPart...
     label: str
@@ -272,31 +262,4 @@ class Cluster(SQLModel, table=True):
     title: str
 
     # list of terms that belong to this cluster
-    source_terms: list["SourceTerm"] = Relationship(
-        back_populates="cluster"
-    )
-
-
-
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
-# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
-# ClusteredTerm and EntityCluster are just response objects, created in memory.
-# So they should be Pydantic models, not SQLModel tables.
-class ClusteredTerm(BaseModel):
-    term_id: int
-    text: str
-    frequency: int
-    n_records: int
-    record_ids: List[int]
-
-
-class EntityCluster(BaseModel):
-    id: int
-    main_term: str
-    label: str
-    total_terms: int
-    total_occurrences: int
-    n_records: int
-    terms: List[ClusteredTerm]
-
+    source_terms: list["SourceTerm"] = Relationship(back_populates="cluster")
