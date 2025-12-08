@@ -3,7 +3,7 @@ import io
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
@@ -12,15 +12,7 @@ from sqlmodel import Session, select, func
 from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
-from app.core.database import (
-    get_session,
-    Dataset,
-    Record,
-    User,
-    SourceTerm,
-    EntityCluster,
-    ClusteredTerm,
-)
+from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
@@ -37,6 +29,8 @@ from app.schemas import (
     SourceTermsOutput,
     MessageOutput,
     PaginationParams,
+    EntityCluster,
+    ClusteredTerm,
     create_pagination_metadata,
 )
 
@@ -58,7 +52,7 @@ def verify_dataset_ownership(dataset: Dataset, user_id: int):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this dataset",
         )
- 
+
 
 # ================================================
 # Datasets routes
@@ -141,7 +135,7 @@ async def create_dataset(
     dataset_id = dataset.id
     for r in record_list:
         r.dataset_id = dataset_id
-    
+
     db.add_all(record_list)
     db.commit()
     db.refresh(dataset)
@@ -872,21 +866,14 @@ def get_entity_clusters(
 
     return clusters
 
-@router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
-def rebuild_clusters(
-    dataset_id: int,
-    label: str,
-    db: Session = Depends(get_db)
-):
 
+@router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
+def rebuild_clusters(dataset_id: int, label: str, db: Session = Depends(get_session)):
 
     # --- 1. Check dataset exists ---
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
-        raise HTTPException(
-            status_code=404,
-            detail="Dataset not found"
-        )
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
     # --- 2. Load SourceTerms belonging to this dataset & label ---
     source_terms = db.exec(
@@ -898,8 +885,7 @@ def rebuild_clusters(
 
     if not source_terms:
         raise HTTPException(
-            status_code=400,
-            detail="No source terms for this label in dataset"
+            status_code=400, detail="No source terms for this label in dataset"
         )
 
     # --- 3. Prepare texts ---
@@ -908,17 +894,12 @@ def rebuild_clusters(
         return MessageOutput(message="No terms to cluster")
 
     # --- 4. TF-IDF vectorization ---
-    vectorizer = TfidfVectorizer(
-        analyzer="char",
-        ngram_range=(3, 5)
-    )
+    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
     X = vectorizer.fit_transform(texts)
 
     # --- 5. Run HDBSCAN ---
     clusterer = HDBSCAN(
-        min_cluster_size=2,
-        metric="euclidean",
-        cluster_selection_method="eom"
+        min_cluster_size=2, metric="euclidean", cluster_selection_method="eom"
     )
 
     labels_arr = clusterer.fit_predict(X.toarray())
@@ -942,9 +923,7 @@ def rebuild_clusters(
         if cid == -1:
             # HDBSCAN noise → create a one-term cluster
             new_cluster = Cluster(
-                dataset_id=dataset_id,
-                label=label,
-                title=st.value  # title = first term
+                dataset_id=dataset_id, label=label, title=st.value  # title = first term
             )
             db.add(new_cluster)
             db.commit()
@@ -959,7 +938,7 @@ def rebuild_clusters(
             new_cluster = Cluster(
                 dataset_id=dataset_id,
                 label=label,
-                title=st.value  # first term becomes cluster title
+                title=st.value,  # first term becomes cluster title
             )
             db.add(new_cluster)
             db.commit()
@@ -975,10 +954,11 @@ def rebuild_clusters(
 
     return MessageOutput(message="Clusters rebuilt and saved to database.")
 
+
 @router.post("/source-terms/{term_id}/auto-assign", response_model=MessageOutput)
 def auto_assign_source_term(
     term_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_session),
 ):
     # --- 1. Load term ---
     term = db.get(SourceTerm, term_id)
@@ -1023,10 +1003,7 @@ def auto_assign_source_term(
     cluster_titles = [c.title for c in clusters]
     items_for_vectorizer = cluster_titles + [term.value]
 
-    vectorizer = TfidfVectorizer(
-        analyzer="char",
-        ngram_range=(3, 5)
-    )
+    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
     X = vectorizer.fit_transform(items_for_vectorizer)
 
     # Last vector = term
@@ -1059,11 +1036,7 @@ def auto_assign_source_term(
 
     else:
         # --- 6. Create a new cluster ---
-        new_cluster = Cluster(
-            dataset_id=dataset_id,
-            label=term.label,
-            title=term.value
-        )
+        new_cluster = Cluster(dataset_id=dataset_id, label=term.label, title=term.value)
         db.add(new_cluster)
         db.commit()
         db.refresh(new_cluster)
@@ -1075,12 +1048,11 @@ def auto_assign_source_term(
         return MessageOutput(
             message=f"Created new cluster {new_cluster.id} (sim={best_sim:.2f})"
         )
-    
+
+
 @router.get("/{dataset_id}/clusters/db")
 def get_clusters_from_db(
-    dataset_id: int,
-    label: Optional[str] = None,
-    db: Session = Depends(get_db)
+    dataset_id: int, label: Optional[str] = None, db: Session = Depends(get_session)
 ):
     """
     Returns all persistent clusters for a dataset.
@@ -1096,8 +1068,9 @@ def get_clusters_from_db(
 
     return clusters
 
+
 @router.get("/clusters/{cluster_id}")
-def get_cluster(cluster_id: int, db: Session = Depends(get_db)):
+def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
     """
     Returns details of a single cluster, including its source terms.
     """
@@ -1108,11 +1081,12 @@ def get_cluster(cluster_id: int, db: Session = Depends(get_db)):
 
     return cluster
 
+
 @router.put("/clusters/{cluster_id}")
 def rename_cluster(
     cluster_id: int,
     title: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_session),
 ):
     """
     Rename a cluster (title).
@@ -1128,11 +1102,9 @@ def rename_cluster(
 
     return {"message": "Cluster renamed", "new_title": title}
 
+
 @router.delete("/clusters/{cluster_id}")
-def delete_cluster(
-    cluster_id: int,
-    db: Session = Depends(get_db)
-):
+def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
     """
     Delete a cluster.
     All SourceTerms in this cluster get cluster_id = NULL.
@@ -1152,11 +1124,12 @@ def delete_cluster(
 
     return {"message": "Cluster deleted"}
 
+
 @router.post("/source-terms/{term_id}/assign/{cluster_id}")
 def assign_term_to_cluster(
     term_id: int,
     cluster_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_session),
 ):
     """
     Manually assign a SourceTerm to a cluster.
@@ -1176,10 +1149,11 @@ def assign_term_to_cluster(
 
     return {"message": f"SourceTerm {term_id} assigned to cluster {cluster_id}"}
 
+
 @router.post("/source-terms/{term_id}/unassign")
 def unassign_term_from_cluster(
     term_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_session),
 ):
     """
     Remove SourceTerm from its cluster (cluster_id = NULL).
@@ -1194,7 +1168,3 @@ def unassign_term_from_cluster(
     db.commit()
 
     return {"message": f"SourceTerm {term_id} unassigned from cluster"}
-
-
-
-
