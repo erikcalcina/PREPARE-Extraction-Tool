@@ -7,7 +7,9 @@
   font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
-.header svg {
+.logo {
+  width: 32px;
+  height: 32px;
   display: inline-block;
   vertical-align: top;
 }
