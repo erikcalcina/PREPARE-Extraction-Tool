@@ -9,10 +9,19 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
-from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
+from app.core.database import (
+    get_session,
+    Dataset,
+    Record,
+    User,
+    SourceTerm,
+    EntityCluster,
+    ClusteredTerm,
+)
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
