@@ -10,6 +10,7 @@ from app.core.database import (
     SourceTerm,
     SourceToConceptMap,
     User,
+    Cluster,
 )
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
@@ -31,6 +32,15 @@ def verify_record_ownership(record: Record, user_id: int):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this record",
+        )
+
+
+def verify_cluster_ownership(cluster: Cluster, user_id: int):
+    """Verify that the user owns the cluster."""
+    if cluster.dataset.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this cluster",
         )
 
 
@@ -208,4 +218,70 @@ def create_mapping(
     return MessageOutput(message="Mapping created successfully")
 
 
-# TODO: add function to retrive the mappings
+# ================================================
+# Cluster assignment routes
+# ================================================
+
+
+@router.post("/{term_id}/assign-cluster/{cluster_id}", response_model=MessageOutput)
+def assign_term_to_cluster(
+    term_id: int,
+    cluster_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Manually assign a SourceTerm to a cluster.
+    """
+
+    term = db.get(SourceTerm, term_id)
+    cluster = db.get(Cluster, cluster_id)
+
+    if not term:
+        raise HTTPException(status_code=404, detail=f"SourceTerm {term_id} not found")
+    if not cluster:
+        raise HTTPException(status_code=404, detail=f"Cluster {cluster_id} not found")
+
+    # Verify ownership through term -> record -> dataset -> user
+    record = db.get(Record, term.record_id)
+    if not record:
+        raise HTTPException(
+            status_code=404, detail=f"Record {term.record_id} not found"
+        )
+    verify_record_ownership(record, current_user.id)
+    verify_cluster_ownership(cluster, current_user.id)
+
+    term.cluster_id = cluster.id
+    db.add(term)
+    db.commit()
+
+    return MessageOutput(
+        message=f"SourceTerm {term_id} assigned to cluster {cluster_id}"
+    )
+
+
+@router.post("/{term_id}/unassign-cluster", response_model=MessageOutput)
+def unassign_term_from_cluster(
+    term_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Remove SourceTerm from its cluster (cluster_id = NULL).
+    """
+
+    term = db.get(SourceTerm, term_id)
+    if not term:
+        raise HTTPException(404, "SourceTerm not found")
+
+    # Verify ownership through term -> record -> dataset -> user
+    record = db.get(Record, term.record_id)
+    if not record:
+        raise HTTPException(404, "Record not found")
+    verify_record_ownership(record, current_user.id)
+
+    term.cluster_id = None
+    db.add(term)
+    db.commit()
+
+    return MessageOutput(message=f"SourceTerm {term_id} unassigned from cluster")

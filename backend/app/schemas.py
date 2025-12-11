@@ -1,7 +1,7 @@
 import re
 from math import ceil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator
@@ -348,3 +348,50 @@ class EntityCluster(BaseModel):
     total_occurrences: int
     n_records: int
     terms: List[ClusteredTerm]
+
+
+# ================================================
+# Clustering response models
+# ================================================
+
+
+class ClusterResponse(BaseModel):
+    """Rich cluster data for frontend display"""
+
+    id: int
+    dataset_id: int
+    label: str
+    title: str
+    total_terms: int
+    total_occurrences: int
+    unique_records: int
+    terms: List[ClusteredTerm]
+
+
+class ClustersOutput(BaseModel):
+    """Complete clustering state for a dataset/label"""
+
+    clusters: List[ClusterResponse]
+    unclustered_terms: List[ClusteredTerm]
+    total_terms: int
+    labels: List[str]
+
+
+class ClusterCreateRequest(BaseModel):
+    """Create new empty cluster manually"""
+
+    label: str
+    title: str
+
+
+class ClusterMergeRequest(BaseModel):
+    """Merge multiple clusters"""
+
+    cluster_ids: List[int] = Field(min_length=2)
+    new_title: str
+
+
+class BatchAssignRequest(BaseModel):
+    """Bulk term assignments"""
+
+    assignments: List[Dict[str, int]]

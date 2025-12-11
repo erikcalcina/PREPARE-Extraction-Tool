@@ -6,6 +6,7 @@ import ProtectedRoute from 'components/ProtectedRoute';
 import Login from 'pages/Login';
 import Datasets from 'pages/Datasets';
 import DatasetRecords from 'pages/DatasetRecords';
+import DatasetClusters from 'pages/DatasetClusters';
 import DatasetUpload from 'pages/DatasetUpload';
 import Vocabularies from 'pages/Vocabularies';
 import VocabularyUpload from 'pages/VocabularyUpload';
@@ -42,6 +43,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <DatasetRecords />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/:datasetId/clusters"
+                        element={
+                            <ProtectedRoute>
+                                <DatasetClusters />
                             </ProtectedRoute>
                         }
                     />
