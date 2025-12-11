@@ -6,7 +6,10 @@ from datetime import datetime, timezone
 from typing import List, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse 
+
+from app.core.database import get_db
+from app.models import DatasetCreate, MessageOutput, RecordCreate
 from sqlmodel import Session, select, func
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -15,6 +18,7 @@ from hdbscan import HDBSCAN
 from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
+from app.models_db import Dataset, Record, SourceTerm, User
 from app.schemas import (
     DatasetResponse,
     DatasetStatsResponse,
@@ -868,12 +872,15 @@ def get_entity_clusters(
 
 
 @router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
-def rebuild_clusters(dataset_id: int, label: str, db: Session = Depends(get_session)):
+def rebuild_clusters(dataset_id: int, label: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)):
 
     # --- 1. Check dataset exists ---
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # Check that current_user owns this dataset
+    verify_dataset_ownership(dataset, current_user.id)
 
     # --- 2. Load SourceTerms belonging to this dataset & label ---
     source_terms = db.exec(
@@ -958,6 +965,7 @@ def rebuild_clusters(dataset_id: int, label: str, db: Session = Depends(get_sess
 @router.post("/source-terms/{term_id}/auto-assign", response_model=MessageOutput)
 def auto_assign_source_term(
     term_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     # --- 1. Load term ---
@@ -967,6 +975,11 @@ def auto_assign_source_term(
 
     # Need record.dataset_id
     record = db.get(Record, term.record_id)
+
+    dataset = db.get(Dataset, record.dataset_id)
+
+    verify_dataset_ownership(dataset, current_user.id)
+
     if not record:
         raise HTTPException(404, "Record not found")
 
@@ -1052,12 +1065,18 @@ def auto_assign_source_term(
 
 @router.get("/{dataset_id}/clusters/db")
 def get_clusters_from_db(
-    dataset_id: int, label: Optional[str] = None, db: Session = Depends(get_session)
+    dataset_id: int, label: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)
 ):
     """
     Returns all persistent clusters for a dataset.
     If label is provided, filters by entity label
     """
+
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(404, "Dataset not found")
+
+    verify_dataset_ownership(dataset, current_user.id)
 
     query = select(Cluster).where(Cluster.dataset_id == dataset_id)
 
@@ -1070,7 +1089,11 @@ def get_clusters_from_db(
 
 
 @router.get("/clusters/{cluster_id}")
-def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
+def get_cluster(
+    cluster_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
     """
     Returns details of a single cluster, including its source terms.
     """
@@ -1078,6 +1101,8 @@ def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+    
+    verify_dataset_ownership(cluster.dataset, current_user.id)
 
     return cluster
 
@@ -1086,6 +1111,7 @@ def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
 def rename_cluster(
     cluster_id: int,
     title: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     """
@@ -1095,6 +1121,8 @@ def rename_cluster(
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+    
+    verify_dataset_ownership(cluster.dataset, current_user.id)
 
     cluster.title = title
     db.add(cluster)
@@ -1104,7 +1132,7 @@ def rename_cluster(
 
 
 @router.delete("/clusters/{cluster_id}")
-def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
+def delete_cluster(cluster_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)):
     """
     Delete a cluster.
     All SourceTerms in this cluster get cluster_id = NULL.
@@ -1113,6 +1141,8 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+    
+    verify_dataset_ownership(cluster.dataset, current_user.id)
 
     # Remove cluster assignment from terms
     for term in cluster.source_terms:
@@ -1129,6 +1159,7 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
 def assign_term_to_cluster(
     term_id: int,
     cluster_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     """
@@ -1142,6 +1173,9 @@ def assign_term_to_cluster(
         raise HTTPException(404, "SourceTerm not found")
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+    
+    dataset = cluster.dataset  
+    verify_dataset_ownership(dataset, current_user.id)
 
     term.cluster_id = cluster.id
     db.add(term)
@@ -1153,6 +1187,7 @@ def assign_term_to_cluster(
 @router.post("/source-terms/{term_id}/unassign")
 def unassign_term_from_cluster(
     term_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     """
@@ -1162,6 +1197,11 @@ def unassign_term_from_cluster(
     term = db.get(SourceTerm, term_id)
     if not term:
         raise HTTPException(404, "SourceTerm not found")
+    
+    record = db.get(Record, term.record_id)
+    dataset = db.get(Dataset, record.dataset_id)
+
+    verify_dataset_ownership(dataset, current_user.id)
 
     term.cluster_id = None
     db.add(term)
