@@ -72,6 +72,7 @@ def get_vocabularies(
     vocabularies = db.exec(
         select(Vocabulary)
         .where(Vocabulary.user_id == current_user.id)
+        .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -126,11 +127,11 @@ async def create_vocabulary(
 
     for c in concept_list:
         c.vocabulary_id = vocabulary_id
-    
+
     db.add_all(concept_list)
     db.flush()
     db.refresh(vocabulary)
-    
+
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
 
@@ -293,6 +294,7 @@ def get_concepts(
     concepts = db.exec(
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
+        .order_by(Concept.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()

@@ -19,8 +19,6 @@ from app.core.database import (
     Record,
     User,
     SourceTerm,
-    EntityCluster,
-    ClusteredTerm,
 )
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
@@ -42,6 +40,8 @@ from app.schemas import (
     ClusteredTerm,
     create_pagination_metadata,
 )
+
+from app.library.file_parser import download_annotated_dataset
 
 # ================================================
 # Route definitions
@@ -92,6 +92,7 @@ def get_datasets(
     datasets = db.exec(
         select(Dataset)
         .where(Dataset.user_id == current_user.id)
+        .order_by(Dataset.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -126,7 +127,7 @@ def get_datasets(
 )
 async def create_dataset(
     name: str = Form(...),
-    labels: str = Form(...),  # sent as "name,age,location"
+    labels: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -134,7 +135,7 @@ async def create_dataset(
     REQUIRED_COLUMNS = ["text", "patient_id"]
     record_list = await parse_records_file(file, REQUIRED_COLUMNS)
 
-    label_list = [label for label in labels.split(",")]
+    label_list = [label.strip() for label in labels.split(",")]
     dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
     db.add(dataset)
     db.commit()
@@ -302,19 +303,19 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-    download_anotated_dataset(records, format)
+    output = download_annotated_dataset(records, format)
     # TODO: make a separate function for this
     # FIX: the solution below does not parse the text correctly. There should be
     #      one column containing the whole text (parsed accordingly) - newlines
     #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
-    output = io.StringIO()
-    writer = csv.writer(output)
+    # output = io.StringIO()
+    # writer = csv.writer(output)
 
-    writer.writerow(["text"])
-    for record in records:
-        # TODO: add other fields (extracted, clusters, etc.)
-        writer.writerow([record.text])
-    output.seek(0)
+    # writer.writerow(["text"])
+    # for record in records:
+    #     # TODO: add other fields (extracted, clusters, etc.)
+    #     writer.writerow([record.text])
+    # output.seek(0)
 
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -397,6 +398,7 @@ def get_records(
     records = db.exec(
         select(Record)
         .where(Record.dataset_id == dataset_id)
+        .order_by(Record.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -702,6 +704,7 @@ def get_source_terms(
     source_terms = db.exec(
         select(SourceTerm)
         .where(SourceTerm.record_id == record_id)
+        .order_by(SourceTerm.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()

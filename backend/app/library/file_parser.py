@@ -24,7 +24,7 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
 
     if filename.endswith(".csv"):
         return parse_csv(text, required_columns)
-        
+
     elif filename.endswith(".json"):
         return parse_json(text, required_columns)
 
@@ -32,6 +32,7 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
         )
+
 
 def parse_csv(text, required_columns) -> List[Record]:
     """Parse a CSV file into a list of records."""
@@ -45,7 +46,7 @@ def parse_csv(text, required_columns) -> List[Record]:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="CSV file is empty or invalid.",
             )
-        
+
         # Validate that all required fields exist
         missing = [col for col in required_columns if col not in csv_columns]
 
@@ -59,7 +60,7 @@ def parse_csv(text, required_columns) -> List[Record]:
         for row in reader:
             if not row.get("text"):
                 continue
-            
+
             date_str = row.get("date")
             if date_str:
                 try:
@@ -71,21 +72,22 @@ def parse_csv(text, required_columns) -> List[Record]:
 
             records.append(
                 Record(
-                patient_id=row["patient_id"],
-                seq_number=row.get("seq_number"),
-                date=date_obj,
-                text=row["text"]
+                    patient_id=row["patient_id"],
+                    seq_number=row.get("seq_number"),
+                    date=date_obj,
+                    text=row["text"],
                 )
-            ) 
+            )
 
         return records
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {e}",
         )
-    
+
+
 def parse_json(text, required_columns) -> List[Record]:
     """Parse a JSON file into a list of records."""
 
@@ -100,10 +102,9 @@ def parse_json(text, required_columns) -> List[Record]:
 
         if not items:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="JSON is empty."
+                status_code=status.HTTP_400_BAD_REQUEST, detail="JSON is empty."
             )
-        
+
         records = []
         for obj in items:
             # Validate that all required fields exist
@@ -114,7 +115,7 @@ def parse_json(text, required_columns) -> List[Record]:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Missing required columns: {', '.join(missing)}",
                 )
-            
+
             date_str = obj.get("date")
             if date_str:
                 try:
@@ -126,12 +127,12 @@ def parse_json(text, required_columns) -> List[Record]:
 
             records.append(
                 Record(
-                patient_id=obj["patient_id"],
-                seq_number=obj.get("seq_number"),
-                date=date_obj,
-                text=obj["text"]
+                    patient_id=obj["patient_id"],
+                    seq_number=obj.get("seq_number"),
+                    date=date_obj,
+                    text=obj["text"],
                 )
-            ) 
+            )
 
         return records
 
@@ -140,9 +141,11 @@ def parse_json(text, required_columns) -> List[Record]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse JSON: {e}",
         )
-    
 
-async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[Concept]:
+
+async def parse_concepts_file(
+    file: UploadFile, required_columns: list
+) -> List[Concept]:
     """Parse a CSV file into a list of concepts."""
 
     raw = await file.read()
@@ -163,7 +166,7 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="CSV file is empty or invalid.",
             )
-        
+
         missing = [col for col in required_columns if col not in csv_columns]
 
         if missing:
@@ -186,35 +189,47 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
                     concept_class_id=row["concept_class_id"],
                     standard_concept=row.get("standard_concept"),
                     concept_code=row.get("concept_code"),
-                    valid_start_date=datetime.strptime(row["valid_start_date"], "%Y%m%d"),
+                    valid_start_date=datetime.strptime(
+                        row["valid_start_date"], "%Y%m%d"
+                    ),
                     valid_end_date=datetime.strptime(row["valid_end_date"], "%Y%m%d"),
-                    invalid_reason=row.get("invalid_reason")
+                    invalid_reason=row.get("invalid_reason"),
                 )
-            ) 
+            )
 
         return concepts
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {e}",
         )
-    
+
 
 # ================================================
 # Functions to download files
 # ================================================
 
-def download_anotated_dataset(records, format): 
+
+def download_annotated_dataset(records, format):
     if format == "csv":
 
         output = io.StringIO()
         writer = csv.writer(output)
 
-        writer.writerow(["patient_id", "seq_number", "date", "entity_type", "entity_name"])
+        writer.writerow(
+            ["patient_id", "seq_number", "date", "entity_type", "entity_name"]
+        )
         for record in records:
-            writer.writerow([record.patient_id, record.seq_number, record.date, ])
+            writer.writerow(
+                [
+                    record.patient_id,
+                    record.seq_number,
+                    record.date,
+                ]
+            )
         output.seek(0)
+        return output
 
     elif format == "json":
         pass
