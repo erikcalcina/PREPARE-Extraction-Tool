@@ -68,7 +68,14 @@ def extract_entities_from_record(
         )
     # Save entities as source terms
     source_terms = [
-        SourceTerm(record_id=record_id, value=entity["text"], label=entity["label"])
+        SourceTerm(record_id=record_id, 
+                   value=entity["text"], 
+                   label=entity["label"],
+                   start_position=entity.get("start"),
+                   end_position=entity.get("end"),
+                   score=entity.get("score"),
+                   automatically_extracted=True
+                   )
         for entity in entities
     ]
     db.add_all(source_terms)
@@ -76,4 +83,59 @@ def extract_entities_from_record(
 
     return MessageOutput(
         message=f"Extracted and saved {len(source_terms)} entities from record {record_id}"
+    )
+
+
+@router.post("/{dataset_id}/records/extract", response_model=MessageOutput)
+def extract_entities_from_records(
+    dataset_id: int,
+    labels: LabelsInput,
+    db: Session = Depends(get_session),
+):
+    """
+    Extract named entities from every record in the dataset and save them as source terms.
+    """
+    statement = (
+        select(Record)
+        .where(Record.dataset_id == dataset_id)
+    )
+    records = db.exec(statement).all()
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No records found for this dataset",
+        )
+
+    source_terms: List[SourceTerm] = []
+    for record in records:
+        request_data = {"medical_text": record.text, "labels": labels.labels}
+        try:
+            response = requests.post(
+                f"{settings.EXTRACT_HOST}/ner", json=request_data, timeout=300
+            )
+            response.raise_for_status()
+            entities = response.json()
+        except requests.RequestException:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Extraction service unavailable",
+            )
+
+        source_terms.extend(
+            SourceTerm(record_id=record.id, value=entity["text"],
+                       label=entity["label"],
+                       start_position=entity.get("start"),
+                       end_position=entity.get("end"),
+                       score=entity.get("score"),
+                       automatically_extracted=True
+                       )
+            for entity in entities
+        )
+
+    if source_terms:
+        db.add_all(source_terms)
+        db.commit()
+
+    return MessageOutput(
+        message=f"Extracted and saved {len(source_terms)} entities from dataset {dataset_id}"
     )

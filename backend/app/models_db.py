@@ -112,6 +112,8 @@ class SourceTerm(SQLModel, table=True):
     # Optional character offsets inside the original text
     start_position: Optional[int] = Field(default=None)
     end_position: Optional[int] = Field(default=None)
+    score: Optional[float] = Field(default=None)
+    automatically_extracted: bool = Field(default=False)
 
     # Relationship back to Record (many-to-one)
     record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
