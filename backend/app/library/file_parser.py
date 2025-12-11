@@ -104,17 +104,17 @@ def parse_json(text, required_columns) -> List[Record]:
                 detail="JSON is empty."
             )
         
-        # Validate that all required fields exist
-        missing = [col for col in required_columns if col not in items[0]]
-
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {', '.join(missing)}",
-            )
-        
         records = []
         for obj in items:
+            # Validate that all required fields exist
+            missing = [col for col in required_columns if col not in items[0]]
+
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required columns: {', '.join(missing)}",
+                )
+            
             if not obj.get("text"):
                 continue
             
