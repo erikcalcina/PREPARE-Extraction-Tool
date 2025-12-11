@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import Layout from 'components/Layout';
 import { useRecords } from 'hooks/useRecords';
+import { usePageTitle } from 'hooks/usePageTitle';
 import type { Record as RecordType, SourceTerm, SourceTermCreate } from 'types';
 import AnnotationSidebar from './AnnotationSidebar';
 import styles from './styles.module.css';
@@ -224,6 +225,9 @@ const DatasetRecords = () => {
         addSourceTerm,
         removeSourceTerm,
     } = useRecords(parsedDatasetId);
+
+    // Update page title based on dataset name
+    usePageTitle(dataset?.name || 'Dataset Records');
 
     // Infinite scroll observer
     useEffect(() => {

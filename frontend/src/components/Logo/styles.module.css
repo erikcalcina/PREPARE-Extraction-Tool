@@ -1,8 +1,5 @@
 /* styles.module.css */
 
-/* ================================================
-   Base Logo Container
-   ================================================ */
 .logo {
   display: flex;
   align-items: center;
@@ -10,93 +7,19 @@
   font-family: 'Arial', sans-serif;
 }
 
-/* ================================================
-   Sizes
-   ================================================ */
-.small {
-  gap: 0.5rem;
+.logo svg {
+  height: auto;
+  display: block;
 }
 
-.medium {
-  gap: 1rem;
+.small svg {
+  width: 100px;
 }
 
-.large {
-  gap: 1.5rem;
+.medium svg {
+  width: 120px;
 }
 
-/* ================================================
-   Icon Styles
-   ================================================ */
-.icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.small .icon {
-  width: 24px;
-  height: 24px;
-}
-
-.medium .icon {
-  width: 40px;
-  height: 40px;
-}
-
-.large .icon {
-  width: 60px;
-  height: 60px;
-}
-
-.icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* ================================================
-   Text Container
-   ================================================ */
-.text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
-}
-
-.prepare {
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: #333;
-}
-
-.rehab {
-  font-weight: 700;
-  font-size: 1rem;
-  color: #4CAF50;
-}
-
-.small .text .prepare {
-  font-size: 0.6rem;
-}
-
-.small .text .rehab {
-  font-size: 0.8rem;
-}
-
-.medium .text .prepare {
-  font-size: 0.8rem;
-}
-
-.medium .text .rehab {
-  font-size: 1rem;
-}
-
-.large .text .prepare {
-  font-size: 1rem;
-}
-
-.large .text .rehab {
-  font-size: 1.2rem;
+.large svg {
+  width: 200px;
 }

@@ -31,8 +31,11 @@ export function useVocabularies() {
         }
     }, []);
 
-    const addVocabulary = useCallback(async (data: VocabularyCreate) => {
-        const response = await createVocabulary(data);
+    const addVocabulary = useCallback(async (
+        data: VocabularyCreate,
+        onProgress?: (progress: number) => void
+    ) => {
+        const response = await createVocabulary(data, onProgress);
         // Refresh the list
         await fetchVocabularies();
         return response.vocabulary;

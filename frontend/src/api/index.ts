@@ -149,10 +149,64 @@ export async function getDataset(id: number): Promise<DatasetOutput> {
     return apiRequest<DatasetOutput>(`/datasets/${id}`);
 }
 
-export async function createDataset(data: DatasetCreate): Promise<DatasetOutput> {
-    return apiRequest<DatasetOutput>('/datasets/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createDataset(
+    data: DatasetCreate,
+    onProgress?: (progress: number) => void
+): Promise<DatasetOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('labels', data.labels);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/datasets/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
@@ -277,10 +331,64 @@ export async function getVocabulary(id: number): Promise<VocabularyOutput> {
     return apiRequest<VocabularyOutput>(`/vocabularies/${id}`);
 }
 
-export async function createVocabulary(data: VocabularyCreate): Promise<VocabularyOutput> {
-    return apiRequest<VocabularyOutput>('/vocabularies/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createVocabulary(
+    data: VocabularyCreate,
+    onProgress?: (progress: number) => void
+): Promise<VocabularyOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('version', data.version);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/vocabularies/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
