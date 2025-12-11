@@ -293,7 +293,7 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-
+    download_anotated_dataset(records, format)
     # TODO: make a separate function for this
     # FIX: the solution below does not parse the text correctly. There should be
     #      one column containing the whole text (parsed accordingly) - newlines

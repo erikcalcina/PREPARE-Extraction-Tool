@@ -47,7 +47,8 @@ class ConceptIndexer:
             The dimensionality of the embedding vectors.
         """
         if self._embedding_dim is None:
-            self._embedding_dim = self.model.get_sentence_embedding_dimension()
+            self._embedding_dim = 768
+            # self._embedding_dim = self.model.get_sentence_embedding_dimension()
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
