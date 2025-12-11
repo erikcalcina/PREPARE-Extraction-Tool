@@ -2,6 +2,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from dateutil import parser
 from typing import List, Dict
+import csv
+import io
+import json
 
 from fastapi import HTTPException, status, UploadFile
 
@@ -32,8 +35,6 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
 
 def parse_csv(text, required_columns) -> List[Record]:
     """Parse a CSV file into a list of records."""
-    import csv
-    import io
 
     try:
         reader = csv.DictReader(io.StringIO(text))
@@ -87,7 +88,6 @@ def parse_csv(text, required_columns) -> List[Record]:
     
 def parse_json(text, required_columns) -> List[Record]:
     """Parse a JSON file into a list of records."""
-    import json
 
     try:
         items = json.loads(text)
@@ -104,19 +104,16 @@ def parse_json(text, required_columns) -> List[Record]:
                 detail="JSON is empty."
             )
         
-        # Validate that all required fields exist
-        missing = [col for col in required_columns if col not in items[0]]
-
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {', '.join(missing)}",
-            )
-        
         records = []
         for obj in items:
-            if not obj.get("text"):
-                continue
+            # Validate that all required fields exist
+            missing = [col for col in required_columns if col not in items[0]]
+
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required columns: {', '.join(missing)}",
+                )
             
             date_str = obj.get("date")
             if date_str:
@@ -147,8 +144,6 @@ def parse_json(text, required_columns) -> List[Record]:
 
 async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[Concept]:
     """Parse a CSV file into a list of concepts."""
-    import csv
-    import io
 
     raw = await file.read()
     filename = file.filename.lower()
@@ -209,3 +204,22 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
 # ================================================
 # Functions to download files
 # ================================================
+
+def download_anotated_dataset(records, format): 
+    if format == "csv":
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(["patient_id", "seq_number", "date", "entity_type", "entity_name"])
+        for record in records:
+            writer.writerow([record.patient_id, record.seq_number, record.date, ])
+        output.seek(0)
+
+    elif format == "json":
+        pass
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsuported file format: {format}",
+        )
