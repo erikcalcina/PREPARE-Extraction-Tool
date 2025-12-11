@@ -55,6 +55,11 @@ class Dataset(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
+    clusters: list["Cluster"] = Relationship(
+        back_populates="dataset",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
 
 class Record(SQLModel, table=True):
     """
@@ -256,6 +261,7 @@ class Cluster(SQLModel, table=True):
 
     # dataset this cluster belongs to
     dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
+    dataset: Optional["Dataset"] = Relationship(back_populates="clusters")
 
     # label/category: Diagnosis, Procedure, BodyPart...
     label: str

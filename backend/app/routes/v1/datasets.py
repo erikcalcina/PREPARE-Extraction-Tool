@@ -3,9 +3,18 @@ import io
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    File,
+    UploadFile,
+    Form,
+    Query,
+)
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
@@ -19,6 +28,7 @@ from app.core.database import (
     Record,
     User,
     SourceTerm,
+    Cluster,
 )
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
@@ -39,6 +49,11 @@ from app.schemas import (
     EntityCluster,
     ClusteredTerm,
     create_pagination_metadata,
+    ClusterResponse,
+    ClustersOutput,
+    ClusterCreateRequest,
+    ClusterMergeRequest,
+    BatchAssignRequest,
 )
 
 from app.library.file_parser import download_annotated_dataset
@@ -373,7 +388,7 @@ def add_record(
     response_model=RecordsOutput,
     status_code=status.HTTP_200_OK,
     summary="List all records in a dataset",
-    description="Retrieves all records belonging to a specific dataset",
+    description="Retrieves all records belonging to a specific dataset with optional search and filter parameters",
     response_description="List of records in the dataset",
 )
 def get_records(
@@ -381,6 +396,9 @@ def get_records(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
+    patient_id: Optional[str] = None,
+    text: Optional[str] = None,
+    reviewed: Optional[bool] = None,
 ):
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
@@ -389,18 +407,31 @@ def get_records(
         )
     verify_dataset_ownership(dataset, current_user.id)
 
-    # Get total count
-    total = db.exec(
+    # Build base query
+    query = select(Record).where(Record.dataset_id == dataset_id)
+    count_query = (
         select(func.count()).select_from(Record).where(Record.dataset_id == dataset_id)
-    ).one()
+    )
 
-    # Get paginated records with source term counts
+    # Apply filters
+    if patient_id:
+        query = query.where(Record.patient_id.like(f"%{patient_id}%"))
+        count_query = count_query.where(Record.patient_id.like(f"%{patient_id}%"))
+
+    if text:
+        query = query.where(Record.text.like(f"%{text}%"))
+        count_query = count_query.where(Record.text.like(f"%{text}%"))
+
+    if reviewed is not None:
+        query = query.where(Record.reviewed == reviewed)
+        count_query = count_query.where(Record.reviewed == reviewed)
+
+    # Get total count with filters applied
+    total = db.exec(count_query).one()
+
+    # Get paginated records with filters
     records = db.exec(
-        select(Record)
-        .where(Record.dataset_id == dataset_id)
-        .order_by(Record.id)
-        .offset(pagination.offset)
-        .limit(pagination.limit)
+        query.order_by(Record.id).offset(pagination.offset).limit(pagination.limit)
     ).all()
 
     # Get source term counts for these records
@@ -717,175 +748,184 @@ def get_source_terms(
     )
 
 
-@router.get("/{dataset_id}/clusters", response_model=List[EntityCluster])
-def get_entity_clusters(
-    dataset_id: int,
-    label: str,
-    k: int = 10,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Cluster SourceTerm (entities) for a single dataset.
+# @router.get("/{dataset_id}/clusters", response_model=List[EntityCluster])
+# def get_entity_clusters(
+#     dataset_id: int,
+#     label: str,
+#     k: int = 10,
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_session),
+# ):
+#     """
+#     Cluster SourceTerm (entities) for a single dataset.
 
-    1. - dataset_id: which dataset to use
-    - label: entity lavel we want to cluster (e.g. "Diagnosis")
-    - k: requested number of clusters (will be limited if there are few terms)
+#     1. - dataset_id: which dataset to use
+#     - label: entity lavel we want to cluster (e.g. "Diagnosis")
+#     - k: requested number of clusters (will be limited if there are few terms)
 
-    The idea:
-      1) Take all SourceTerms for this dataset with the given label.
-      2) Group identical texts together (same spelling).
-      3) Convert each unique text into a vector (TF-IDF over character n-grams).
-      4) Run KMeans to group similar texts into clusters.
-      5) Return clusters with statistics that the frontend can show.
-    """
+#     The idea:
+#       1) Take all SourceTerms for this dataset with the given label.
+#       2) Group identical texts together (same spelling).
+#       3) Convert each unique text into a vector (TF-IDF over character n-grams).
+#       4) Run KMeans to group similar texts into clusters.
+#       5) Return clusters with statistics that the frontend can show.
+#     """
 
-    # check that dataset exists
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        )
-    verify_dataset_ownership(dataset, current_user.id)
+#     # check that dataset exists
+#     dataset = db.get(Dataset, dataset_id)
+#     if dataset is None:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Dataset not found",
+#         )
+#     verify_dataset_ownership(dataset, current_user.id)
 
-    # load SourceTerms for this dataset and label
-    # join with Record so we can filter by dataset_id.
-    statement = (
-        select(SourceTerm)
-        .join(Record)
-        .where(Record.dataset_id == dataset_id)
-        .where(SourceTerm.label == label)
-    )
-    source_terms: List[SourceTerm] = db.exec(statement).all()
+#     # load SourceTerms for this dataset and label
+#     # join with Record so we can filter by dataset_id.
+#     statement = (
+#         select(SourceTerm)
+#         .join(Record)
+#         .where(Record.dataset_id == dataset_id)
+#         .where(SourceTerm.label == label)
+#     )
+#     source_terms: List[SourceTerm] = db.exec(statement).all()
 
-    if not source_terms:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No source terms with this label for the dataset",
-        )
+#     if not source_terms:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="No source terms with this label for the dataset",
+#         )
 
-    # aggregate by term text (value
-    # we want to cluster unique texts, not every single occurrence.
-    stats: Dict[str, Dict[str, object]] = {}
+#     # aggregate by term text (value
+#     # we want to cluster unique texts, not every single occurrence.
+#     stats: Dict[str, Dict[str, object]] = {}
 
-    for term in source_terms:
-        # term.value is the original text of the entity
-        text = (term.value or "").strip()
-        if not text:
-            continue
+#     for term in source_terms:
+#         # term.value is the original text of the entity
+#         text = (term.value or "").strip()
+#         if not text:
+#             continue
 
-        if text not in stats:
-            stats[text] = {
-                "frequency": 0,  # how many SourceTerms with this value
-                "record_ids": set(),  # IDs of records where this value appears
-                "term_ids": [],  # IDs of SourceTerm rows with this value
-            }
+#         if text not in stats:
+#             stats[text] = {
+#                 "frequency": 0,  # how many SourceTerms with this value
+#                 "record_ids": set(),  # IDs of records where this value appears
+#                 "term_ids": [],  # IDs of SourceTerm rows with this value
+#             }
 
-        stats[text]["frequency"] += 1
-        stats[text]["record_ids"].add(term.record_id)
-        stats[text]["term_ids"].append(term.id)
+#         stats[text]["frequency"] += 1
+#         stats[text]["record_ids"].add(term.record_id)
+#         stats[text]["term_ids"].append(term.id)
 
-    unique_texts = list(stats.keys())
-    if not unique_texts:
+#     unique_texts = list(stats.keys())
+#     if not unique_texts:
 
-        return []
+#         return []
 
-    # adjust number of clusters
-    # i guess there is no point in having more clusters than unique texts
-    k = max(1, min(k, len(unique_texts)))
+#     # adjust number of clusters
+#     # i guess there is no point in having more clusters than unique texts
+#     k = max(1, min(k, len(unique_texts)))
 
-    # vectorize texts (char n-grams are good for short medical terms)
-    vectorizer = TfidfVectorizer(
-        analyzer="char",  # work on characters, not words
-        ngram_range=(3, 5),  # capture small pieces of words and endings
-        min_df=1,
-    )
-    X = vectorizer.fit_transform(unique_texts)
+#     # vectorize texts (char n-grams are good for short medical terms)
+#     vectorizer = TfidfVectorizer(
+#         analyzer="char",  # work on characters, not words
+#         ngram_range=(3, 5),  # capture small pieces of words and endings
+#         min_df=1,
+#     )
+#     X = vectorizer.fit_transform(unique_texts)
 
-    # --- 6) Run HDBSCAN clustering ---
+#     # --- 6) Run HDBSCAN clustering ---
 
-    clusterer = HDBSCAN(
-        min_cluster_size=2,  # smallest size of a meaningful cluster
-        metric="euclidean",  # good with TF-IDF
-        cluster_selection_method="eom",
-    )
+#     clusterer = HDBSCAN(
+#         min_cluster_size=2,  # smallest size of a meaningful cluster
+#         metric="euclidean",  # good with TF-IDF
+#         cluster_selection_method="eom",
+#     )
 
-    labels_arr = clusterer.fit_predict(X.toarray())
+#     labels_arr = clusterer.fit_predict(X.toarray())
 
-    # You can skip noise points (-1)
-    filtered_texts = []
-    filtered_labels = []
-    for t, cid in zip(unique_texts, labels_arr):
-        if cid == -1:
-            # optional: skip noise
-            continue
-        filtered_texts.append(t)
-        filtered_labels.append(cid)
+#     # You can skip noise points (-1)
+#     filtered_texts = []
+#     filtered_labels = []
+#     for t, cid in zip(unique_texts, labels_arr):
+#         if cid == -1:
+#             # optional: skip noise
+#             continue
+#         filtered_texts.append(t)
+#         filtered_labels.append(cid)
 
-    unique_texts = filtered_texts
-    labels_arr = filtered_labels
+#     unique_texts = filtered_texts
+#     labels_arr = filtered_labels
 
-    # group texts by cluster id
-    clusters_raw: Dict[int, List[str]] = defaultdict(list)
-    for text, cluster_id in zip(unique_texts, labels_arr):
-        clusters_raw[int(cluster_id)].append(text)
+#     # group texts by cluster id
+#     clusters_raw: Dict[int, List[str]] = defaultdict(list)
+#     for text, cluster_id in zip(unique_texts, labels_arr):
+#         clusters_raw[int(cluster_id)].append(text)
 
-    clusters: List[EntityCluster] = []
+#     clusters: List[EntityCluster] = []
 
-    for cluster_id, texts_in_cluster in clusters_raw.items():
-        # pick main term: the most frequent one in this cluster.
-        main_text = max(texts_in_cluster, key=lambda t: stats[t]["frequency"])
+#     for cluster_id, texts_in_cluster in clusters_raw.items():
+#         # pick main term: the most frequent one in this cluster.
+#         main_text = max(texts_in_cluster, key=lambda t: stats[t]["frequency"])
 
-        # total occurrences = sum of frequencies of all terms in this cluster.
-        total_occurrences = sum(stats[t]["frequency"] for t in texts_in_cluster)
+#         # total occurrences = sum of frequencies of all terms in this cluster.
+#         total_occurrences = sum(stats[t]["frequency"] for t in texts_in_cluster)
 
-        # union of all record IDs where any of these texts appears.
-        record_ids_union = set()
-        for t in texts_in_cluster:
-            record_ids_union.update(stats[t]["record_ids"])
+#         # union of all record IDs where any of these texts appears.
+#         record_ids_union = set()
+#         for t in texts_in_cluster:
+#             record_ids_union.update(stats[t]["record_ids"])
 
-        # build ClusteredTerm objects for each text in the cluster.
-        term_models: List[ClusteredTerm] = []
-        for t in texts_in_cluster:
-            info = stats[t]
-            term_models.append(
-                ClusteredTerm(
-                    term_id=info["term_ids"][
-                        0
-                    ],  # just use the first SourceTerm ID as a representative
-                    text=t,
-                    frequency=info["frequency"],
-                    n_records=len(info["record_ids"]),
-                    record_ids=sorted(info["record_ids"]),
-                )
-            )
+#         # build ClusteredTerm objects for each text in the cluster.
+#         term_models: List[ClusteredTerm] = []
+#         for t in texts_in_cluster:
+#             info = stats[t]
+#             term_models.append(
+#                 ClusteredTerm(
+#                     term_id=info["term_ids"][
+#                         0
+#                     ],  # just use the first SourceTerm ID as a representative
+#                     text=t,
+#                     frequency=info["frequency"],
+#                     n_records=len(info["record_ids"]),
+#                     record_ids=sorted(info["record_ids"]),
+#                 )
+#             )
 
-        clusters.append(
-            EntityCluster(
-                id=cluster_id,
-                main_term=main_text,
-                label=label,
-                total_terms=len(texts_in_cluster),
-                total_occurrences=total_occurrences,
-                n_records=len(record_ids_union),
-                terms=term_models,
-            )
-        )
+#         clusters.append(
+#             EntityCluster(
+#                 id=cluster_id,
+#                 main_term=main_text,
+#                 label=label,
+#                 total_terms=len(texts_in_cluster),
+#                 total_occurrences=total_occurrences,
+#                 n_records=len(record_ids_union),
+#                 terms=term_models,
+#             )
+#         )
 
-    # sort clusters by how "big" they are (most frequent first)
-    clusters.sort(key=lambda c: c.total_occurrences, reverse=True)
+#     # sort clusters by how "big" they are (most frequent first)
+#     clusters.sort(key=lambda c: c.total_occurrences, reverse=True)
 
-    return clusters
+#     return clusters
 
 
 @router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
-def rebuild_clusters(dataset_id: int, label: str, db: Session = Depends(get_session)):
-
-    # --- 1. Check dataset exists ---
+def rebuild_clusters(
+    dataset_id: int,
+    label: str = Query(..., description="Entity label to cluster (e.g., 'Diagnosis')"),
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Trigger HDBSCAN clustering for a specific label.
+    Removes existing clusters and creates new ones from scratch.
+    """
+    # --- 1. Check dataset exists and verify ownership ---
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
 
     # --- 2. Load SourceTerms belonging to this dataset & label ---
     source_terms = db.exec(
@@ -970,6 +1010,7 @@ def rebuild_clusters(dataset_id: int, label: str, db: Session = Depends(get_sess
 @router.post("/source-terms/{term_id}/auto-assign", response_model=MessageOutput)
 def auto_assign_source_term(
     term_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     # --- 1. Load term ---
@@ -983,6 +1024,12 @@ def auto_assign_source_term(
         raise HTTPException(404, "Record not found")
 
     dataset_id = record.dataset_id
+
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
 
     # --- 2. Load all clusters for this dataset + label ---
     clusters = db.exec(
@@ -1064,12 +1111,20 @@ def auto_assign_source_term(
 
 @router.get("/{dataset_id}/clusters/db")
 def get_clusters_from_db(
-    dataset_id: int, label: Optional[str] = None, db: Session = Depends(get_session)
+    dataset_id: int,
+    label: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
     """
     Returns all persistent clusters for a dataset.
     If label is provided, filters by entity label
     """
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
 
     query = select(Cluster).where(Cluster.dataset_id == dataset_id)
 
@@ -1082,7 +1137,11 @@ def get_clusters_from_db(
 
 
 @router.get("/clusters/{cluster_id}")
-def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
+def get_cluster(
+    cluster_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     """
     Returns details of a single cluster, including its source terms.
     """
@@ -1091,6 +1150,12 @@ def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
     if not cluster:
         raise HTTPException(404, "Cluster not found")
 
+    # Verify ownership through cluster -> dataset -> user
+    dataset = db.get(Dataset, cluster.dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
     return cluster
 
 
@@ -1098,6 +1163,7 @@ def get_cluster(cluster_id: int, db: Session = Depends(get_session)):
 def rename_cluster(
     cluster_id: int,
     title: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     """
@@ -1108,6 +1174,12 @@ def rename_cluster(
     if not cluster:
         raise HTTPException(404, "Cluster not found")
 
+    # Verify ownership through cluster -> dataset -> user
+    dataset = db.get(Dataset, cluster.dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
     cluster.title = title
     db.add(cluster)
     db.commit()
@@ -1116,7 +1188,11 @@ def rename_cluster(
 
 
 @router.delete("/clusters/{cluster_id}")
-def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
+def delete_cluster(
+    cluster_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
     """
     Delete a cluster.
     All SourceTerms in this cluster get cluster_id = NULL.
@@ -1125,6 +1201,12 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+
+    # Verify ownership through cluster -> dataset -> user
+    dataset = db.get(Dataset, cluster.dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
 
     # Remove cluster assignment from terms
     for term in cluster.source_terms:
@@ -1137,46 +1219,272 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_session)):
     return {"message": "Cluster deleted"}
 
 
-@router.post("/source-terms/{term_id}/assign/{cluster_id}")
-def assign_term_to_cluster(
-    term_id: int,
-    cluster_id: int,
+# ================================================
+# New enhanced clustering routes
+# ================================================
+
+
+@router.get("/{dataset_id}/clusters", response_model=ClustersOutput)
+def get_clusters(
+    dataset_id: int,
+    label: Union[str, None] = None,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get structured cluster data for a dataset with filtering by label.
+    Returns clusters with aggregated stats + unclustered terms list.
+    """
+    # Verify dataset exists and user owns it
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Build cluster query
+    cluster_query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    if label:
+        cluster_query = cluster_query.where(Cluster.label == label)
+
+    clusters = db.exec(cluster_query).all()
+
+    # Build response with aggregated data
+    cluster_responses = []
+    for cluster in clusters:
+        # Get all source terms for this cluster
+        terms_dict = defaultdict(lambda: {"frequency": 0, "record_ids": set()})
+
+        for term in cluster.source_terms:
+            terms_dict[term.value]["frequency"] += 1
+            terms_dict[term.value]["record_ids"].add(term.record_id)
+            terms_dict[term.value]["term_id"] = term.id
+
+        clustered_terms = [
+            ClusteredTerm(
+                term_id=data["term_id"],
+                text=text,
+                frequency=data["frequency"],
+                n_records=len(data["record_ids"]),
+                record_ids=list(data["record_ids"]),
+            )
+            for text, data in terms_dict.items()
+        ]
+
+        total_occurrences = sum(t.frequency for t in clustered_terms)
+        unique_records = len(
+            set(rec_id for t in clustered_terms for rec_id in t.record_ids)
+        )
+
+        cluster_responses.append(
+            ClusterResponse(
+                id=cluster.id,
+                dataset_id=cluster.dataset_id,
+                label=cluster.label,
+                title=cluster.title,
+                total_terms=len(clustered_terms),
+                total_occurrences=total_occurrences,
+                unique_records=unique_records,
+                terms=clustered_terms,
+            )
+        )
+
+    # Get unclustered terms for this dataset/label
+    unclustered_query = (
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.cluster_id == None)
+    )
+    if label:
+        unclustered_query = unclustered_query.where(SourceTerm.label == label)
+
+    unclustered_source_terms = db.exec(unclustered_query).all()
+
+    # Aggregate unclustered terms by value
+    unclustered_dict = defaultdict(lambda: {"frequency": 0, "record_ids": set()})
+    for term in unclustered_source_terms:
+        unclustered_dict[term.value]["frequency"] += 1
+        unclustered_dict[term.value]["record_ids"].add(term.record_id)
+        unclustered_dict[term.value]["term_id"] = term.id
+
+    unclustered_terms = [
+        ClusteredTerm(
+            term_id=data["term_id"],
+            text=text,
+            frequency=data["frequency"],
+            n_records=len(data["record_ids"]),
+            record_ids=list(data["record_ids"]),
+        )
+        for text, data in unclustered_dict.items()
+    ]
+
+    # Get all labels in dataset
+    all_labels = dataset.labels
+
+    # Calculate total terms
+    total_terms = sum(cr.total_terms for cr in cluster_responses) + len(
+        unclustered_terms
+    )
+
+    return ClustersOutput(
+        clusters=cluster_responses,
+        unclustered_terms=unclustered_terms,
+        total_terms=total_terms,
+        labels=all_labels,
+    )
+
+
+@router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
+def create_cluster_endpoint(
+    dataset_id: int,
+    data: ClusterCreateRequest,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create new empty cluster manually.
+    Allows manual cluster creation during editing workflow.
+    """
+    # Verify dataset exists and user owns it
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Create new cluster
+    new_cluster = Cluster(
+        dataset_id=dataset_id,
+        label=data.label,
+        title=data.title,
+    )
+    db.add(new_cluster)
+    db.commit()
+    db.refresh(new_cluster)
+
+    # Return as ClusterResponse
+    return ClusterResponse(
+        id=new_cluster.id,
+        dataset_id=new_cluster.dataset_id,
+        label=new_cluster.label,
+        title=new_cluster.title,
+        total_terms=0,
+        total_occurrences=0,
+        unique_records=0,
+        terms=[],
+    )
+
+
+@router.post("/{dataset_id}/clusters/merge", response_model=MessageOutput)
+def merge_clusters_endpoint(
+    dataset_id: int,
+    data: ClusterMergeRequest,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Merge multiple clusters into a single new cluster.
+    Combines all terms from source clusters and deletes old clusters.
+    """
+    # Verify dataset exists and user owns it
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Verify all clusters exist and belong to this dataset
+    clusters_to_merge = []
+    for cluster_id in data.cluster_ids:
+        cluster = db.get(Cluster, cluster_id)
+        if not cluster:
+            raise HTTPException(404, f"Cluster {cluster_id} not found")
+        if cluster.dataset_id != dataset_id:
+            raise HTTPException(
+                400, f"Cluster {cluster_id} does not belong to dataset {dataset_id}"
+            )
+        clusters_to_merge.append(cluster)
+
+    # All clusters should have the same label
+    labels = set(c.label for c in clusters_to_merge)
+    if len(labels) > 1:
+        raise HTTPException(400, "All clusters must have the same label")
+
+    label = clusters_to_merge[0].label
+
+    # Create new merged cluster
+    merged_cluster = Cluster(
+        dataset_id=dataset_id,
+        label=label,
+        title=data.new_title,
+    )
+    db.add(merged_cluster)
+    db.commit()
+    db.refresh(merged_cluster)
+
+    # Move all terms from old clusters to new cluster
+    total_terms_moved = 0
+    for old_cluster in clusters_to_merge:
+        for term in old_cluster.source_terms:
+            term.cluster_id = merged_cluster.id
+            db.add(term)
+            total_terms_moved += 1
+
+        # Delete old cluster
+        db.delete(old_cluster)
+
+    db.commit()
+
+    return MessageOutput(
+        message=f"Merged {len(data.cluster_ids)} clusters into '{data.new_title}' (moved {total_terms_moved} terms)"
+    )
+
+
+@router.post("/source-terms/batch-assign", response_model=MessageOutput)
+def batch_assign_terms(
+    data: BatchAssignRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     """
-    Manually assign a SourceTerm to a cluster.
+    Bulk assign terms to clusters.
+    Optimized for multiple drag-and-drop operations.
     """
+    if not data.assignments:
+        return MessageOutput(message="No assignments provided")
 
-    term = db.get(SourceTerm, term_id)
-    cluster = db.get(Cluster, cluster_id)
+    updated_count = 0
+    for assignment in data.assignments:
+        term_id = assignment.get("term_id")
+        cluster_id = assignment.get("cluster_id")
 
-    if not term:
-        raise HTTPException(404, "SourceTerm not found")
-    if not cluster:
-        raise HTTPException(404, "Cluster not found")
+        if term_id is None:
+            continue
 
-    term.cluster_id = cluster.id
-    db.add(term)
+        term = db.get(SourceTerm, term_id)
+        if not term:
+            continue
+
+        # Verify ownership through term -> record -> dataset -> user
+        record = db.get(Record, term.record_id)
+        if not record:
+            continue
+        dataset = db.get(Dataset, record.dataset_id)
+        if dataset is None:
+            continue
+        if dataset.user_id != current_user.id:
+            continue
+
+        # If cluster_id is None or 0, unassign from cluster
+        if cluster_id is None or cluster_id == 0:
+            term.cluster_id = None
+        else:
+            # Verify cluster exists
+            cluster = db.get(Cluster, cluster_id)
+            if cluster:
+                term.cluster_id = cluster.id
+
+        db.add(term)
+        updated_count += 1
+
     db.commit()
 
-    return {"message": f"SourceTerm {term_id} assigned to cluster {cluster_id}"}
-
-
-@router.post("/source-terms/{term_id}/unassign")
-def unassign_term_from_cluster(
-    term_id: int,
-    db: Session = Depends(get_session),
-):
-    """
-    Remove SourceTerm from its cluster (cluster_id = NULL).
-    """
-
-    term = db.get(SourceTerm, term_id)
-    if not term:
-        raise HTTPException(404, "SourceTerm not found")
-
-    term.cluster_id = None
-    db.add(term)
-    db.commit()
-
-    return {"message": f"SourceTerm {term_id} unassigned from cluster"}
+    return MessageOutput(message=f"Successfully assigned {updated_count} terms")

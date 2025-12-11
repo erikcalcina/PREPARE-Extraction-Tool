@@ -71,6 +71,9 @@ export interface DatasetsOutput {
 
 export interface Record {
     id: number;
+    patient_id: string;
+    seq_number: string | null;
+    date: string | null;
     text: string;
     uploaded: string;
     dataset_id: number;
@@ -200,5 +203,45 @@ export interface MessageOutput {
 
 export interface ApiError {
     detail: string;
+}
+
+// ================================================
+// Clustering types
+// ================================================
+
+export interface ClusteredTerm {
+    term_id: number;
+    text: string;
+    frequency: number;
+    n_records: number;
+    record_ids: number[];
+}
+
+export interface ClusterData {
+    id: number;
+    dataset_id: number;
+    label: string;
+    title: string;
+    total_terms: number;
+    total_occurrences: number;
+    unique_records: number;
+    terms: ClusteredTerm[];
+}
+
+export interface ClustersOutput {
+    clusters: ClusterData[];
+    unclustered_terms: ClusteredTerm[];
+    total_terms: number;
+    labels: string[];
+}
+
+export interface ClusterCreateRequest {
+    label: string;
+    title: string;
+}
+
+export interface ClusterMergeRequest {
+    cluster_ids: number[];
+    new_title: string;
 }
 

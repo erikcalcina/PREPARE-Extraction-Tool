@@ -16,6 +16,10 @@ import type {
     VocabularyOutput,
     VocabularyCreate,
     MessageOutput,
+    ClustersOutput,
+    ClusterData,
+    ClusterCreateRequest,
+    ClusterMergeRequest,
 } from 'types';
 
 // ================================================
@@ -261,10 +265,28 @@ export async function getDatasetStats(datasetId: number): Promise<DatasetStats> 
 export async function getRecords(
     datasetId: number,
     page = 1,
-    limit = 50
+    limit = 50,
+    patientId?: string,
+    text?: string,
+    reviewed?: boolean
 ): Promise<RecordsOutput> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+    });
+
+    if (patientId) {
+        params.append('patient_id', patientId);
+    }
+    if (text) {
+        params.append('text', text);
+    }
+    if (reviewed !== undefined) {
+        params.append('reviewed', reviewed.toString());
+    }
+
     return apiRequest<RecordsOutput>(
-        `/datasets/${datasetId}/records?page=${page}&limit=${limit}`
+        `/datasets/${datasetId}/records?${params.toString()}`
     );
 }
 
@@ -317,6 +339,37 @@ export async function deleteSourceTerm(termId: number): Promise<MessageOutput> {
     return apiRequest<MessageOutput>(`/source-terms/${termId}`, {
         method: 'DELETE',
     });
+}
+
+// ================================================
+// Bioner Extraction API
+// ================================================
+
+export async function extractRecordTerms(
+    datasetId: number,
+    recordId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/${recordId}/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
+}
+
+export async function extractDatasetTerms(
+    datasetId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
 }
 
 // ================================================
@@ -430,5 +483,81 @@ export async function downloadVocabulary(id: number): Promise<void> {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// ================================================
+// Clustering API
+// ================================================
+
+export async function getClusters(
+    datasetId: number,
+    label?: string
+): Promise<ClustersOutput> {
+    const params = label ? `?label=${encodeURIComponent(label)}` : '';
+    return apiRequest<ClustersOutput>(`/datasets/${datasetId}/clusters${params}`);
+}
+
+export async function rebuildClusters(
+    datasetId: number,
+    label: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/${datasetId}/clusters/rebuild?label=${encodeURIComponent(label)}`,
+        { method: 'POST' }
+    );
+}
+
+export async function createCluster(
+    datasetId: number,
+    data: ClusterCreateRequest
+): Promise<ClusterData> {
+    return apiRequest<ClusterData>(`/datasets/${datasetId}/clusters`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function assignTermToCluster(
+    termId: number,
+    clusterId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/source-terms/${termId}/assign-cluster/${clusterId}`,
+        { method: 'POST' }
+    );
+}
+
+export async function unassignTermFromCluster(
+    termId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/source-terms/${termId}/unassign-cluster`, {
+        method: 'POST',
+    });
+}
+
+export async function renameCluster(
+    clusterId: number,
+    title: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/clusters/${clusterId}?title=${encodeURIComponent(title)}`,
+        { method: 'PUT' }
+    );
+}
+
+export async function mergeClusters(
+    datasetId: number,
+    data: ClusterMergeRequest
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/${datasetId}/clusters/merge`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteCluster(clusterId: number): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/clusters/${clusterId}`, {
+        method: 'DELETE',
+    });
 }
 
