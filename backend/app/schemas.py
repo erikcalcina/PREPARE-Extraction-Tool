@@ -191,7 +191,7 @@ class RecordCreate(BaseModel):
 
     patient_id: str
     seq_number: Optional[str] = None
-    date: Optional[datetime]
+    date: Optional[datetime] = None
     text: str
 
 
@@ -200,8 +200,8 @@ class RecordResponse(BaseModel):
 
     id: int
     patient_id: str
-    seq_number: Optional[str]
-    date: Optional[datetime]
+    seq_number: Optional[str] = None
+    date: Optional[datetime] = None
     text: str
     uploaded: datetime
     dataset_id: int
@@ -270,11 +270,12 @@ class ConceptCreate(BaseModel):
     vocab_term_name: str
     domain_id: str
     concept_class_id: str
-    standard_concept: Optional[str]
-    concept_code: Optional[str]
+    standard_concept: Optional[str] = None
+    concept_code: Optional[str] = None
     valid_start_date: datetime
     valid_end_date: datetime
-    invalid_reason: Optional[str]
+    invalid_reason: Optional[str] = None
+
 
 class ConceptOutput(BaseModel):
     """Wrapper for single concept response."""
@@ -324,3 +325,26 @@ class MapRequest(BaseModel):
     """Request model for mapping source terms to vocabularies."""
 
     vocabulary_ids: List[int]
+
+
+# TODO: check if this should be a SQLModel table or only a Pydantic model
+# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
+# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
+# ClusteredTerm and EntityCluster are just response objects, created in memory.
+# So they should be Pydantic models, not SQLModel tables.
+class ClusteredTerm(BaseModel):
+    term_id: int
+    text: str
+    frequency: int
+    n_records: int
+    record_ids: List[int]
+
+
+class EntityCluster(BaseModel):
+    id: int
+    main_term: str
+    label: str
+    total_terms: int
+    total_occurrences: int
+    n_records: int
+    terms: List[ClusteredTerm]
