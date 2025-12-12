@@ -1,29 +1,19 @@
-import csv
-import io
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from typing import List, Dict, Optional, Union
+from typing import List, Optional, Union
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-    File,
-    UploadFile,
-    Form,
-    Query,
-)
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
+
 from sqlmodel import Session, select, func
 
-
-from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
-from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
-from app.library.file_parser import parse_records_file, download_anotated_dataset
+from app.core.database import get_session
+from app.core.model_registry import model_registry
+from app.models_db import Dataset, Record, SourceTerm, User, Cluster
+from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
@@ -199,7 +189,7 @@ def get_dataset(
 
 
 @router.get(
-    "/{dataset_id}/stats",
+    "/{dataset_id}/statistics",
     response_model=DatasetStatsResponse,
     status_code=status.HTTP_200_OK,
     summary="Get dataset statistics",
@@ -309,7 +299,7 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-    file_content, media_type = download_anotated_dataset(records, format)
+    file_content, media_type = download_annotated_dataset(records, format)
 
     return StreamingResponse(
         iter([file_content]),
@@ -729,183 +719,51 @@ def get_source_terms(
     )
 
 
-# @router.get("/{dataset_id}/clusters", response_model=List[EntityCluster])
-# def get_entity_clusters(
-#     dataset_id: int,
-#     label: str,
-#     k: int = 10,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_session),
-# ):
-#     """
-#     Cluster SourceTerm (entities) for a single dataset.
+@router.get("/{dataset_id}/clusters", response_model=List[Cluster])
+def get_entity_clusters(
+    dataset_id: int,
+    label: str,
+    rebuild: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    # 1. Check dataset exists
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
 
-#     1. - dataset_id: which dataset to use
-#     - label: entity lavel we want to cluster (e.g. "Diagnosis")
-#     - k: requested number of clusters (will be limited if there are few terms)
+    verify_dataset_ownership(dataset, current_user.id)
 
-#     The idea:
-#       1) Take all SourceTerms for this dataset with the given label.
-#       2) Group identical texts together (same spelling).
-#       3) Convert each unique text into a vector (TF-IDF over character n-grams).
-#       4) Run KMeans to group similar texts into clusters.
-#       5) Return clusters with statistics that the frontend can show.
-#     """
+    # 2. Rebuild if requested
+    if rebuild:
+        rebuild_clusters(dataset_id, label, current_user=current_user, db=db)
 
-#     # check that dataset exists
-#     dataset = db.get(Dataset, dataset_id)
-#     if dataset is None:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Dataset not found",
-#         )
-#     verify_dataset_ownership(dataset, current_user.id)
+    # 3. Fetch clusters from DB
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == label)
+    ).all()
 
-#     # load SourceTerms for this dataset and label
-#     # join with Record so we can filter by dataset_id.
-#     statement = (
-#         select(SourceTerm)
-#         .join(Record)
-#         .where(Record.dataset_id == dataset_id)
-#         .where(SourceTerm.label == label)
-#     )
-#     source_terms: List[SourceTerm] = db.exec(statement).all()
-
-#     if not source_terms:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="No source terms with this label for the dataset",
-#         )
-
-#     # aggregate by term text (value
-#     # we want to cluster unique texts, not every single occurrence.
-#     stats: Dict[str, Dict[str, object]] = {}
-
-#     for term in source_terms:
-#         # term.value is the original text of the entity
-#         text = (term.value or "").strip()
-#         if not text:
-#             continue
-
-#         if text not in stats:
-#             stats[text] = {
-#                 "frequency": 0,  # how many SourceTerms with this value
-#                 "record_ids": set(),  # IDs of records where this value appears
-#                 "term_ids": [],  # IDs of SourceTerm rows with this value
-#             }
-
-#         stats[text]["frequency"] += 1
-#         stats[text]["record_ids"].add(term.record_id)
-#         stats[text]["term_ids"].append(term.id)
-
-#     unique_texts = list(stats.keys())
-#     if not unique_texts:
-
-#         return []
-
-#     # adjust number of clusters
-#     # i guess there is no point in having more clusters than unique texts
-#     k = max(1, min(k, len(unique_texts)))
-
-#     # vectorize texts (char n-grams are good for short medical terms)
-#     vectorizer = TfidfVectorizer(
-#         analyzer="char",  # work on characters, not words
-#         ngram_range=(3, 5),  # capture small pieces of words and endings
-#         min_df=1,
-#     )
-#     X = vectorizer.fit_transform(unique_texts)
-
-#     # --- 6) Run HDBSCAN clustering ---
-
-#     clusterer = HDBSCAN(
-#         min_cluster_size=2,  # smallest size of a meaningful cluster
-#         metric="euclidean",  # good with TF-IDF
-#         cluster_selection_method="eom",
-#     )
-
-#     labels_arr = clusterer.fit_predict(X.toarray())
-
-#     # You can skip noise points (-1)
-#     filtered_texts = []
-#     filtered_labels = []
-#     for t, cid in zip(unique_texts, labels_arr):
-#         if cid == -1:
-#             # optional: skip noise
-#             continue
-#         filtered_texts.append(t)
-#         filtered_labels.append(cid)
-
-#     unique_texts = filtered_texts
-#     labels_arr = filtered_labels
-
-#     # group texts by cluster id
-#     clusters_raw: Dict[int, List[str]] = defaultdict(list)
-#     for text, cluster_id in zip(unique_texts, labels_arr):
-#         clusters_raw[int(cluster_id)].append(text)
-
-#     clusters: List[EntityCluster] = []
-
-#     for cluster_id, texts_in_cluster in clusters_raw.items():
-#         # pick main term: the most frequent one in this cluster.
-#         main_text = max(texts_in_cluster, key=lambda t: stats[t]["frequency"])
-
-#         # total occurrences = sum of frequencies of all terms in this cluster.
-#         total_occurrences = sum(stats[t]["frequency"] for t in texts_in_cluster)
-
-#         # union of all record IDs where any of these texts appears.
-#         record_ids_union = set()
-#         for t in texts_in_cluster:
-#             record_ids_union.update(stats[t]["record_ids"])
-
-#         # build ClusteredTerm objects for each text in the cluster.
-#         term_models: List[ClusteredTerm] = []
-#         for t in texts_in_cluster:
-#             info = stats[t]
-#             term_models.append(
-#                 ClusteredTerm(
-#                     term_id=info["term_ids"][
-#                         0
-#                     ],  # just use the first SourceTerm ID as a representative
-#                     text=t,
-#                     frequency=info["frequency"],
-#                     n_records=len(info["record_ids"]),
-#                     record_ids=sorted(info["record_ids"]),
-#                 )
-#             )
-
-#         clusters.append(
-#             EntityCluster(
-#                 id=cluster_id,
-#                 main_term=main_text,
-#                 label=label,
-#                 total_terms=len(texts_in_cluster),
-#                 total_occurrences=total_occurrences,
-#                 n_records=len(record_ids_union),
-#                 terms=term_models,
-#             )
-#         )
-
-#     # sort clusters by how "big" they are (most frequent first)
-#     clusters.sort(key=lambda c: c.total_occurrences, reverse=True)
-
-#     return clusters
+    return clusters
 
 
 @router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
 def rebuild_clusters(
     dataset_id: int,
-    label: str = Query(..., description="Entity label to cluster (e.g., 'Diagnosis')"),
-    db: Session = Depends(get_session),
+    label: str,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
-    """
-    Trigger HDBSCAN clustering for a specific label.
-    Removes existing clusters and creates new ones from scratch.
-    """
-    # --- 1. Check dataset exists and verify ownership ---
+
+    # --- 1. Check dataset exists ---
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Check that current_user owns this dataset
     verify_dataset_ownership(dataset, current_user.id)
 
     # --- 2. Load SourceTerms belonging to this dataset & label ---
@@ -926,16 +784,17 @@ def rebuild_clusters(
     if len(texts) == 0:
         return MessageOutput(message="No terms to cluster")
 
-    # --- 4. TF-IDF vectorization ---
-    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
-    X = vectorizer.fit_transform(texts)
+    # --- 4-5 Changed to embedded model ?---
+    embedding_model = model_registry.get_model("embedding")
+    embeddings = embedding_model.encode(texts)
 
-    # --- 5. Run HDBSCAN ---
     clusterer = HDBSCAN(
-        min_cluster_size=2, metric="euclidean", cluster_selection_method="eom"
+        min_cluster_size=2,
+        metric="euclidean",
+        cluster_selection_method="eom",
     )
 
-    labels_arr = clusterer.fit_predict(X.toarray())
+    labels_arr = clusterer.fit_predict(embeddings)
 
     # --- 6. Remove existing clusters for this dataset/label ---
     old_clusters = db.exec(
@@ -1004,6 +863,13 @@ def auto_assign_source_term(
     if not record:
         raise HTTPException(404, "Record not found")
 
+    dataset = db.get(Dataset, record.dataset_id)
+    # TODO: clear and more structured
+    if not dataset:
+        raise HTTPException(404, "Dataset not found")
+
+    verify_dataset_ownership(dataset, current_user.id)
+
     dataset_id = record.dataset_id
 
     # Verify dataset ownership
@@ -1038,24 +904,20 @@ def auto_assign_source_term(
             message=f"Created new cluster {new_cluster.id} (no existing clusters)."
         )
 
-    # --- 3. Build TF-IDF vectors for comparing term with clusters ---
-    # Collect representatives: cluster.title is our reference term
+    # --- 3. Use embedding model instead of TF-IDF ---
+    embedding_model = model_registry.get_model("embedding")
+
+    # Cluster representatives = cluster titles
     cluster_titles = [c.title for c in clusters]
-    items_for_vectorizer = cluster_titles + [term.value]
 
-    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
-    X = vectorizer.fit_transform(items_for_vectorizer)
-
-    # Last vector = term
-    term_vec = X[-1]
-
-    # All others = cluster titles
-    cluster_vecs = X[:-1]
+    # Get embeddings
+    cluster_vectors = embedding_model.encode(cluster_titles)
+    term_vector = embedding_model.encode([term.value])[0]
 
     # --- 4. Compute cosine similarity ---
     from sklearn.metrics.pairwise import cosine_similarity
 
-    sims = cosine_similarity(term_vec, cluster_vecs)[0]
+    sims = cosine_similarity([term_vector], cluster_vectors)[0]
 
     best_idx = sims.argmax()
     best_sim = sims[best_idx]
@@ -1107,6 +969,12 @@ def get_clusters_from_db(
         raise HTTPException(404, "Dataset not found")
     verify_dataset_ownership(dataset, current_user.id)
 
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(404, "Dataset not found")
+
+    verify_dataset_ownership(dataset, current_user.id)
+
     query = select(Cluster).where(Cluster.dataset_id == dataset_id)
 
     if label:
@@ -1131,6 +999,8 @@ def get_cluster(
     if not cluster:
         raise HTTPException(404, "Cluster not found")
 
+    verify_dataset_ownership(cluster.dataset, current_user.id)
+
     # Verify ownership through cluster -> dataset -> user
     dataset = db.get(Dataset, cluster.dataset_id)
     if dataset is None:
@@ -1154,6 +1024,8 @@ def rename_cluster(
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+
+    verify_dataset_ownership(cluster.dataset, current_user.id)
 
     # Verify ownership through cluster -> dataset -> user
     dataset = db.get(Dataset, cluster.dataset_id)
@@ -1182,6 +1054,8 @@ def delete_cluster(
     cluster = db.get(Cluster, cluster_id)
     if not cluster:
         raise HTTPException(404, "Cluster not found")
+
+    verify_dataset_ownership(cluster.dataset, current_user.id)
 
     # Verify ownership through cluster -> dataset -> user
     dataset = db.get(Dataset, cluster.dataset_id)
