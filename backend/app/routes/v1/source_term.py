@@ -85,8 +85,8 @@ def auto_map_source_term_to_cluster(
     cluster_titles = [c.title for c in clusters]
 
     # Get embeddings
-    cluster_vectors = embedding_model.encode(cluster_titles)
-    source_term_vector = embedding_model.encode([source_term.value])[0]
+    cluster_vectors = embedding_model.embed(cluster_titles)
+    source_term_vector = embedding_model.embed([source_term.value])[0]
 
     # --- 4. Compute cosine similarity ---
     from sklearn.metrics.pairwise import cosine_similarity

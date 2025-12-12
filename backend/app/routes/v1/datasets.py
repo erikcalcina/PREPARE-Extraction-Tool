@@ -865,7 +865,7 @@ def create_clusters_for_dataset(
         return MessageOutput(message="No terms to cluster")
 
     embedding_model = model_registry.get_model("embedding")
-    embeddings = embedding_model.encode(texts)
+    embeddings = embedding_model.embed(texts)
 
     clusterer = HDBSCAN(
         min_cluster_size=2,
