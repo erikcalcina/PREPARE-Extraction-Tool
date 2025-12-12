@@ -138,7 +138,7 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 export async function getUserStats(): Promise<UserStats> {
-    return apiRequest<UserStats>('/auth/me/stats');
+    return apiRequest<UserStats>('/auth/me/statistics');
 }
 
 // ================================================
@@ -255,7 +255,7 @@ export async function downloadDataset(id: number): Promise<void> {
 }
 
 export async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
-    return apiRequest<DatasetStats>(`/datasets/${datasetId}/stats`);
+    return apiRequest<DatasetStats>(`/datasets/${datasetId}/statistics`);
 }
 
 // ================================================
@@ -502,7 +502,7 @@ export async function rebuildClusters(
     label: string
 ): Promise<MessageOutput> {
     return apiRequest<MessageOutput>(
-        `/datasets/${datasetId}/clusters/rebuild?label=${encodeURIComponent(label)}`,
+        `/datasets/${datasetId}/clusters/create?label=${encodeURIComponent(label)}`,
         { method: 'POST' }
     );
 }
@@ -522,7 +522,7 @@ export async function assignTermToCluster(
     clusterId: number
 ): Promise<MessageOutput> {
     return apiRequest<MessageOutput>(
-        `/source-terms/${termId}/assign-cluster/${clusterId}`,
+        `/source-terms/${termId}/map-cluster/${clusterId}`,
         { method: 'POST' }
     );
 }
@@ -530,7 +530,7 @@ export async function assignTermToCluster(
 export async function unassignTermFromCluster(
     termId: number
 ): Promise<MessageOutput> {
-    return apiRequest<MessageOutput>(`/source-terms/${termId}/unassign-cluster`, {
+    return apiRequest<MessageOutput>(`/source-terms/${termId}/unmap-cluster`, {
         method: 'POST',
     });
 }
@@ -540,7 +540,7 @@ export async function renameCluster(
     title: string
 ): Promise<MessageOutput> {
     return apiRequest<MessageOutput>(
-        `/datasets/clusters/${clusterId}?title=${encodeURIComponent(title)}`,
+        `/clusters/${clusterId}?title=${encodeURIComponent(title)}`,
         { method: 'PUT' }
     );
 }
@@ -556,7 +556,7 @@ export async function mergeClusters(
 }
 
 export async function deleteCluster(clusterId: number): Promise<MessageOutput> {
-    return apiRequest<MessageOutput>(`/datasets/clusters/${clusterId}`, {
+    return apiRequest<MessageOutput>(`/clusters/${clusterId}`, {
         method: 'DELETE',
     });
 }
