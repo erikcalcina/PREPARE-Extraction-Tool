@@ -13,7 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
 from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
-from app.library.file_parser import parse_records_file
+from app.library.file_parser import parse_records_file, download_anotated_dataset
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
@@ -279,7 +279,6 @@ def download_dataset(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    # TODO: enable dataset download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
@@ -293,24 +292,12 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-    download_anotated_dataset(records, format)
-    # TODO: make a separate function for this
-    # FIX: the solution below does not parse the text correctly. There should be
-    #      one column containing the whole text (parsed accordingly) - newlines
-    #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    writer.writerow(["text"])
-    for record in records:
-        # TODO: add other fields (extracted, clusters, etc.)
-        writer.writerow([record.text])
-    output.seek(0)
+    file_content, media_type = download_anotated_dataset(records, format)
 
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={dataset.name}.csv"},
+        iter([file_content]),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={dataset.name}.{format}"},
     )
 
 

@@ -105,14 +105,14 @@ def parse_json(text, required_columns) -> List[Record]:
             )
         
         records = []
-        for obj in items:
+        for i, obj in enumerate(items):
             # Validate that all required fields exist
-            missing = [col for col in required_columns if col not in items[0]]
+            missing = [col for col in required_columns if col not in obj]
 
             if missing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Missing required columns: {', '.join(missing)}",
+                    detail=f"Missing required columns at index {i}: {', '.join(missing)}",
                 )
             
             date_str = obj.get("date")
@@ -207,17 +207,39 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
 
 def download_anotated_dataset(records, format): 
     if format == "csv":
-
         output = io.StringIO()
         writer = csv.writer(output)
 
         writer.writerow(["patient_id", "seq_number", "date", "entity_type", "entity_name"])
         for record in records:
-            writer.writerow([record.patient_id, record.seq_number, record.date, ])
+            for term in record.source_terms:
+                entity_type = term.label
+                entity_name = term.cluster.title
+                writer.writerow([
+                    record.patient_id, 
+                    record.seq_number, 
+                    record.date, 
+                    entity_type, 
+                    entity_name
+                ])
         output.seek(0)
+        return output.getvalue(), "text/csv"
 
     elif format == "json":
-        pass
+        data = []
+        for record in records:
+            for term in record.source_terms:
+                entity_type = term.label
+                entity_name = term.cluster.title
+                data.append({
+                    "patient_id": record.patient_id,
+                    "seq_number": record.seq_number,
+                    "date": record.date.isoformat() if record.date else None,
+                    "entity_type": entity_type,
+                    "entity_name": entity_name,
+                })
+        return json.dumps(data), "application/json"
+    
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
