@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import Layout from 'components/Layout';
 import { useRecords } from 'hooks/useRecords';
+import { usePageTitle } from 'hooks/usePageTitle';
 import type { Record as RecordType, SourceTerm, SourceTermCreate } from 'types';
 import AnnotationSidebar from './AnnotationSidebar';
 import styles from './styles.module.css';
@@ -145,15 +146,18 @@ interface RecordItemProps {
 }
 
 function RecordItem({ record, isSelected, onClick }: RecordItemProps) {
-    const hasTerms = record.source_term_count > 0;
-
     return (
         <div
             className={`${styles.recordItem} ${isSelected ? styles.selected : ''}`}
             onClick={onClick}
         >
             <div className={styles.recordItemHeader}>
-                <span className={styles.recordId}>Record #{record.id}</span>
+                <span className={styles.recordId}>
+                    Patient ID: {record.patient_id}
+                </span>
+                <span className={styles.recordId}>
+                    {record.seq_number && `#${record.seq_number}`}
+                </span>
                 <span className={styles.recordTime}>
                     {formatRelativeTime(record.uploaded)}
                 </span>
@@ -163,23 +167,14 @@ function RecordItem({ record, isSelected, onClick }: RecordItemProps) {
                 {record.text.length > 150 ? '...' : ''}
             </div>
             <div className={styles.recordStatus}>
-                {hasTerms ? (
-                    <span className={`${styles.statusBadge} ${styles.processed}`}>
-                        Processed
-                    </span>
-                ) : (
-                    <span className={`${styles.statusBadge} ${styles.pending}`}>
-                        Pending
-                    </span>
-                )}
+                <span className={styles.termCount}>
+                    {record.source_term_count > 0
+                        ? `${record.source_term_count} term${record.source_term_count !== 1 ? 's' : ''}`
+                        : 'No terms'}
+                </span>
                 {record.reviewed && (
                     <span className={`${styles.statusBadge} ${styles.reviewed}`}>
                         Reviewed
-                    </span>
-                )}
-                {record.source_term_count > 0 && (
-                    <span className={styles.termCount}>
-                        {record.source_term_count} term{record.source_term_count !== 1 ? 's' : ''}
                     </span>
                 )}
             </div>
@@ -195,6 +190,8 @@ const DatasetRecords = () => {
     const { datasetId } = useParams<{ datasetId: string }>();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
+    const [patientIdQuery, setPatientIdQuery] = useState('');
+    const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'reviewed' | 'not_reviewed'>('all');
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
     // Annotation state
@@ -216,6 +213,8 @@ const DatasetRecords = () => {
         isLoading,
         isLoadingMore,
         isLoadingTerms,
+        isExtracting,
+        isExtractingDataset,
         hasMore,
         error,
         loadMoreRecords,
@@ -223,7 +222,52 @@ const DatasetRecords = () => {
         markRecordReviewed,
         addSourceTerm,
         removeSourceTerm,
+        extractTermsForRecord,
+        extractTermsForDataset,
+        fetchRecords,
+        patientIdFilter,
+        setPatientIdFilter,
+        textFilter,
+        setTextFilter,
+        reviewedFilter,
+        setReviewedFilter,
     } = useRecords(parsedDatasetId);
+
+    // Update page title based on dataset name
+    usePageTitle(dataset?.name || 'Dataset Records');
+
+    // Debounced search - update filters after user stops typing
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setTextFilter(searchQuery);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, setTextFilter]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setPatientIdFilter(patientIdQuery);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [patientIdQuery, setPatientIdFilter]);
+
+    // Update reviewed filter when review status changes
+    useEffect(() => {
+        if (reviewStatusFilter === 'all') {
+            setReviewedFilter(undefined);
+        } else if (reviewStatusFilter === 'reviewed') {
+            setReviewedFilter(true);
+        } else {
+            setReviewedFilter(false);
+        }
+    }, [reviewStatusFilter, setReviewedFilter]);
+
+    // Refetch records when filters change
+    useEffect(() => {
+        fetchRecords(1, 20);
+    }, [patientIdFilter, textFilter, reviewedFilter, fetchRecords]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -310,15 +354,35 @@ const DatasetRecords = () => {
         }
     }, []);
 
-    // Filter records based on search
-    const filteredRecords = useMemo(() => {
-        if (!searchQuery.trim()) return records;
-        const query = searchQuery.toLowerCase();
-        return records.filter((r) =>
-            r.text.toLowerCase().includes(query) ||
-            r.id.toString().includes(query)
+    // Extract terms handlers
+    const handleExtractTermsForRecord = useCallback(async () => {
+        if (!selectedRecord) return;
+        try {
+            const response = await extractTermsForRecord();
+            alert(response.message || 'Terms extracted successfully');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to extract terms';
+            alert(`Error: ${errorMessage}`);
+        }
+    }, [selectedRecord, extractTermsForRecord]);
+
+    const handleExtractTermsForDataset = useCallback(async () => {
+        if (!stats?.total_records) return;
+
+        const confirmed = window.confirm(
+            `This will extract terms from all ${stats.total_records} record${stats.total_records !== 1 ? 's' : ''} in the dataset. This may take several minutes. Continue?`
         );
-    }, [records, searchQuery]);
+
+        if (!confirmed) return;
+
+        try {
+            const response = await extractTermsForDataset();
+            alert(response.message || 'Terms extracted successfully for all records');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to extract terms';
+            alert(`Error: ${errorMessage}`);
+        }
+    }, [stats, extractTermsForDataset]);
 
     if (!parsedDatasetId) {
         return (
@@ -354,6 +418,24 @@ const DatasetRecords = () => {
                     </div>
                     {/* Stats Cards */}
                     <div className={styles.statsGrid}>
+
+                        <div className={styles.headerActions}>
+                            <button
+                                className={`${styles.actionButton} ${styles.cluster}`}
+                                onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
+                                title="Cluster similar terms"
+                            >
+                                🔮 Clustering
+                            </button>
+                            <button
+                                className={`${styles.actionButton} ${styles.extract}`}
+                                onClick={handleExtractTermsForDataset}
+                                disabled={isExtractingDataset || !dataset?.labels?.length}
+                                title={!dataset?.labels?.length ? 'No labels defined for this dataset' : 'Extract terms from all records'}
+                            >
+                                {isExtractingDataset ? 'Extracting...' : 'Extract All Terms'}
+                            </button>
+                        </div>
                         <StatCard
                             label="Total"
                             value={stats?.total_records ?? 0}
@@ -387,24 +469,66 @@ const DatasetRecords = () => {
                             <input
                                 type="text"
                                 className={styles.searchInput}
-                                placeholder="Search records..."
+                                placeholder="Search by patient ID..."
+                                value={patientIdQuery}
+                                onChange={(e) => setPatientIdQuery(e.target.value)}
+                            />
+                            <input
+                                type="text"
+                                className={styles.searchInput}
+                                placeholder="Search by text..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
+
+                            <div className={styles.filterGroup}>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="reviewStatus"
+                                        value="all"
+                                        checked={reviewStatusFilter === 'all'}
+                                        onChange={(e) => setReviewStatusFilter(e.target.value as 'all')}
+                                    />
+                                    <span>All</span>
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="reviewStatus"
+                                        value="reviewed"
+                                        checked={reviewStatusFilter === 'reviewed'}
+                                        onChange={(e) => setReviewStatusFilter(e.target.value as 'reviewed')}
+                                    />
+                                    <span>Reviewed</span>
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="reviewStatus"
+                                        value="not_reviewed"
+                                        checked={reviewStatusFilter === 'not_reviewed'}
+                                        onChange={(e) => setReviewStatusFilter(e.target.value as 'not_reviewed')}
+                                    />
+                                    <span>Not Reviewed</span>
+                                </label>
+                            </div>
                         </div>
                         <div className={styles.recordsList}>
                             {isLoading ? (
                                 <div className={styles.loading}>Loading records...</div>
-                            ) : filteredRecords.length === 0 ? (
+                            ) : records.length === 0 ? (
                                 <div className={styles.emptyState}>
                                     <div className={styles.emptyStateIcon}>📄</div>
                                     <p className={styles.emptyStateText}>
-                                        {searchQuery ? 'No matching records' : 'No records yet'}
+                                        {searchQuery || patientIdQuery || reviewStatusFilter !== 'all'
+                                            ? 'No matching records'
+                                            : 'No records yet'}
                                     </p>
                                 </div>
                             ) : (
                                 <>
-                                    {filteredRecords.map((record) => (
+                                    {records.map((record) => (
                                         <RecordItem
                                             key={record.id}
                                             record={record}
@@ -436,9 +560,17 @@ const DatasetRecords = () => {
                                 <div className={styles.recordTextPanel}>
                                     <div className={styles.recordTextHeader}>
                                         <h2 className={styles.recordTextTitle}>
-                                            Record #{selectedRecord.id} - NER View
+                                            NER View
                                         </h2>
                                         <div className={styles.detailActions}>
+                                            <button
+                                                className={`${styles.actionButton} ${styles.extract}`}
+                                                onClick={handleExtractTermsForRecord}
+                                                disabled={isExtracting || !dataset?.labels?.length}
+                                                title={!dataset?.labels?.length ? 'No labels defined for this dataset' : 'Extract terms from this record'}
+                                            >
+                                                {isExtracting ? 'Extracting...' : 'Extract Terms'}
+                                            </button>
                                             <button
                                                 className={`${styles.actionButton} ${styles.secondary}`}
                                                 onClick={handleOpenAnnotation}
@@ -454,6 +586,12 @@ const DatasetRecords = () => {
                                                     : 'Mark Reviewed'}
                                             </button>
                                         </div>
+                                    </div>
+                                    <div className={styles.recordTextHeader}>
+                                        <h3 className={styles.recordTextTitle}>
+                                            Patient ID: {selectedRecord.patient_id}
+                                            {selectedRecord.seq_number && ` | #${selectedRecord.seq_number}`}
+                                        </h3>
                                     </div>
                                     <div className={styles.recordTextContent}>
                                         {isLoadingTerms ? (
@@ -496,28 +634,28 @@ const DatasetRecords = () => {
                                                         className={styles.termItem}
                                                     >
                                                         <div className={styles.termInfo}>
-                                                            <span className={styles.termValue}>
-                                                                {term.value}
-                                                            </span>
                                                             <div className={styles.termMeta}>
-                                                                <span
-                                                                    className={`${styles.termLabel} ${styles[getLabelColorClass(term.label, dataset?.labels ?? [])]}`}
-                                                                >
-                                                                    {term.label}
+                                                                <span className={styles.termValue}>
+                                                                    {term.value}
                                                                 </span>
                                                                 {term.start_position !== null && (
                                                                     <span className={styles.termPosition}>
                                                                         [{term.start_position}-{term.end_position}]
                                                                     </span>
                                                                 )}
+                                                                <button
+                                                                    className={styles.termViewButton}
+                                                                    onClick={() => scrollToTerm(term.id)}
+                                                                >
+                                                                    View
+                                                                </button>
                                                             </div>
+                                                            <span
+                                                                className={`${styles.termLabel} ${styles[getLabelColorClass(term.label, dataset?.labels ?? [])]}`}
+                                                            >
+                                                                {term.label}
+                                                            </span>
                                                         </div>
-                                                        <button
-                                                            className={styles.termViewButton}
-                                                            onClick={() => scrollToTerm(term.id)}
-                                                        >
-                                                            View
-                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>

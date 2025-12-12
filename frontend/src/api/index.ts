@@ -16,6 +16,10 @@ import type {
     VocabularyOutput,
     VocabularyCreate,
     MessageOutput,
+    ClustersOutput,
+    ClusterData,
+    ClusterCreateRequest,
+    ClusterMergeRequest,
 } from 'types';
 
 // ================================================
@@ -134,7 +138,7 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 export async function getUserStats(): Promise<UserStats> {
-    return apiRequest<UserStats>('/auth/me/stats');
+    return apiRequest<UserStats>('/auth/me/statistics');
 }
 
 // ================================================
@@ -149,10 +153,64 @@ export async function getDataset(id: number): Promise<DatasetOutput> {
     return apiRequest<DatasetOutput>(`/datasets/${id}`);
 }
 
-export async function createDataset(data: DatasetCreate): Promise<DatasetOutput> {
-    return apiRequest<DatasetOutput>('/datasets/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createDataset(
+    data: DatasetCreate,
+    onProgress?: (progress: number) => void
+): Promise<DatasetOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('labels', data.labels);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/datasets/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
@@ -197,7 +255,7 @@ export async function downloadDataset(id: number): Promise<void> {
 }
 
 export async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
-    return apiRequest<DatasetStats>(`/datasets/${datasetId}/stats`);
+    return apiRequest<DatasetStats>(`/datasets/${datasetId}/statistics`);
 }
 
 // ================================================
@@ -207,10 +265,28 @@ export async function getDatasetStats(datasetId: number): Promise<DatasetStats> 
 export async function getRecords(
     datasetId: number,
     page = 1,
-    limit = 50
+    limit = 50,
+    patientId?: string,
+    text?: string,
+    reviewed?: boolean
 ): Promise<RecordsOutput> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+    });
+
+    if (patientId) {
+        params.append('patient_id', patientId);
+    }
+    if (text) {
+        params.append('text', text);
+    }
+    if (reviewed !== undefined) {
+        params.append('reviewed', reviewed.toString());
+    }
+
     return apiRequest<RecordsOutput>(
-        `/datasets/${datasetId}/records?page=${page}&limit=${limit}`
+        `/datasets/${datasetId}/records?${params.toString()}`
     );
 }
 
@@ -266,6 +342,37 @@ export async function deleteSourceTerm(termId: number): Promise<MessageOutput> {
 }
 
 // ================================================
+// Bioner Extraction API
+// ================================================
+
+export async function extractRecordTerms(
+    datasetId: number,
+    recordId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/${recordId}/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
+}
+
+export async function extractDatasetTerms(
+    datasetId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
+}
+
+// ================================================
 // Vocabularies API
 // ================================================
 
@@ -277,10 +384,64 @@ export async function getVocabulary(id: number): Promise<VocabularyOutput> {
     return apiRequest<VocabularyOutput>(`/vocabularies/${id}`);
 }
 
-export async function createVocabulary(data: VocabularyCreate): Promise<VocabularyOutput> {
-    return apiRequest<VocabularyOutput>('/vocabularies/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createVocabulary(
+    data: VocabularyCreate,
+    onProgress?: (progress: number) => void
+): Promise<VocabularyOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('version', data.version);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/vocabularies/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
@@ -322,5 +483,81 @@ export async function downloadVocabulary(id: number): Promise<void> {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// ================================================
+// Clustering API
+// ================================================
+
+export async function getClusters(
+    datasetId: number,
+    label?: string
+): Promise<ClustersOutput> {
+    const params = label ? `?label=${encodeURIComponent(label)}` : '';
+    return apiRequest<ClustersOutput>(`/datasets/${datasetId}/clusters${params}`);
+}
+
+export async function rebuildClusters(
+    datasetId: number,
+    label: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/${datasetId}/clusters/create?label=${encodeURIComponent(label)}`,
+        { method: 'POST' }
+    );
+}
+
+export async function createCluster(
+    datasetId: number,
+    data: ClusterCreateRequest
+): Promise<ClusterData> {
+    return apiRequest<ClusterData>(`/datasets/${datasetId}/clusters`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function assignTermToCluster(
+    termId: number,
+    clusterId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/source-terms/${termId}/map-cluster/${clusterId}`,
+        { method: 'POST' }
+    );
+}
+
+export async function unassignTermFromCluster(
+    termId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/source-terms/${termId}/unmap-cluster`, {
+        method: 'POST',
+    });
+}
+
+export async function renameCluster(
+    clusterId: number,
+    title: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/clusters/${clusterId}?title=${encodeURIComponent(title)}`,
+        { method: 'PUT' }
+    );
+}
+
+export async function mergeClusters(
+    datasetId: number,
+    data: ClusterMergeRequest
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/${datasetId}/clusters/merge`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteCluster(clusterId: number): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/clusters/${clusterId}`, {
+        method: 'DELETE',
+    });
 }
 

@@ -19,7 +19,7 @@ export interface FileDropzoneProps {
 const FileDropzone = ({
     onFileSelect,
     accept = '.csv,.json',
-    maxSize = 50 * 1024 * 1024, // 50MB default
+    maxSize = 2 * 1024 * 1024 * 1024, // 2GB default
     disabled = false,
 }: FileDropzoneProps) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -112,6 +112,16 @@ const FileDropzone = ({
         }
     }, [handleFile]);
 
+    const formatFileSize = (bytes: number): string => {
+        if (bytes >= 1024 * 1024 * 1024) {
+            return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+        } else if (bytes >= 1024 * 1024) {
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+    };
+
     return (
         <div
             className={`${styles.dropzone} ${isDragging ? styles.dragging : ''} ${disabled ? styles.disabled : ''} ${selectedFile ? styles.hasFile : ''}`}
@@ -152,7 +162,7 @@ const FileDropzone = ({
                     <div className={styles.selectedInfo}>
                         <span className={styles.fileName}>{selectedFile.name}</span>
                         <span className={styles.fileSize}>
-                            ({(selectedFile.size / 1024).toFixed(1)} KB)
+                            ({formatFileSize(selectedFile.size)})
                         </span>
                     </div>
                 ) : (

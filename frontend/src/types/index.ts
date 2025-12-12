@@ -52,8 +52,8 @@ export interface Dataset {
 
 export interface DatasetCreate {
     name: string;
-    labels?: string[];
-    records?: RecordCreate[];
+    labels: string;
+    file: File;
 }
 
 export interface DatasetOutput {
@@ -71,6 +71,9 @@ export interface DatasetsOutput {
 
 export interface Record {
     id: number;
+    patient_id: string;
+    seq_number: string | null;
+    date: string | null;
     text: string;
     uploaded: string;
     dataset_id: number;
@@ -146,7 +149,7 @@ export interface Vocabulary {
 export interface VocabularyCreate {
     name: string;
     version: string;
-    concepts?: ConceptCreate[];
+    file: File;
 }
 
 export interface VocabularyOutput {
@@ -172,6 +175,13 @@ export interface Concept {
 export interface ConceptCreate {
     vocab_term_id: string;
     vocab_term_name: string;
+    domain_id: string;
+    concept_class_id: string;
+    standard_concept?: string;
+    concept_code?: string;
+    valid_start_date: string;  // YYYYMMDD format
+    valid_end_date: string;    // YYYYMMDD format
+    invalid_reason?: string;
 }
 
 export interface ConceptOutput {
@@ -193,5 +203,45 @@ export interface MessageOutput {
 
 export interface ApiError {
     detail: string;
+}
+
+// ================================================
+// Clustering types
+// ================================================
+
+export interface ClusteredTerm {
+    term_id: number;
+    text: string;
+    frequency: number;
+    n_records: number;
+    record_ids: number[];
+}
+
+export interface ClusterData {
+    id: number;
+    dataset_id: number;
+    label: string;
+    title: string;
+    total_terms: number;
+    total_occurrences: number;
+    unique_records: number;
+    terms: ClusteredTerm[];
+}
+
+export interface ClustersOutput {
+    clusters: ClusterData[];
+    unclustered_terms: ClusteredTerm[];
+    total_terms: number;
+    labels: string[];
+}
+
+export interface ClusterCreateRequest {
+    label: string;
+    title: string;
+}
+
+export interface ClusterMergeRequest {
+    cluster_ids: number[];
+    new_title: string;
 }
 

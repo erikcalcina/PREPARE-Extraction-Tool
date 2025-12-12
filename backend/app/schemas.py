@@ -1,11 +1,11 @@
 import re
 from math import ceil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator
-from app.models_db import Record, Concept, SourceTerm
+from app.models_db import Record, Concept, SourceTerm, Cluster
 
 
 # ================================================
@@ -172,7 +172,7 @@ class DatasetsOutput(BaseModel):
     pagination: PaginationMetadata
 
 
-class DatasetStatsResponse(BaseModel):
+class DatasetStatisticsResponse(BaseModel):
     """Model for dataset statistics."""
 
     total_records: int
@@ -287,6 +287,7 @@ class ConceptsOutput(BaseModel):
     """Wrapper for paginated list of concepts."""
 
     concepts: List[Concept]
+    pagination: PaginationMetadata
 
 
 # ================================================
@@ -317,21 +318,32 @@ class SourceTermsOutput(BaseModel):
 
 
 # ================================================
-# Mapping models
+# Clustering response models
 # ================================================
 
 
-class MapRequest(BaseModel):
-    """Request model for mapping source terms to vocabularies."""
+class ClusterCreate(BaseModel):
+    """Create new empty cluster manually"""
 
-    vocabulary_ids: List[int]
+    label: str
+    title: str
 
 
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
-# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
-# ClusteredTerm and EntityCluster are just response objects, created in memory.
-# So they should be Pydantic models, not SQLModel tables.
+class ClusterMerge(BaseModel):
+    """Merge multiple clusters"""
+
+    cluster_ids: List[int] = Field(min_length=2)
+    new_title: str
+
+
+class ClustersOutput(BaseModel):
+    clusters: List[Cluster]
+
+
+class ClusterOutput(BaseModel):
+    cluster: Cluster
+
+
 class ClusteredTerm(BaseModel):
     term_id: int
     text: str
@@ -340,11 +352,47 @@ class ClusteredTerm(BaseModel):
     record_ids: List[int]
 
 
-class EntityCluster(BaseModel):
+class ClusterResponse(BaseModel):
+    """Rich cluster data for frontend display"""
+
     id: int
-    main_term: str
+    dataset_id: int
     label: str
+    title: str
     total_terms: int
     total_occurrences: int
-    n_records: int
+    unique_records: int
     terms: List[ClusteredTerm]
+
+
+class ClustersStatisticsOutput(BaseModel):
+    """Complete clustering state for a dataset/label"""
+
+    clusters: List[ClusterResponse]
+    unclustered_terms: List[ClusteredTerm]
+    total_number_terms: int
+    labels: List[str]
+
+
+# ================================================
+# Mapping models
+# ================================================
+
+
+class TermToClusterMapping(BaseModel):
+    """Mapping of a source term to a cluster"""
+
+    term_id: int
+    cluster_id: int
+
+
+class BatchTermToClusterMapping(BaseModel):
+    """Bulk term to cluster mappings"""
+
+    mappings: List[TermToClusterMapping]
+
+
+class MapRequest(BaseModel):
+    """Request model for mapping source terms to vocabularies."""
+
+    vocabulary_ids: List[int]
