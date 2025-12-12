@@ -47,7 +47,7 @@ class GlinerEngine(BaseEngine):
                         label=p["label"],
                         start=global_offset + local_start,
                         end=global_offset + local_end,
-                        score=float(p("score")) if p("score") is not None else None,
+                        score=float(p["score"]) if p["score"] is not None else None,
                     )
                 )
             # 3) Move to the next chunk's starting global offset
