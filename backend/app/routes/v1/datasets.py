@@ -8,17 +8,16 @@ from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse 
 
-from app.core.database import get_db
 from app.core.model_registry import model_registry
 from app.models import DatasetCreate, MessageOutput, RecordCreate
 from sqlmodel import Session, select, func
 
 from hdbscan import HDBSCAN
 
-from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
+from app.core.database import get_session
+from app.models_db import Dataset, Record, SourceTerm, User, Cluster
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
-from app.models_db import Dataset, Record, SourceTerm, User
 from app.schemas import (
     DatasetResponse,
     DatasetStatsResponse,
@@ -708,165 +707,49 @@ def get_source_terms(
         ),
     )
 
-
-@router.get("/{dataset_id}/clusters", response_model=List[EntityCluster])
+@router.get("/{dataset_id}/clusters", response_model=List[Cluster])
 def get_entity_clusters(
     dataset_id: int,
     label: str,
-    k: int = 10,
+    rebuild: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    """
-    Cluster SourceTerm (entities) for a single dataset.
-
-    1. - dataset_id: which dataset to use
-    - label: entity lavel we want to cluster (e.g. "Diagnosis")
-    - k: requested number of clusters (will be limited if there are few terms)
-
-    The idea:
-      1) Take all SourceTerms for this dataset with the given label.
-      2) Group identical texts together (same spelling).
-      3) Convert each unique text into a vector (TF-IDF over character n-grams).
-      4) Run KMeans to group similar texts into clusters.
-      5) Return clusters with statistics that the frontend can show.
-    """
-
-    # check that dataset exists
+    # 1. Check dataset exists
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found",
-        )
+        raise HTTPException(404, "Dataset not found")
+
     verify_dataset_ownership(dataset, current_user.id)
 
-    # load SourceTerms for this dataset and label
-    # join with Record so we can filter by dataset_id.
-    statement = (
-        select(SourceTerm)
-        .join(Record)
-        .where(Record.dataset_id == dataset_id)
-        .where(SourceTerm.label == label)
-    )
-    source_terms: List[SourceTerm] = db.exec(statement).all()
+    # 2. Rebuild if requested
+    if rebuild:
+        rebuild_clusters(dataset_id, label, current_user=current_user, db=db)
 
-    if not source_terms:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No source terms with this label for the dataset",
-        )
-
-    # aggregate by term text (value
-    # we want to cluster unique texts, not every single occurrence.
-    stats: Dict[str, Dict[str, object]] = {}
-
-    for term in source_terms:
-        # term.value is the original text of the entity
-        text = (term.value or "").strip()
-        if not text:
-            continue
-
-        if text not in stats:
-            stats[text] = {
-                "frequency": 0,  # how many SourceTerms with this value
-                "record_ids": set(),  # IDs of records where this value appears
-                "term_ids": [],  # IDs of SourceTerm rows with this value
-            }
-
-        stats[text]["frequency"] += 1
-        stats[text]["record_ids"].add(term.record_id)
-        stats[text]["term_ids"].append(term.id)
-
-    unique_texts = list(stats.keys())
-    if not unique_texts:
-
-        return []
-
-    # adjust number of clusters
-    # i guess there is no point in having more clusters than unique texts
-    k = max(1, min(k, len(unique_texts)))
-
-    # Load embedding model
-    embedding_model = model_registry.get_model("embedding")
-
-    # Compute embeddings (list[str] -> ndarray)
-    embeddings = embedding_model.encode(unique_texts)
-
-    # Create HDBSCAN clusterer
-    clusterer = HDBSCAN(
-    min_cluster_size=2,
-    metric="euclidean",
-    cluster_selection_method="eom", 
-    )
-
-    # Run HDBSCAN on embeddings
-    labels_arr = clusterer.fit_predict(embeddings)
-
-    # You can skip noise points (-1)
-    filtered_texts = []
-    filtered_labels = []
-    for t, cid in zip(unique_texts, labels_arr):
-        if cid == -1:
-            # optional: skip noise
-            continue
-        filtered_texts.append(t)
-        filtered_labels.append(cid)
-
-    unique_texts = filtered_texts
-    labels_arr = filtered_labels
-
-    # group texts by cluster id
-    clusters_raw: Dict[int, List[str]] = defaultdict(list)
-    for text, cluster_id in zip(unique_texts, labels_arr):
-        clusters_raw[int(cluster_id)].append(text)
-
-    clusters: List[EntityCluster] = []
-
-    for cluster_id, texts_in_cluster in clusters_raw.items():
-        # pick main term: the most frequent one in this cluster.
-        main_text = max(texts_in_cluster, key=lambda t: stats[t]["frequency"])
-
-        # total occurrences = sum of frequencies of all terms in this cluster.
-        total_occurrences = sum(stats[t]["frequency"] for t in texts_in_cluster)
-
-        # union of all record IDs where any of these texts appears.
-        record_ids_union = set()
-        for t in texts_in_cluster:
-            record_ids_union.update(stats[t]["record_ids"])
-
-        # build ClusteredTerm objects for each text in the cluster.
-        term_models: List[ClusteredTerm] = []
-        for t in texts_in_cluster:
-            info = stats[t]
-            term_models.append(
-                ClusteredTerm(
-                    term_id=info["term_ids"][
-                        0
-                    ],  # just use the first SourceTerm ID as a representative
-                    text=t,
-                    frequency=info["frequency"],
-                    n_records=len(info["record_ids"]),
-                    record_ids=sorted(info["record_ids"]),
-                )
-            )
-
-        clusters.append(
-            EntityCluster(
-                id=cluster_id,
-                main_term=main_text,
-                label=label,
-                total_terms=len(texts_in_cluster),
-                total_occurrences=total_occurrences,
-                n_records=len(record_ids_union),
-                terms=term_models,
-            )
-        )
-
-    # sort clusters by how "big" they are (most frequent first)
-    clusters.sort(key=lambda c: c.total_occurrences, reverse=True)
+    # 3. Fetch clusters from DB
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == label)
+    ).all()
 
     return clusters
+
+ #   if not rebuild:
+ #    existing_clusters = db.exec(
+ #       select(Cluster).where(
+ #           Cluster.dataset_id == dataset_id,
+ #           Cluster.label == label
+ #       )
+ #   ).all()
+ #
+ #   if existing_clusters:
+ #       return existing_clusters
+ #
+ #   clusters = rebuild_clusters(dataset_id, label, db)
+ #
+ #
+ #   return clusters
 
 
 @router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
@@ -970,10 +853,12 @@ def auto_assign_source_term(
     # --- 1. Load term ---
     term = db.get(SourceTerm, term_id)
     if not term:
-        raise HTTPException(404, "SourceTerm not found")
+       raise HTTPException(404, "SourceTerm not found")
 
     # Need record.dataset_id
     record = db.get(Record, term.record_id)
+    if not record:
+       raise HTTPException(404, "Record not found")
 
     dataset = db.get(Dataset, record.dataset_id)
     # TODO: clear and more structured 
@@ -981,9 +866,6 @@ def auto_assign_source_term(
         raise HTTPException(404, "Dataset not found")
 
     verify_dataset_ownership(dataset, current_user.id)
-
-    if not record:
-        raise HTTPException(404, "Record not found")
 
     dataset_id = record.dataset_id
 
@@ -1013,7 +895,7 @@ def auto_assign_source_term(
             message=f"Created new cluster {new_cluster.id} (no existing clusters)."
         )
 
-     # --- 3. Use embedding model instead of TF-IDF ---
+    # --- 3. Use embedding model instead of TF-IDF ---
     embedding_model = model_registry.get_model("embedding")
 
     # Cluster representatives = cluster titles
