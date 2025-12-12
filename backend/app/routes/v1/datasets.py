@@ -1,11 +1,10 @@
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
-
 from sqlmodel import Session, select, func
 
 from hdbscan import HDBSCAN
@@ -17,7 +16,7 @@ from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
-    DatasetStatsResponse,
+    DatasetStatisticsResponse,
     DatasetsOutput,
     DatasetOutput,
     RecordCreate,
@@ -30,12 +29,12 @@ from app.schemas import (
     MessageOutput,
     PaginationParams,
     ClusteredTerm,
-    create_pagination_metadata,
-    ClusterResponse,
+    ClusterCreate,
     ClustersOutput,
-    ClusterCreateRequest,
-    ClusterMergeRequest,
-    BatchAssignRequest,
+    ClustersStatisticsOutput,
+    ClusterResponse,
+    ClusterMerge,
+    create_pagination_metadata,
 )
 
 from app.library.file_parser import download_annotated_dataset
@@ -190,7 +189,7 @@ def get_dataset(
 
 @router.get(
     "/{dataset_id}/statistics",
-    response_model=DatasetStatsResponse,
+    response_model=DatasetStatisticsResponse,
     status_code=status.HTTP_200_OK,
     summary="Get dataset statistics",
     description="Retrieves statistics for a dataset including record counts and processing status",
@@ -237,7 +236,7 @@ def get_dataset_stats(
         .where(Record.dataset_id == dataset_id)
     ).one()
 
-    return DatasetStatsResponse(
+    return DatasetStatisticsResponse(
         total_records=total_records,
         processed_count=processed_count,
         pending_review_count=pending_review_count,
@@ -618,7 +617,7 @@ def review_record(
     description="Creates a new source term associated with a specific record",
     response_description="The created source term",
 )
-def create_source_term(
+def create_source_term_for_record(
     dataset_id: int,
     record_id: int,
     term: SourceTermCreate,
@@ -667,7 +666,7 @@ def create_source_term(
     description="Retrieves all source terms associated with a specific record",
     response_description="List of source terms in the record",
 )
-def get_source_terms(
+def get_source_terms_of_record(
     dataset_id: int,
     record_id: int,
     current_user: User = Depends(get_current_user),
@@ -719,368 +718,13 @@ def get_source_terms(
     )
 
 
-@router.get("/{dataset_id}/clusters", response_model=List[Cluster])
-def get_entity_clusters(
-    dataset_id: int,
-    label: str,
-    rebuild: bool = False,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    # 1. Check dataset exists
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
-        )
-
-    verify_dataset_ownership(dataset, current_user.id)
-
-    # 2. Rebuild if requested
-    if rebuild:
-        rebuild_clusters(dataset_id, label, current_user=current_user, db=db)
-
-    # 3. Fetch clusters from DB
-    clusters = db.exec(
-        select(Cluster)
-        .where(Cluster.dataset_id == dataset_id)
-        .where(Cluster.label == label)
-    ).all()
-
-    return clusters
-
-
-@router.post("/{dataset_id}/clusters/rebuild", response_model=MessageOutput)
-def rebuild_clusters(
-    dataset_id: int,
-    label: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-
-    # --- 1. Check dataset exists ---
-    dataset = db.get(Dataset, dataset_id)
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-
-    # Check that current_user owns this dataset
-    verify_dataset_ownership(dataset, current_user.id)
-
-    # --- 2. Load SourceTerms belonging to this dataset & label ---
-    source_terms = db.exec(
-        select(SourceTerm)
-        .join(Record)
-        .where(Record.dataset_id == dataset_id)
-        .where(SourceTerm.label == label)
-    ).all()
-
-    if not source_terms:
-        raise HTTPException(
-            status_code=400, detail="No source terms for this label in dataset"
-        )
-
-    # --- 3. Prepare texts ---
-    texts = [st.value for st in source_terms]
-    if len(texts) == 0:
-        return MessageOutput(message="No terms to cluster")
-
-    # --- 4-5 Changed to embedded model ?---
-    embedding_model = model_registry.get_model("embedding")
-    embeddings = embedding_model.encode(texts)
-
-    clusterer = HDBSCAN(
-        min_cluster_size=2,
-        metric="euclidean",
-        cluster_selection_method="eom",
-    )
-
-    labels_arr = clusterer.fit_predict(embeddings)
-
-    # --- 6. Remove existing clusters for this dataset/label ---
-    old_clusters = db.exec(
-        select(Cluster)
-        .where(Cluster.dataset_id == dataset_id)
-        .where(Cluster.label == label)
-    ).all()
-
-    for c in old_clusters:
-        db.delete(c)
-    db.commit()
-
-    # --- 7. Create new clusters ---
-    cluster_map = {}  # cluster_id (from HDBSCAN) -> Cluster DB object
-
-    for st, cid in zip(source_terms, labels_arr):
-
-        if cid == -1:
-            # HDBSCAN noise → create a one-term cluster
-            new_cluster = Cluster(
-                dataset_id=dataset_id, label=label, title=st.value  # title = first term
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
-
-            st.cluster_id = new_cluster.id
-            db.add(st)
-            continue
-
-        # If the cluster is seen for the first time
-        if cid not in cluster_map:
-            new_cluster = Cluster(
-                dataset_id=dataset_id,
-                label=label,
-                title=st.value,  # first term becomes cluster title
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
-
-            cluster_map[cid] = new_cluster
-
-        # Assign term to cluster
-        st.cluster_id = cluster_map[cid].id
-        db.add(st)
-
-    db.commit()
-
-    return MessageOutput(message="Clusters rebuilt and saved to database.")
-
-
-@router.post("/source-terms/{term_id}/auto-assign", response_model=MessageOutput)
-def auto_assign_source_term(
-    term_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    # --- 1. Load term ---
-    term = db.get(SourceTerm, term_id)
-    if not term:
-        raise HTTPException(404, "SourceTerm not found")
-
-    # Need record.dataset_id
-    record = db.get(Record, term.record_id)
-    if not record:
-        raise HTTPException(404, "Record not found")
-
-    dataset = db.get(Dataset, record.dataset_id)
-    # TODO: clear and more structured
-    if not dataset:
-        raise HTTPException(404, "Dataset not found")
-
-    verify_dataset_ownership(dataset, current_user.id)
-
-    dataset_id = record.dataset_id
-
-    # Verify dataset ownership
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(404, "Dataset not found")
-    verify_dataset_ownership(dataset, current_user.id)
-
-    # --- 2. Load all clusters for this dataset + label ---
-    clusters = db.exec(
-        select(Cluster)
-        .where(Cluster.dataset_id == dataset_id)
-        .where(Cluster.label == term.label)
-    ).all()
-
-    if not clusters:
-        # No clusters yet → create new
-        new_cluster = Cluster(
-            dataset_id=dataset_id,
-            label=term.label,
-            title=term.value,
-        )
-        db.add(new_cluster)
-        db.commit()
-        db.refresh(new_cluster)
-
-        term.cluster_id = new_cluster.id
-        db.add(term)
-        db.commit()
-
-        return MessageOutput(
-            message=f"Created new cluster {new_cluster.id} (no existing clusters)."
-        )
-
-    # --- 3. Use embedding model instead of TF-IDF ---
-    embedding_model = model_registry.get_model("embedding")
-
-    # Cluster representatives = cluster titles
-    cluster_titles = [c.title for c in clusters]
-
-    # Get embeddings
-    cluster_vectors = embedding_model.encode(cluster_titles)
-    term_vector = embedding_model.encode([term.value])[0]
-
-    # --- 4. Compute cosine similarity ---
-    from sklearn.metrics.pairwise import cosine_similarity
-
-    sims = cosine_similarity([term_vector], cluster_vectors)[0]
-
-    best_idx = sims.argmax()
-    best_sim = sims[best_idx]
-    best_cluster = clusters[best_idx]
-
-    # --- 5. Threshold decision ---
-    SIM_THRESHOLD = 0.35  # Can tune later
-
-    if best_sim >= SIM_THRESHOLD:
-        # Assign to existing cluster
-        term.cluster_id = best_cluster.id
-        db.add(term)
-        db.commit()
-
-        return MessageOutput(
-            message=f"Assigned to existing cluster {best_cluster.id} (sim={best_sim:.2f})"
-        )
-
-    else:
-        # --- 6. Create a new cluster ---
-        new_cluster = Cluster(dataset_id=dataset_id, label=term.label, title=term.value)
-        db.add(new_cluster)
-        db.commit()
-        db.refresh(new_cluster)
-
-        term.cluster_id = new_cluster.id
-        db.add(term)
-        db.commit()
-
-        return MessageOutput(
-            message=f"Created new cluster {new_cluster.id} (sim={best_sim:.2f})"
-        )
-
-
-@router.get("/{dataset_id}/clusters/db")
-def get_clusters_from_db(
-    dataset_id: int,
-    label: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Returns all persistent clusters for a dataset.
-    If label is provided, filters by entity label
-    """
-    # Verify dataset ownership
-    dataset = db.get(Dataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(404, "Dataset not found")
-    verify_dataset_ownership(dataset, current_user.id)
-
-    dataset = db.get(Dataset, dataset_id)
-    if not dataset:
-        raise HTTPException(404, "Dataset not found")
-
-    verify_dataset_ownership(dataset, current_user.id)
-
-    query = select(Cluster).where(Cluster.dataset_id == dataset_id)
-
-    if label:
-        query = query.where(Cluster.label == label)
-
-    clusters = db.exec(query).all()
-
-    return clusters
-
-
-@router.get("/clusters/{cluster_id}")
-def get_cluster(
-    cluster_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Returns details of a single cluster, including its source terms.
-    """
-
-    cluster = db.get(Cluster, cluster_id)
-    if not cluster:
-        raise HTTPException(404, "Cluster not found")
-
-    verify_dataset_ownership(cluster.dataset, current_user.id)
-
-    # Verify ownership through cluster -> dataset -> user
-    dataset = db.get(Dataset, cluster.dataset_id)
-    if dataset is None:
-        raise HTTPException(404, "Dataset not found")
-    verify_dataset_ownership(dataset, current_user.id)
-
-    return cluster
-
-
-@router.put("/clusters/{cluster_id}")
-def rename_cluster(
-    cluster_id: int,
-    title: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Rename a cluster (title).
-    """
-
-    cluster = db.get(Cluster, cluster_id)
-    if not cluster:
-        raise HTTPException(404, "Cluster not found")
-
-    verify_dataset_ownership(cluster.dataset, current_user.id)
-
-    # Verify ownership through cluster -> dataset -> user
-    dataset = db.get(Dataset, cluster.dataset_id)
-    if dataset is None:
-        raise HTTPException(404, "Dataset not found")
-    verify_dataset_ownership(dataset, current_user.id)
-
-    cluster.title = title
-    db.add(cluster)
-    db.commit()
-
-    return {"message": "Cluster renamed", "new_title": title}
-
-
-@router.delete("/clusters/{cluster_id}")
-def delete_cluster(
-    cluster_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Delete a cluster.
-    All SourceTerms in this cluster get cluster_id = NULL.
-    """
-
-    cluster = db.get(Cluster, cluster_id)
-    if not cluster:
-        raise HTTPException(404, "Cluster not found")
-
-    verify_dataset_ownership(cluster.dataset, current_user.id)
-
-    # Verify ownership through cluster -> dataset -> user
-    dataset = db.get(Dataset, cluster.dataset_id)
-    if dataset is None:
-        raise HTTPException(404, "Dataset not found")
-    verify_dataset_ownership(dataset, current_user.id)
-
-    # Remove cluster assignment from terms
-    for term in cluster.source_terms:
-        term.cluster_id = None
-        db.add(term)
-
-    db.delete(cluster)
-    db.commit()
-
-    return {"message": "Cluster deleted"}
-
-
 # ================================================
-# New enhanced clustering routes
+# Clusters routes (nested under datasets)
 # ================================================
 
 
-@router.get("/{dataset_id}/clusters", response_model=ClustersOutput)
-def get_clusters(
+@router.get("/{dataset_id}/clusters", response_model=ClustersStatisticsOutput)
+def get_clusters_of_dataset(
     dataset_id: int,
     label: Union[str, None] = None,
     db: Session = Depends(get_session),
@@ -1177,22 +821,121 @@ def get_clusters(
     all_labels = dataset.labels
 
     # Calculate total terms
-    total_terms = sum(cr.total_terms for cr in cluster_responses) + len(
+    total_number_terms = sum(cr.total_terms for cr in cluster_responses) + len(
         unclustered_terms
     )
 
-    return ClustersOutput(
+    return ClustersStatisticsOutput(
         clusters=cluster_responses,
         unclustered_terms=unclustered_terms,
-        total_terms=total_terms,
+        total_number_terms=total_number_terms,
         labels=all_labels,
     )
+
+
+@router.post("/{dataset_id}/clusters/create", response_model=MessageOutput)
+def create_clusters_for_dataset(
+    dataset_id: int,
+    label: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    source_terms = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.label == label)
+    ).all()
+
+    if not source_terms:
+        raise HTTPException(
+            status_code=400, detail="No source terms for this label in dataset"
+        )
+
+    texts = [st.value for st in source_terms]
+    if len(texts) == 0:
+        return MessageOutput(message="No terms to cluster")
+
+    embedding_model = model_registry.get_model("embedding")
+    embeddings = embedding_model.encode(texts)
+
+    clusterer = HDBSCAN(
+        min_cluster_size=2,
+        metric="euclidean",
+        cluster_selection_method="eom",
+    )
+
+    labels_arr = clusterer.fit_predict(embeddings)
+
+    # Remove existing clusters for this dataset/label
+    # TODO: This might be a bit dangerous if the user is not careful
+    old_clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == label)
+    ).all()
+
+    for c in old_clusters:
+        db.delete(c)
+    db.commit()
+
+    # Create new clusters
+    cluster_map = {}  # cluster_id (from HDBSCAN) -> Cluster DB object
+
+    for st, cid in zip(source_terms, labels_arr):
+
+        if cid == -1:
+            # HDBSCAN noise → create a one-term cluster
+            new_cluster = Cluster(
+                dataset_id=dataset_id, label=label, title=st.value  # title = first term
+            )
+            db.add(new_cluster)
+            db.commit()
+            db.refresh(new_cluster)
+
+            st.cluster_id = new_cluster.id
+            db.add(st)
+            continue
+
+        # If the cluster is seen for the first time
+        if cid not in cluster_map:
+            new_cluster = Cluster(
+                dataset_id=dataset_id,
+                label=label,
+                title=st.value,  # first term becomes cluster title
+            )
+            db.add(new_cluster)
+            db.commit()
+            db.refresh(new_cluster)
+
+            cluster_map[cid] = new_cluster
+
+        # Assign term to cluster
+        st.cluster_id = cluster_map[cid].id
+        db.add(st)
+
+    db.commit()
+
+    return MessageOutput(message="Clusters rebuilt and saved to database.")
+
+
+# ================================================
+# New enhanced clustering routes
+# ================================================
 
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
 def create_cluster_endpoint(
     dataset_id: int,
-    data: ClusterCreateRequest,
+    data: ClusterCreate,
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1232,7 +975,7 @@ def create_cluster_endpoint(
 @router.post("/{dataset_id}/clusters/merge", response_model=MessageOutput)
 def merge_clusters_endpoint(
     dataset_id: int,
-    data: ClusterMergeRequest,
+    data: ClusterMerge,
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1291,55 +1034,3 @@ def merge_clusters_endpoint(
     return MessageOutput(
         message=f"Merged {len(data.cluster_ids)} clusters into '{data.new_title}' (moved {total_terms_moved} terms)"
     )
-
-
-@router.post("/source-terms/batch-assign", response_model=MessageOutput)
-def batch_assign_terms(
-    data: BatchAssignRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    """
-    Bulk assign terms to clusters.
-    Optimized for multiple drag-and-drop operations.
-    """
-    if not data.assignments:
-        return MessageOutput(message="No assignments provided")
-
-    updated_count = 0
-    for assignment in data.assignments:
-        term_id = assignment.get("term_id")
-        cluster_id = assignment.get("cluster_id")
-
-        if term_id is None:
-            continue
-
-        term = db.get(SourceTerm, term_id)
-        if not term:
-            continue
-
-        # Verify ownership through term -> record -> dataset -> user
-        record = db.get(Record, term.record_id)
-        if not record:
-            continue
-        dataset = db.get(Dataset, record.dataset_id)
-        if dataset is None:
-            continue
-        if dataset.user_id != current_user.id:
-            continue
-
-        # If cluster_id is None or 0, unassign from cluster
-        if cluster_id is None or cluster_id == 0:
-            term.cluster_id = None
-        else:
-            # Verify cluster exists
-            cluster = db.get(Cluster, cluster_id)
-            if cluster:
-                term.cluster_id = cluster.id
-
-        db.add(term)
-        updated_count += 1
-
-    db.commit()
-
-    return MessageOutput(message=f"Successfully assigned {updated_count} terms")

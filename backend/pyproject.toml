@@ -24,5 +24,10 @@ test = [
 ]
 all = ["backend[dev,test]"]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["alembic*", "scripts*", "docs*", "tests*"]
+
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
