@@ -143,7 +143,7 @@ class SourceTerm(SQLModel, table=True):
     alternative_children: list["SourceTerm"] = Relationship(
         back_populates="alternative"
     )
-    # Link SourcwTerm → Cluster (optional, because clustering may be done later or incrementally)
+    # Link SourceTerm → Cluster (optional, because clustering may be done later or incrementally)
 
     cluster_id: Optional[int] = Field(
         default=None,
