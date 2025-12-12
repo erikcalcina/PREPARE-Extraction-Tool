@@ -24,7 +24,6 @@ class GlinerEngine(BaseEngine):
 
     def extract_entities(self, medical_text: str, labels: list[str]) -> List[Entity]:
         medical_text_chunks = trim_medical_text(medical_text, max_words=384)
-        print(f"Number of chunks: {len(medical_text_chunks)}")
         all_entities: List[Entity] = []
         global_offset = 0
 
@@ -48,7 +47,7 @@ class GlinerEngine(BaseEngine):
                         label=p["label"],
                         start=global_offset + local_start,
                         end=global_offset + local_end,
-                        score=float(p.get("score")) if p.get("score") is not None else None,
+                        score=float(p["score"]) if p["score"] is not None else None,
                     )
                 )
             # 3) Move to the next chunk's starting global offset
@@ -63,10 +62,10 @@ def trim_medical_text(medical_text: str, max_words: int = 384) -> List[str]:
     Split text into sentence-based chunks that do not exceed max_tokens,
     counting tokens with GLiNER's whitespace regex.
     """
+    # TODO: check if it performs well if the text contains empty sentences
     # Split into sentences retaining the period
-    sentences = re.findall(r'[^.]*\.', medical_text)
+    sentences = re.findall(r'[^\n\.\?\!]+(?:[\.\?\!\n]|$)', medical_text)
     if not sentences:
-        # fallback: no '.' at all, treat whole text as one "sentence"
         sentences = [medical_text]
 
     chunks: List[str] = []
@@ -82,7 +81,6 @@ def trim_medical_text(medical_text: str, max_words: int = 384) -> List[str]:
         if current_chunk and token_len(current_chunk + sentence) > max_words:
             chunks.append(current_chunk)
             current_chunk = sentence
-            print("Chunk length:", len(current_chunk))
         else:
             current_chunk += sentence
 

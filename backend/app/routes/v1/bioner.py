@@ -90,9 +90,9 @@ def extract_entities_from_record(
             record_id=record_id,
             value=entity["text"],
             label=entity["label"],
-            start_position=entity.get("start"),
-            end_position=entity.get("end"),
-            score=entity.get("score"),
+            start_position=entity["start"],
+            end_position=entity["end"],
+            score=entity["score"],
             automatically_extracted=True,
         )
         for entity in entities
@@ -155,9 +155,9 @@ def extract_entities_from_records(
                 record_id=record.id,
                 value=entity["text"],
                 label=entity["label"],
-                start_position=entity.get("start"),
-                end_position=entity.get("end"),
-                score=entity.get("score"),
+                start_position=entity["start"],
+                end_position=entity["end"],
+                score=entity["score"],
                 automatically_extracted=True,
             )
             for entity in entities
