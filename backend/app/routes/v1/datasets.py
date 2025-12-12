@@ -9,10 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from fastapi.responses import StreamingResponse 
 
 from app.core.database import get_db
+from app.core.model_registry import model_registry
 from app.models import DatasetCreate, MessageOutput, RecordCreate
 from sqlmodel import Session, select, func
 
-from sklearn.feature_extraction.text import TfidfVectorizer
 from hdbscan import HDBSCAN
 
 from app.core.database import get_session, Dataset, Record, User, SourceTerm, Cluster
@@ -787,23 +787,21 @@ def get_entity_clusters(
     # i guess there is no point in having more clusters than unique texts
     k = max(1, min(k, len(unique_texts)))
 
-    # vectorize texts (char n-grams are good for short medical terms)
-    vectorizer = TfidfVectorizer(
-        analyzer="char",  # work on characters, not words
-        ngram_range=(3, 5),  # capture small pieces of words and endings
-        min_df=1,
-    )
-    X = vectorizer.fit_transform(unique_texts)
+    # Load embedding model
+    embedding_model = model_registry.get_model("embedding")
 
-    # --- 6) Run HDBSCAN clustering ---
+    # Compute embeddings (list[str] -> ndarray)
+    embeddings = embedding_model.encode(unique_texts)
 
+    # Create HDBSCAN clusterer
     clusterer = HDBSCAN(
-        min_cluster_size=2,  # smallest size of a meaningful cluster
-        metric="euclidean",  # good with TF-IDF
-        cluster_selection_method="eom",
+    min_cluster_size=2,
+    metric="euclidean",
+    cluster_selection_method="eom", 
     )
 
-    labels_arr = clusterer.fit_predict(X.toarray())
+    # Run HDBSCAN on embeddings
+    labels_arr = clusterer.fit_predict(embeddings)
 
     # You can skip noise points (-1)
     filtered_texts = []
@@ -900,16 +898,17 @@ def rebuild_clusters(dataset_id: int, label: str, current_user: User = Depends(g
     if len(texts) == 0:
         return MessageOutput(message="No terms to cluster")
 
-    # --- 4. TF-IDF vectorization ---
-    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
-    X = vectorizer.fit_transform(texts)
+    # --- 4-5 Changed to embedded model ?---
+    embedding_model = model_registry.get_model("embedding")
+    embeddings = embedding_model.encode(texts)
 
-    # --- 5. Run HDBSCAN ---
     clusterer = HDBSCAN(
-        min_cluster_size=2, metric="euclidean", cluster_selection_method="eom"
+    min_cluster_size=2,
+    metric="euclidean",
+    cluster_selection_method="eom",
     )
 
-    labels_arr = clusterer.fit_predict(X.toarray())
+    labels_arr = clusterer.fit_predict(embeddings)
 
     # --- 6. Remove existing clusters for this dataset/label ---
     old_clusters = db.exec(
@@ -977,6 +976,9 @@ def auto_assign_source_term(
     record = db.get(Record, term.record_id)
 
     dataset = db.get(Dataset, record.dataset_id)
+    # TODO: clear and more structured 
+    if not dataset:
+        raise HTTPException(404, "Dataset not found")
 
     verify_dataset_ownership(dataset, current_user.id)
 
@@ -1011,24 +1013,20 @@ def auto_assign_source_term(
             message=f"Created new cluster {new_cluster.id} (no existing clusters)."
         )
 
-    # --- 3. Build TF-IDF vectors for comparing term with clusters ---
-    # Collect representatives: cluster.title is our reference term
+     # --- 3. Use embedding model instead of TF-IDF ---
+    embedding_model = model_registry.get_model("embedding")
+
+    # Cluster representatives = cluster titles
     cluster_titles = [c.title for c in clusters]
-    items_for_vectorizer = cluster_titles + [term.value]
 
-    vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
-    X = vectorizer.fit_transform(items_for_vectorizer)
-
-    # Last vector = term
-    term_vec = X[-1]
-
-    # All others = cluster titles
-    cluster_vecs = X[:-1]
+    # Get embeddings
+    cluster_vectors = embedding_model.encode(cluster_titles)
+    term_vector = embedding_model.encode([term.value])[0]
 
     # --- 4. Compute cosine similarity ---
     from sklearn.metrics.pairwise import cosine_similarity
 
-    sims = cosine_similarity(term_vec, cluster_vecs)[0]
+    sims = cosine_similarity([term_vector], cluster_vectors)[0]
 
     best_idx = sims.argmax()
     best_sim = sims[best_idx]
