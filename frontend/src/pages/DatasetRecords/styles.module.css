@@ -2,55 +2,87 @@
     font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+/* Header with Navigation */
 .header {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
     align-items: center;
-    justify-content: space-between;
     margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.titleSection {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.backButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
+.navButton {
+    padding: 10px 20px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     cursor: pointer;
-    color: #6b7280;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
 }
 
-.backButton:hover {
+.navButton:hover {
     background: #f3f4f6;
     color: #1e3a5f;
+    border-color: #d1d5db;
 }
 
-.title {
+.pageInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.pageTitle {
     margin: 0;
     font-size: 24px;
     font-weight: 700;
     color: #1e3a5f;
 }
 
-.subtitle {
-    margin: 4px 0 0;
+.datasetLink {
+    margin: 0;
+    padding: 0;
     font-size: 14px;
     color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.datasetLink:hover {
+    color: #1e3a5f;
+    text-decoration: underline;
+}
+
+/* Statistics Section */
+.statsSection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
 }
 
 /* Stats Cards */
 .statsGrid {
     display: flex;
     gap: 12px;
+    flex: 1;
+}
+
+.pageActions {
+    display: flex;
+    gap: 8px;
 }
 
 .statCard {
@@ -86,11 +118,6 @@
 
 .statValue.terms {
     color: #7c3aed;
-}
-
-.headerActions {
-    display: flex;
-    gap: 8px;
 }
 
 /* Main Content Area */
