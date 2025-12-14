@@ -1,0 +1,670 @@
+import io
+import csv
+from collections import defaultdict
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi.responses import StreamingResponse
+from sqlmodel import Session, select, func
+
+from app.core.database import get_session
+from app.models_db import (
+    Dataset,
+    Cluster,
+    Concept,
+    SourceToConceptMap,
+    Vocabulary,
+    User,
+)
+from app.library.concept_indexer import indexer
+from app.routes.v1.auth import get_current_user
+from app.schemas import (
+    MessageOutput,
+    ClusterMappingResponse,
+    ClusterMappingsOutput,
+    ConceptSearchRequest,
+    ConceptSearchResult,
+    ConceptSearchResults,
+    AutoMapRequest,
+    MapClusterRequest,
+    AutoMapAllRequest,
+    AutoMapAllResponse,
+    ConceptHierarchy,
+    MappingExportRequest,
+)
+
+# ================================================
+# Route definitions
+# ================================================
+
+router = APIRouter()
+
+
+# ================================================
+# Helper functions
+# ================================================
+
+
+def verify_dataset_ownership(dataset: Dataset, user_id: int):
+    """Verify that the user owns the dataset."""
+    if dataset.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this dataset",
+        )
+
+
+# ================================================
+# Mapping routes
+# ================================================
+
+
+@router.get(
+    "/{dataset_id}/mappings",
+    response_model=ClusterMappingsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get all cluster mappings for a dataset",
+    description="Returns all clusters with their mapping status and concept information",
+)
+def get_dataset_mappings(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    label: Optional[str] = None,
+):
+    """Get all cluster mappings for a dataset."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Build cluster query
+    cluster_query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    if label:
+        cluster_query = cluster_query.where(Cluster.label == label)
+
+    clusters = db.exec(cluster_query).all()
+
+    mappings = []
+    mapped_count = 0
+    approved_count = 0
+
+    for cluster in clusters:
+        # Get terms count and occurrences
+        term_count = len(cluster.source_terms)
+        total_occurrences = sum(1 for _ in cluster.source_terms)
+
+        # Check if cluster has a mapping
+        mapping_entry = None
+        if cluster.mapping:
+            mapping_entry = cluster.mapping[0]  # Get first mapping
+
+        if mapping_entry:
+            concept = mapping_entry.concept
+            vocabulary = concept.vocabulary if concept else None
+
+            mapping = ClusterMappingResponse(
+                cluster_id=cluster.id,
+                cluster_title=cluster.title,
+                cluster_label=cluster.label,
+                cluster_term_count=term_count,
+                cluster_total_occurrences=total_occurrences,
+                concept_id=concept.id if concept else None,
+                concept_name=concept.vocab_term_name if concept else None,
+                concept_code=concept.concept_code if concept else None,
+                concept_domain=concept.domain_id if concept else None,
+                concept_class=concept.concept_class_id if concept else None,
+                vocabulary_id=vocabulary.id if vocabulary else None,
+                vocabulary_name=vocabulary.name if vocabulary else None,
+                status=mapping_entry.status,
+                created_at=mapping_entry.created_at,
+                updated_at=mapping_entry.updated_at,
+            )
+            mapped_count += 1
+            if mapping_entry.status == "approved":
+                approved_count += 1
+        else:
+            mapping = ClusterMappingResponse(
+                cluster_id=cluster.id,
+                cluster_title=cluster.title,
+                cluster_label=cluster.label,
+                cluster_term_count=term_count,
+                cluster_total_occurrences=total_occurrences,
+                status="unmapped",
+            )
+
+        mappings.append(mapping)
+
+    return ClusterMappingsOutput(
+        mappings=mappings,
+        total_clusters=len(clusters),
+        mapped_count=mapped_count,
+        unmapped_count=len(clusters) - mapped_count,
+        approved_count=approved_count,
+    )
+
+
+@router.post(
+    "/{dataset_id}/clusters/{cluster_id}/auto-map",
+    response_model=ConceptSearchResults,
+    status_code=status.HTTP_200_OK,
+    summary="Auto-map a cluster to concepts",
+    description="Searches for best matching concepts using cluster title and terms",
+)
+def auto_map_cluster(
+    dataset_id: int,
+    cluster_id: int,
+    request: AutoMapRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Auto-map a cluster by searching for matching concepts."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get cluster
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster or cluster.dataset_id != dataset_id:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    # Build search query from cluster title and optionally top terms
+    search_text = cluster.title
+
+    if request.use_cluster_terms and cluster.source_terms:
+        # Get top 5 most frequent terms
+        term_freq = defaultdict(int)
+        for term in cluster.source_terms:
+            term_freq[term.value] += 1
+
+        top_terms = sorted(term_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+        search_text += " " + " ".join([term for term, _ in top_terms])
+
+    # Search using Elasticsearch
+    es_results = indexer.search_concepts(
+        query_text=search_text,
+        vocab_ids=request.vocabulary_ids,
+        limit=10,
+        domain_id=request.domain_id,
+        concept_class_id=request.concept_class_id,
+        standard_concept=request.standard_concept,
+    )
+
+    # Get concept details from database and apply filters
+    results = []
+    for es_result in es_results:
+        concept = db.get(Concept, es_result["concept_id"])
+        if not concept:
+            continue
+
+        # Apply filters
+        if request.domain_id and concept.domain_id != request.domain_id:
+            continue
+        if (
+            request.concept_class_id
+            and concept.concept_class_id != request.concept_class_id
+        ):
+            continue
+        if (
+            request.standard_concept
+            and concept.standard_concept != request.standard_concept
+        ):
+            continue
+
+        vocabulary = concept.vocabulary
+        results.append(
+            ConceptSearchResult(
+                concept=concept,
+                score=es_result["score"],
+                vocabulary_name=vocabulary.name if vocabulary else "Unknown",
+            )
+        )
+
+    return ConceptSearchResults(results=results, total=len(results))
+
+
+@router.post(
+    "/{dataset_id}/clusters/{cluster_id}/map",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Map a cluster to a concept",
+    description="Creates or updates a mapping between a cluster and a concept",
+)
+def map_cluster_to_concept(
+    dataset_id: int,
+    cluster_id: int,
+    request: MapClusterRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Manually map a cluster to a concept."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get cluster
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster or cluster.dataset_id != dataset_id:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    # Get concept
+    concept = db.get(Concept, request.concept_id)
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concept not found")
+
+    # Check if mapping already exists
+    existing_mapping = db.exec(
+        select(SourceToConceptMap).where(SourceToConceptMap.cluster_id == cluster_id)
+    ).first()
+
+    if existing_mapping:
+        # Update existing mapping
+        existing_mapping.concept_id = request.concept_id
+        existing_mapping.status = request.status
+        existing_mapping.updated_at = datetime.now(timezone.utc)
+        db.add(existing_mapping)
+    else:
+        # Create new mapping
+        new_mapping = SourceToConceptMap(
+            cluster_id=cluster_id,
+            concept_id=request.concept_id,
+            status=request.status,
+        )
+        db.add(new_mapping)
+
+    db.commit()
+
+    return MessageOutput(message="Cluster mapped successfully")
+
+
+@router.delete(
+    "/{dataset_id}/clusters/{cluster_id}/mapping",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Remove cluster mapping",
+    description="Deletes the mapping between a cluster and its concept",
+)
+def delete_cluster_mapping(
+    dataset_id: int,
+    cluster_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Remove a cluster's mapping."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get cluster
+    cluster = db.get(Cluster, cluster_id)
+    if not cluster or cluster.dataset_id != dataset_id:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    # Delete mapping
+    mapping = db.exec(
+        select(SourceToConceptMap).where(SourceToConceptMap.cluster_id == cluster_id)
+    ).first()
+
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+
+    db.delete(mapping)
+    db.commit()
+
+    return MessageOutput(message="Mapping deleted successfully")
+
+
+@router.post(
+    "/{dataset_id}/auto-map-all",
+    response_model=AutoMapAllResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Auto-map all unmapped clusters",
+    description="Bulk auto-mapping for all clusters without mappings",
+)
+def auto_map_all_clusters(
+    dataset_id: int,
+    request: AutoMapAllRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Auto-map all unmapped clusters."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get all unmapped clusters
+    cluster_query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    if request.label:
+        cluster_query = cluster_query.where(Cluster.label == request.label)
+
+    clusters = db.exec(cluster_query).all()
+
+    mapped_count = 0
+    failed_count = 0
+
+    for cluster in clusters:
+        # Skip if already mapped
+        existing_mapping = db.exec(
+            select(SourceToConceptMap).where(
+                SourceToConceptMap.cluster_id == cluster.id
+            )
+        ).first()
+
+        if existing_mapping:
+            continue
+
+        try:
+            # Build search query
+            search_text = cluster.title
+
+            if request.use_cluster_terms and cluster.source_terms:
+                term_freq = defaultdict(int)
+                for term in cluster.source_terms:
+                    term_freq[term.value] += 1
+
+                top_terms = sorted(term_freq.items(), key=lambda x: x[1], reverse=True)[
+                    :5
+                ]
+                search_text += " " + " ".join([term for term, _ in top_terms])
+
+            # Search for best match
+            es_results = indexer.search_concepts(
+                query_text=search_text,
+                vocab_ids=request.vocabulary_ids,
+                limit=1,  # Just get the best match
+            )
+
+            if es_results:
+                best_match = es_results[0]
+                concept = db.get(Concept, best_match["concept_id"])
+
+                if concept:
+                    # Create mapping
+                    new_mapping = SourceToConceptMap(
+                        cluster_id=cluster.id,
+                        concept_id=concept.id,
+                        status="pending",
+                    )
+                    db.add(new_mapping)
+                    mapped_count += 1
+                else:
+                    failed_count += 1
+            else:
+                failed_count += 1
+
+        except Exception as e:
+            print(f"Error mapping cluster {cluster.id}: {e}")
+            failed_count += 1
+
+    db.commit()
+
+    return AutoMapAllResponse(
+        mapped_count=mapped_count,
+        failed_count=failed_count,
+        total_clusters=len(clusters),
+    )
+
+
+@router.get(
+    "/concepts/search",
+    response_model=ConceptSearchResults,
+    status_code=status.HTTP_200_OK,
+    summary="Search concepts",
+    description="Search for concepts across multiple vocabularies with filters",
+)
+def search_concepts(
+    query: str,
+    vocabulary_ids: str,  # Comma-separated IDs
+    domain_id: Optional[str] = None,
+    concept_class_id: Optional[str] = None,
+    standard_concept: Optional[str] = None,
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Search for concepts."""
+    # Parse vocabulary IDs
+    vocab_ids = [int(id.strip()) for id in vocabulary_ids.split(",") if id.strip()]
+
+    if not vocab_ids:
+        raise HTTPException(status_code=400, detail="No vocabulary IDs provided")
+
+    # Search using Elasticsearch
+    es_results = indexer.search_concepts(
+        query_text=query,
+        vocab_ids=vocab_ids,
+        limit=limit * 2,  # Get more for filtering
+    )
+
+    # Get concept details from database and apply filters
+    results = []
+    for es_result in es_results:
+        concept = db.get(Concept, es_result["concept_id"])
+        if not concept:
+            continue
+
+        # Apply filters
+        if domain_id and concept.domain_id != domain_id:
+            continue
+        if concept_class_id and concept.concept_class_id != concept_class_id:
+            continue
+        if standard_concept and concept.standard_concept != standard_concept:
+            continue
+
+        vocabulary = concept.vocabulary
+        results.append(
+            ConceptSearchResult(
+                concept=concept,
+                score=es_result["score"],
+                vocabulary_name=vocabulary.name if vocabulary else "Unknown",
+            )
+        )
+
+        if len(results) >= limit:
+            break
+
+    return ConceptSearchResults(results=results, total=len(results))
+
+
+@router.get(
+    "/concepts/{concept_id}/hierarchy",
+    response_model=ConceptHierarchy,
+    status_code=status.HTTP_200_OK,
+    summary="Get concept hierarchy",
+    description="Get concept details with parent/child relationships",
+)
+def get_concept_hierarchy(
+    concept_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Get concept hierarchy information."""
+    concept = db.get(Concept, concept_id)
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concept not found")
+
+    # TODO: Implement parent/child relationships if they exist in the database
+    # For now, return empty lists
+    return ConceptHierarchy(
+        concept=concept,
+        parents=[],
+        children=[],
+        related_concepts=[],
+    )
+
+
+@router.get(
+    "/{dataset_id}/mappings/export",
+    response_class=StreamingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Export mappings",
+    description="Export cluster-to-concept mappings as CSV",
+)
+def export_mappings(
+    dataset_id: int,
+    status_filter: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Export mappings to CSV format."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get all clusters with mappings
+    clusters = db.exec(select(Cluster).where(Cluster.dataset_id == dataset_id)).all()
+
+    # Build CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(
+        [
+            "source_code",
+            "source_name",
+            "source_vocabulary",
+            "target_concept_id",
+            "target_concept_code",
+            "target_concept_name",
+            "target_vocabulary_id",
+            "target_vocabulary_name",
+            "mapping_type",
+            "status",
+        ]
+    )
+
+    # Write data
+    for cluster in clusters:
+        if not cluster.mapping:
+            continue
+
+        mapping = cluster.mapping[0]
+
+        # Apply status filter
+        if status_filter and mapping.status != status_filter:
+            continue
+
+        concept = mapping.concept
+        vocabulary = concept.vocabulary if concept else None
+
+        writer.writerow(
+            [
+                cluster.id,
+                cluster.title,
+                dataset.name,
+                concept.id if concept else "",
+                concept.concept_code if concept else "",
+                concept.vocab_term_name if concept else "",
+                vocabulary.id if vocabulary else "",
+                vocabulary.name if vocabulary else "",
+                "automated",
+                mapping.status,
+            ]
+        )
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={dataset.name}_mappings.csv"
+        },
+    )
+
+
+@router.post(
+    "/{dataset_id}/mappings/import",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Import mappings",
+    description="Import cluster-to-concept mappings from CSV",
+)
+async def import_mappings(
+    dataset_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Import mappings from CSV file."""
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Read CSV
+    content = await file.read()
+    text = content.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text))
+
+    matched_count = 0
+    created_count = 0
+    skipped_count = 0
+
+    for row in reader:
+        try:
+            # Find cluster by name
+            cluster = db.exec(
+                select(Cluster)
+                .where(Cluster.dataset_id == dataset_id)
+                .where(Cluster.title == row["source_name"])
+            ).first()
+
+            if not cluster:
+                skipped_count += 1
+                continue
+
+            matched_count += 1
+
+            # Get concept
+            concept_id = int(row["target_concept_id"])
+            concept = db.get(Concept, concept_id)
+
+            if not concept:
+                skipped_count += 1
+                continue
+
+            # Check if mapping exists
+            existing_mapping = db.exec(
+                select(SourceToConceptMap).where(
+                    SourceToConceptMap.cluster_id == cluster.id
+                )
+            ).first()
+
+            if existing_mapping:
+                # Update existing
+                existing_mapping.concept_id = concept_id
+                existing_mapping.updated_at = datetime.now(timezone.utc)
+                db.add(existing_mapping)
+            else:
+                # Create new
+                new_mapping = SourceToConceptMap(
+                    cluster_id=cluster.id,
+                    concept_id=concept_id,
+                    status=row.get("status", "pending"),
+                )
+                db.add(new_mapping)
+                created_count += 1
+
+        except Exception as e:
+            print(f"Error importing row: {e}")
+            skipped_count += 1
+
+    db.commit()
+
+    return MessageOutput(
+        message=f"Import complete. Matched: {matched_count}, Created: {created_count}, Skipped: {skipped_count}"
+    )

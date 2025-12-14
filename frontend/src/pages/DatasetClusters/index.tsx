@@ -167,8 +167,23 @@ export default function DatasetClusters() {
     const [isAutoClustering, setIsAutoClustering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedCluster, setSelectedCluster] = useState<ClusterData | null>(null);
+    const [datasetName, setDatasetName] = useState<string>('');
 
-    usePageTitle('NER Extraction Clustering');
+    usePageTitle(datasetName ? `Term Clustering - ${datasetName}` : 'Term Clustering');
+
+    // Fetch dataset info
+    useEffect(() => {
+        const fetchDataset = async () => {
+            if (!datasetId) return;
+            try {
+                const data = await api.getDataset(parseInt(datasetId));
+                setDatasetName(data.dataset.name);
+            } catch (err) {
+                console.error('Failed to fetch dataset:', err);
+            }
+        };
+        fetchDataset();
+    }, [datasetId]);
 
     // Fetch clusters
     const fetchClusters = async () => {
@@ -392,49 +407,89 @@ export default function DatasetClusters() {
     return (
         <Layout>
             <div className={styles.page}>
+                {/* Header with Navigation */}
                 <div className={styles.header}>
-                    <div className={styles.titleSection}>
-                        <button onClick={() => navigate(`/datasets/${datasetId}`)} className={styles.btnBack}>
-                            ←
-                        </button>
-                        <div>
-                            <h1>NER Extraction Clustering</h1>
-                            <p className={styles.subtitle}>Group similar extracted terms for unified concept mapping</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.toolbar}>
-                    <select
-                        value={selectedLabel}
-                        onChange={(e) => setSelectedLabel(e.target.value)}
-                        className={styles.labelFilter}
+                    <button
+                        className={styles.navButton}
+                        onClick={() => navigate(`/datasets/${datasetId}/records`)}
+                        title="Back to Term Extraction"
                     >
-                        <option value="">All Categories</option>
-                        {labels.map(label => (
-                            <option key={label} value={label}>{label}</option>
-                        ))}
-                    </select>
+                        ← Back to Extraction
+                    </button>
 
-                    <input
-                        type="text"
-                        placeholder="Search clusters..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className={styles.searchInput}
-                    />
+                    <div className={styles.pageInfo}>
+                        <h1 className={styles.pageTitle}>Term Clustering</h1>
+                        <button
+                            className={styles.datasetLink}
+                            onClick={() => navigate(`/datasets/${datasetId}`)}
+                            title="Go to Dataset Overview"
+                        >
+                            Dataset: {datasetName || 'Loading...'}
+                        </button>
+                    </div>
 
                     <button
-                        onClick={handleAutoClustering}
-                        disabled={isAutoClustering || !selectedLabel}
-                        className={styles.btnAutoClustering}
+                        className={styles.navButton}
+                        onClick={() => navigate(`/datasets/${datasetId}/mapping`)}
+                        title="Go to Concept Mapping"
                     >
-                        {isAutoClustering ? 'Clustering...' : '🔮 Auto-Cluster'}
+                        Mapping →
                     </button>
+                </div>
 
-                    <button onClick={handleCreateCluster} className={styles.btnCreate}>
-                        + New Cluster
-                    </button>
+                {/* Toolbar and Statistics */}
+                <div className={styles.toolbarSection}>
+                    <div className={styles.toolbar}>
+                        <select
+                            value={selectedLabel}
+                            onChange={(e) => setSelectedLabel(e.target.value)}
+                            className={styles.labelFilter}
+                        >
+                            <option value="">All Categories</option>
+                            {labels.map(label => (
+                                <option key={label} value={label}>{label}</option>
+                            ))}
+                        </select>
+
+                        <input
+                            type="text"
+                            placeholder="Search clusters..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={styles.searchInput}
+                        />
+
+                        <button
+                            onClick={handleAutoClustering}
+                            disabled={isAutoClustering || !selectedLabel}
+                            className={styles.btnAutoClustering}
+                        >
+                            {isAutoClustering ? 'Clustering...' : '🔮 Auto-Cluster'}
+                        </button>
+
+                        <button onClick={handleCreateCluster} className={styles.btnCreate}>
+                            + New Cluster
+                        </button>
+                    </div>
+
+                    <div className={styles.stats}>
+                        <div className={styles.statCard}>
+                            <div className={styles.statValue}>{stats.totalClusters}</div>
+                            <div className={styles.statLabel}>Total Clusters</div>
+                        </div>
+                        <div className={styles.statCard}>
+                            <div className={styles.statValue}>{stats.totalTerms}</div>
+                            <div className={styles.statLabel}>Extracted Terms</div>
+                        </div>
+                        <div className={styles.statCard}>
+                            <div className={styles.statValue}>{stats.avgTermsPerCluster}</div>
+                            <div className={styles.statLabel}>Avg Terms/Cluster</div>
+                        </div>
+                        <div className={styles.statCard}>
+                            <div className={styles.statValue}>{stats.unclusteredCount}</div>
+                            <div className={styles.statLabel}>Unclustered</div>
+                        </div>
+                    </div>
                 </div>
 
                 {error && (
@@ -443,25 +498,6 @@ export default function DatasetClusters() {
                         <button onClick={() => setError(null)}>×</button>
                     </div>
                 )}
-
-                <div className={styles.stats}>
-                    <div className={styles.statCard}>
-                        <div className={styles.statValue}>{stats.totalClusters}</div>
-                        <div className={styles.statLabel}>Total Clusters</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={styles.statValue}>{stats.totalTerms}</div>
-                        <div className={styles.statLabel}>Extracted Terms</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={styles.statValue}>{stats.avgTermsPerCluster}</div>
-                        <div className={styles.statLabel}>Avg Terms/Cluster</div>
-                    </div>
-                    <div className={styles.statCard}>
-                        <div className={styles.statValue}>{stats.unclusteredCount}</div>
-                        <div className={styles.statLabel}>Unclustered</div>
-                    </div>
-                </div>
 
                 {isLoading ? (
                     <div className={styles.loading}>Loading clusters...</div>

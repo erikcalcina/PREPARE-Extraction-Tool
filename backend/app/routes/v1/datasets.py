@@ -11,12 +11,15 @@ from hdbscan import HDBSCAN
 
 from app.core.database import get_session
 from app.core.model_registry import model_registry
-from app.models_db import Dataset, Record, SourceTerm, User, Cluster
+from app.models_db import Dataset, Record, SourceTerm, User, Cluster, SourceToConceptMap
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
     DatasetStatisticsResponse,
+    DatasetOverviewResponse,
+    ClusteringStatsResponse,
+    MappingStatsResponse,
     DatasetsOutput,
     DatasetOutput,
     RecordCreate,
@@ -241,6 +244,122 @@ def get_dataset_stats(
         processed_count=processed_count,
         pending_review_count=pending_review_count,
         extracted_terms_count=extracted_terms_count,
+    )
+
+
+@router.get(
+    "/{dataset_id}/overview",
+    response_model=DatasetOverviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get dataset overview",
+    description="Retrieves comprehensive overview with dataset info, statistics, clustering stats, and mapping stats",
+    response_description="Dataset overview",
+)
+def get_dataset_overview(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Get dataset response
+    dataset_response = DatasetResponse(
+        id=dataset.id,
+        name=dataset.name,
+        uploaded=dataset.uploaded,
+        last_modified=dataset.last_modified,
+        labels=dataset.labels,
+        record_count=len(dataset.records),
+    )
+
+    # Get dataset statistics
+    total_records = db.exec(
+        select(func.count()).select_from(Record).where(Record.dataset_id == dataset_id)
+    ).one()
+
+    processed_count = db.exec(
+        select(func.count(func.distinct(Record.id)))
+        .select_from(Record)
+        .join(SourceTerm, Record.id == SourceTerm.record_id)
+        .where(Record.dataset_id == dataset_id)
+    ).one()
+
+    pending_review_count = db.exec(
+        select(func.count())
+        .select_from(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(Record.reviewed == False)  # noqa: E712
+    ).one()
+
+    extracted_terms_count = db.exec(
+        select(func.count())
+        .select_from(SourceTerm)
+        .join(Record, SourceTerm.record_id == Record.id)
+        .where(Record.dataset_id == dataset_id)
+    ).one()
+
+    stats = DatasetStatisticsResponse(
+        total_records=total_records,
+        processed_count=processed_count,
+        pending_review_count=pending_review_count,
+        extracted_terms_count=extracted_terms_count,
+    )
+
+    # Get clustering statistics
+    total_clusters = db.exec(
+        select(func.count())
+        .select_from(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+    ).one()
+
+    clustered_terms = db.exec(
+        select(func.count())
+        .select_from(SourceTerm)
+        .join(Record, SourceTerm.record_id == Record.id)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.cluster_id.isnot(None))
+    ).one()
+
+    unclustered_terms = db.exec(
+        select(func.count())
+        .select_from(SourceTerm)
+        .join(Record, SourceTerm.record_id == Record.id)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.cluster_id.is_(None))
+    ).one()
+
+    clustering_stats = ClusteringStatsResponse(
+        total_clusters=total_clusters,
+        clustered_terms=clustered_terms,
+        unclustered_terms=unclustered_terms,
+    )
+
+    # Get mapping statistics
+    mapped_clusters = db.exec(
+        select(func.count(func.distinct(SourceToConceptMap.cluster_id)))
+        .select_from(SourceToConceptMap)
+        .join(Cluster, SourceToConceptMap.cluster_id == Cluster.id)
+        .where(Cluster.dataset_id == dataset_id)
+    ).one()
+
+    unmapped_clusters = total_clusters - mapped_clusters
+
+    mapping_stats = MappingStatsResponse(
+        total_clusters=total_clusters,
+        mapped_clusters=mapped_clusters,
+        unmapped_clusters=unmapped_clusters,
+    )
+
+    return DatasetOverviewResponse(
+        dataset=dataset_response,
+        stats=stats,
+        clustering_stats=clustering_stats,
+        mapping_stats=mapping_stats,
     )
 
 

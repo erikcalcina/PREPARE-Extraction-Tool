@@ -238,12 +238,19 @@ class SourceToConceptMap(SQLModel, table=True):
 
     # Relationship back to Cluster (many-to-one)
     cluster_id: int = Field(
-        foreign_key="cluster.id", ondelete="CASCADE", nullable=False
+        foreign_key="cluster.id", ondelete="CASCADE", nullable=False, index=True
     )
     cluster: Optional["Cluster"] = Relationship(back_populates="mapping")
 
     # Relationship back to Concept (many-to-one)
     concept_id: int = Field(
-        foreign_key="concept.id", ondelete="CASCADE", nullable=False
+        foreign_key="concept.id", ondelete="CASCADE", nullable=False, index=True
     )
     concept: Optional["Concept"] = Relationship(back_populates="mapping")
+
+    # Mapping status and metadata
+    status: str = Field(
+        default="pending", index=True
+    )  # 'pending', 'approved', 'rejected'
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

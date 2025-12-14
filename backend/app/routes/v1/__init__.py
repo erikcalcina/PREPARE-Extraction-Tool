@@ -7,6 +7,7 @@ from app.routes.v1 import (
     clusters,
     bioner,
     vocabularies,
+    mappings,
 )
 
 api_router = APIRouter()
@@ -29,3 +30,5 @@ api_router.include_router(bioner.router, prefix="/bioner", tags=["BioNER"])
 api_router.include_router(
     vocabularies.router, prefix="/vocabularies", tags=["Vocabularies"]
 )
+
+api_router.include_router(mappings.router, prefix="/datasets", tags=["Mappings"])

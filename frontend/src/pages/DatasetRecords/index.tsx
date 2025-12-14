@@ -234,7 +234,7 @@ const DatasetRecords = () => {
     } = useRecords(parsedDatasetId);
 
     // Update page title based on dataset name
-    usePageTitle(dataset?.name || 'Dataset Records');
+    usePageTitle(dataset?.name ? `Term Extraction - ${dataset.name}` : 'Term Extraction');
 
     // Debounced search - update filters after user stops typing
     useEffect(() => {
@@ -397,45 +397,39 @@ const DatasetRecords = () => {
     return (
         <Layout>
             <div className={styles.page}>
-                {/* Header */}
+                {/* Header with Navigation */}
                 <div className={styles.header}>
-                    <div className={styles.titleSection}>
-                        <button
-                            className={styles.backButton}
-                            onClick={() => navigate('/datasets')}
-                            title="Back to Datasets"
-                        >
-                            ←
-                        </button>
-                        <div>
-                            <h1 className={styles.title}>
-                                {dataset?.name || 'Dataset Records'}
-                            </h1>
-                            <p className={styles.subtitle}>
-                                View and annotate medical records with NER extraction
-                            </p>
-                        </div>
-                    </div>
-                    {/* Stats Cards */}
-                    <div className={styles.statsGrid}>
+                    <button
+                        className={styles.navButton}
+                        onClick={() => navigate(`/datasets/${datasetId}`)}
+                        title="Back to Dataset Overview"
+                    >
+                        ← Back to Overview
+                    </button>
 
-                        <div className={styles.headerActions}>
-                            <button
-                                className={`${styles.actionButton} ${styles.cluster}`}
-                                onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
-                                title="Cluster similar terms"
-                            >
-                                🔮 Clustering
-                            </button>
-                            <button
-                                className={`${styles.actionButton} ${styles.extract}`}
-                                onClick={handleExtractTermsForDataset}
-                                disabled={isExtractingDataset || !dataset?.labels?.length}
-                                title={!dataset?.labels?.length ? 'No labels defined for this dataset' : 'Extract terms from all records'}
-                            >
-                                {isExtractingDataset ? 'Extracting...' : 'Extract All Terms'}
-                            </button>
-                        </div>
+                    <div className={styles.pageInfo}>
+                        <h1 className={styles.pageTitle}>Term Extraction</h1>
+                        <button
+                            className={styles.datasetLink}
+                            onClick={() => navigate(`/datasets/${datasetId}`)}
+                            title="Go to Dataset Overview"
+                        >
+                            Dataset: {dataset?.name || 'Loading...'}
+                        </button>
+                    </div>
+
+                    <button
+                        className={styles.navButton}
+                        onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
+                        title="Go to Term Clustering"
+                    >
+                        Clustering →
+                    </button>
+                </div>
+
+                {/* Statistics and Actions */}
+                <div className={styles.statsSection}>
+                    <div className={styles.statsGrid}>
                         <StatCard
                             label="Total"
                             value={stats?.total_records ?? 0}
@@ -455,6 +449,16 @@ const DatasetRecords = () => {
                             value={stats?.pending_review_count ?? 0}
                             variant="pending"
                         />
+                    </div>
+                    <div className={styles.pageActions}>
+                        <button
+                            className={`${styles.actionButton} ${styles.extract}`}
+                            onClick={handleExtractTermsForDataset}
+                            disabled={isExtractingDataset || !dataset?.labels?.length}
+                            title={!dataset?.labels?.length ? 'No labels defined for this dataset' : 'Extract terms from all records'}
+                        >
+                            {isExtractingDataset ? 'Extracting...' : 'Extract All Terms'}
+                        </button>
                     </div>
                 </div>
 

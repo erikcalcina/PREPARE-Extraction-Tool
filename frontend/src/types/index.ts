@@ -134,6 +134,32 @@ export interface DatasetStats {
     extracted_terms_count: number;
 }
 
+export interface ClusteringStats {
+    total_clusters: number;
+    clustered_terms: number;
+    unclustered_terms: number;
+}
+
+export interface MappingStats {
+    total_clusters: number;
+    mapped_clusters: number;
+    unmapped_clusters: number;
+}
+
+export interface DatasetOverview {
+    dataset: Dataset;
+    stats: DatasetStats;
+    clustering_stats: ClusteringStats;
+    mapping_stats: MappingStats;
+}
+
+export interface DatasetOverviewOutput {
+    dataset: Dataset;
+    stats: DatasetStats;
+    clustering_stats: ClusteringStats;
+    mapping_stats: MappingStats;
+}
+
 // ================================================
 // Vocabulary types
 // ================================================
@@ -243,5 +269,97 @@ export interface ClusterCreateRequest {
 export interface ClusterMergeRequest {
     cluster_ids: number[];
     new_title: string;
+}
+
+// ================================================
+// Mapping types
+// ================================================
+
+export interface ClusterMapping {
+    cluster_id: number;
+    cluster_title: string;
+    cluster_label: string;
+    cluster_term_count: number;
+    cluster_total_occurrences: number;
+    concept_id: number | null;
+    concept_name: string | null;
+    concept_code: string | null;
+    concept_domain: string | null;
+    concept_class: string | null;
+    vocabulary_id: number | null;
+    vocabulary_name: string | null;
+    status: 'unmapped' | 'pending' | 'approved' | 'rejected';
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export interface ClusterMappingsOutput {
+    mappings: ClusterMapping[];
+    total_clusters: number;
+    mapped_count: number;
+    unmapped_count: number;
+    approved_count: number;
+}
+
+export interface ConceptDetail extends Concept {
+    domain_id: string;
+    concept_class_id: string;
+    standard_concept: string | null;
+    concept_code: string | null;
+    valid_start_date: string;
+    valid_end_date: string;
+    invalid_reason: string | null;
+}
+
+export interface ConceptSearchResult {
+    concept: ConceptDetail;
+    score: number;
+    vocabulary_name: string;
+}
+
+export interface ConceptSearchResults {
+    results: ConceptSearchResult[];
+    total: number;
+}
+
+export interface ConceptHierarchy {
+    concept: ConceptDetail;
+    parents: ConceptDetail[];
+    children: ConceptDetail[];
+    related_concepts: ConceptDetail[];
+}
+
+export interface AutoMapRequest {
+    vocabulary_ids: number[];
+    use_cluster_terms?: boolean;
+    domain_id?: string;
+    concept_class_id?: string;
+    standard_concept?: string;
+}
+
+export interface MapClusterRequest {
+    concept_id: number;
+    status?: 'pending' | 'approved' | 'rejected';
+}
+
+export interface AutoMapAllRequest {
+    vocabulary_ids: number[];
+    label?: string;
+    use_cluster_terms?: boolean;
+}
+
+export interface AutoMapAllResponse {
+    mapped_count: number;
+    failed_count: number;
+    total_clusters: number;
+}
+
+export interface ConceptSearchParams {
+    query: string;
+    vocabulary_ids: number[];
+    domain_id?: string;
+    concept_class_id?: string;
+    standard_concept?: string;
+    limit?: number;
 }
 
