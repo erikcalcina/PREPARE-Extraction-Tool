@@ -37,6 +37,36 @@ Run the following command to install the requirements:
 pip install -e .[dev]
 ```
 
+## 🗄️ Database Migrations
+
+This project uses Alembic for database schema migrations. Before running the app for the first time, you need to apply database migrations:
+
+```bash
+# Apply all pending migrations
+python scripts/db_migrate.py upgrade
+
+# Or using Alembic directly
+alembic upgrade head
+```
+
+### Common Migration Commands
+
+```bash
+# Check current migration status
+python scripts/db_migrate.py current
+
+# Create a new migration after modifying models
+python scripts/db_migrate.py revision "description of changes"
+
+# Rollback the last migration
+python scripts/db_migrate.py downgrade
+
+# View migration history
+python scripts/db_migrate.py history
+```
+
+For detailed migration documentation, see [docs/migrations.md](docs/migrations.md).
+
 ## 🏗️ Development
 
 To start the app in development mode, run the following command in the terminal:

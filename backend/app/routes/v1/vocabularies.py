@@ -1,11 +1,12 @@
 import io
 import csv
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
 from app.core.database import get_session, Vocabulary, Concept, User
+from app.library.file_parser import parse_concepts_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,
@@ -71,6 +72,7 @@ def get_vocabularies(
     vocabularies = db.exec(
         select(Vocabulary)
         .where(Vocabulary.user_id == current_user.id)
+        .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -102,14 +104,27 @@ def get_vocabularies(
     description="Creates a new vocabulary with its concepts and indexes them in Elasticsearch for semantic search",
     response_description="Confirmation message that the vocabulary was created successfully",
 )
-def create_vocabulary(
-    vocab: VocabularyCreate,
+async def create_vocabulary(
+    name: str = Form(...),
+    version: str = Form(...),
+    file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    vocabulary = Vocabulary(
-        name=vocab.name, version=vocab.version, user_id=current_user.id
-    )
+    REQUIRED_COLUMNS = [
+        "concept_id",
+        "concept_name",
+        "domain_id",
+        "concept_class_id",
+        "standard_concept",
+        "concept_code",
+        "valid_start_date",
+        "valid_end_date",
+        "invalid_reason",
+    ]
+    concept_list = await parse_concepts_file(file, REQUIRED_COLUMNS)
+
+    vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
     db.add(vocabulary)
     db.commit()
     db.refresh(vocabulary)
@@ -118,21 +133,17 @@ def create_vocabulary(
     # NEED TO CREATE NEW ES ALSO
     indexer.create_concept_index(vocabulary_id)
 
-    for c in vocab.concepts:
-        concept = Concept(
-            vocabulary_id=vocabulary_id,
-            vocab_term_id=c.vocab_term_id,
-            vocab_term_name=c.vocab_term_name,
-        )
-        db.add(concept)
-    db.commit()
+    for c in concept_list:
+        c.vocabulary_id = vocabulary_id
 
-    for c in vocabulary.concepts:
-        db.refresh(c)
+    db.add_all(concept_list)
+    db.flush()
     db.refresh(vocabulary)
 
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
+
+    db.commit()
 
     vocabulary_response = VocabularyResponse(
         id=vocabulary.id,
@@ -202,58 +213,6 @@ def delete_vocabulary(
     return MessageOutput(message="Vocabulary deleted successfully")
 
 
-@router.get(
-    "/{vocabulary_id}/download",
-    response_class=StreamingResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Download vocabulary",
-    description="Downloads a vocabulary's concepts as a file",
-    response_description="The file containing the vocabulary concepts",
-)
-def download_vocabulary_csv(
-    vocabulary_id: int,
-    format: str = "csv",
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    # TODO: enable vocabulary download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
-
-    vocabulary = db.get(Vocabulary, vocabulary_id)
-    if vocabulary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
-        )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    concepts = vocabulary.concepts
-
-    if not concepts:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No concepts found for this vocabulary",
-        )
-
-    # TODO: make a separate function for this
-    # FIX: the solution below does not parse the text correctly. There should be
-    #      one column containing the whole text (parsed accordingly) - newlines
-    #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=["vocab_term_id", "vocab_term_name"])
-    writer.writeheader()
-    for c in concepts:
-        # TODO: add other fields (description, synonyms, etc.)
-        writer.writerow(
-            {"vocab_term_id": c.vocab_term_id, "vocab_term_name": c.vocab_term_name}
-        )
-    output.seek(0)
-
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={vocabulary.name}.csv"},
-    )
-
-
 # ================================================
 # Concepts routes
 # ================================================
@@ -280,6 +239,10 @@ def get_concepts(
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
 
+    # TODO: Search over Elasticsearch index if query parameters are provided
+    # (query parameters must be added to the endpoint)
+    # query parameters: text (for searching over concept names and alternatives), vocabulary_id (for searching over concepts in a specific vocabulary)
+
     # Get total count
     total = db.exec(
         select(func.count())
@@ -291,6 +254,7 @@ def get_concepts(
     concepts = db.exec(
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
+        .order_by(Concept.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -324,16 +288,24 @@ def add_concept(
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
 
-    concept = Concept(
+    new_concept = Concept(
         vocabulary_id=vocabulary_id,
         vocab_term_id=concept.vocab_term_id,
         vocab_term_name=concept.vocab_term_name,
+        domain_id=concept.vocab_term_name,
+        concept_class_id=concept.concept_class_id,
+        standard_concept=concept.standard_concept,
+        concept_code=concept.concept_code,
+        valid_start_date=concept.valid_start_date,
+        valid_end_date=concept.valid_end_date,
+        invalid_reason=concept.invalid_reason,
     )
-    db.add(concept)
-    db.commit()
-    db.refresh(concept)
 
-    indexer.add_concept_to_index(vocabulary_id, concept)
+    db.add(new_concept)
+    db.commit()
+    db.refresh(new_concept)
+
+    indexer.add_concept_to_index(vocabulary_id, new_concept)
 
     return MessageOutput(message="Concept added successfully")
 

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlalchemy import Column, JSON
 from sqlmodel import SQLModel, Field, Relationship
-
+from pydantic import BaseModel
 
 # ================================================
 # SQLModel table definitions
@@ -55,6 +55,11 @@ class Dataset(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
+    clusters: list["Cluster"] = Relationship(
+        back_populates="dataset",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
 
 class Record(SQLModel, table=True):
     """
@@ -67,6 +72,7 @@ class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_id: str
     seq_number: Optional[str] = Field(default=None)
+    date: Optional[datetime]
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed: bool = Field(default=False)
@@ -91,38 +97,73 @@ class SourceTerm(SQLModel, table=True):
     Source terms can be mapped to vocabulary concepts and can have alternative
     terms (self-referencing relationship). Deleting a source term cascades to
     delete all its concept mappings.
+
+    NEW:? check once more
+    SourceTerm can now belong to a persistent Cluster (cluster of similar terms).
+    This allows stable clustering (no need to rerun HDBSCAN every time)
+     and incremental assignment of new terms to existing clusters. (if it is correct :)
     """
 
     __tablename__ = "source_term"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Term text, "ACL rupture"
     value: str
+
+    # Entity label, category: "Diagnosis", "Procedure"
     label: str
+
+    # Optional character offsets inside the original text
     start_position: Optional[int] = Field(default=None)
     end_position: Optional[int] = Field(default=None)
+    score: Optional[float] = Field(default=None)
+    automatically_extracted: bool = Field(default=False)
 
     # Relationship back to Record (many-to-one)
     record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
     record: Optional["Record"] = Relationship(back_populates="source_terms")
 
+    cluster_id: Optional[int] = Field(
+        default=None,
+        foreign_key="cluster.id",  # refers to Cluster table
+        ondelete="SET NULL",
+        nullable=True,
+    )
+
+    # Relationship to the Cluster this term belongs to
+    cluster: Optional["Cluster"] = Relationship(back_populates="source_terms")
+
+
+class Cluster(SQLModel, table=True):
+    """
+    Cluster model representing a cluster of similar source terms.
+
+    A cluster belongs to one dataset and one entity label (e.g. 'Diagnosis').
+    Deleting a cluster cascades to delete all its mappings, but not the source terms.
+    """
+
+    __tablename__ = "cluster"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # label/category: Diagnosis, Procedure, BodyPart...
+    label: str
+
+    # human-readable cluster name (default = first term in cluster)
+    title: str
+
+    # dataset this cluster belongs to
+    dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
+    dataset: Optional["Dataset"] = Relationship(back_populates="clusters")
+
+    # list of terms that belong to this cluster
+    source_terms: list["SourceTerm"] = Relationship(back_populates="cluster")
+
     # Relationship to SourceToConceptMap (one-to-many)
-    mappings: list["SourceToConceptMap"] = Relationship(
-        back_populates="source_term",
+    mapping: list["SourceToConceptMap"] = Relationship(
+        back_populates="cluster",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
-    )
-
-    # Self-referencing relationship for alternative terms
-    alternative_id: Optional[int] = Field(
-        default=None, foreign_key="source_term.id", ondelete="SET NULL"
-    )
-    alternative: Optional["SourceTerm"] = Relationship(
-        back_populates="alternative_children",
-        sa_relationship_kwargs={"remote_side": "SourceTerm.id"},
-    )
-
-    # Reverse relationship: all SourceTerms that point to this one as alternative
-    alternative_children: list["SourceTerm"] = Relationship(
-        back_populates="alternative"
     )
 
 
@@ -161,7 +202,13 @@ class Concept(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     vocab_term_id: str
     vocab_term_name: str
-    # TODO: add other vocab_term fields as needed
+    domain_id: str
+    concept_class_id: str
+    standard_concept: Optional[str]
+    concept_code: Optional[str]
+    valid_start_date: datetime
+    valid_end_date: datetime
+    invalid_reason: Optional[str]
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(
@@ -170,7 +217,7 @@ class Concept(SQLModel, table=True):
     vocabulary: Optional["Vocabulary"] = Relationship(back_populates="concepts")
 
     # Relationship to SourceToConceptMap (one-to-many)
-    mappings: list["SourceToConceptMap"] = Relationship(
+    mapping: list["SourceToConceptMap"] = Relationship(
         back_populates="concept",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
@@ -189,54 +236,21 @@ class SourceToConceptMap(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    # Relationship back to SourceTerm (many-to-one)
-    source_term_id: int = Field(
-        foreign_key="source_term.id", ondelete="CASCADE", nullable=False
+    # Relationship back to Cluster (many-to-one)
+    cluster_id: int = Field(
+        foreign_key="cluster.id", ondelete="CASCADE", nullable=False, index=True
     )
-    source_term: Optional["SourceTerm"] = Relationship(back_populates="mappings")
+    cluster: Optional["Cluster"] = Relationship(back_populates="mapping")
 
     # Relationship back to Concept (many-to-one)
     concept_id: int = Field(
-        foreign_key="concept.id", ondelete="CASCADE", nullable=False
+        foreign_key="concept.id", ondelete="CASCADE", nullable=False, index=True
     )
-    concept: Optional["Concept"] = Relationship(back_populates="mappings")
+    concept: Optional["Concept"] = Relationship(back_populates="mapping")
 
-
-# ================================================
-# Clustering models
-# ================================================
-
-
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-class ClusteredTerm(SQLModel):
-    """
-       One term variant inside a cluster.
-    one row in the "Clustered terms" table
-       in the UI: the text itself, how often it appears and in which revords ?
-    """
-
-    term_id: int  # ID of SourceTerm in the database
-    text: str  # The actual term text (SourceTerm.value)
-    frequency: int  # How many times this text appears in all SourceTerms
-    n_records: int  # In how many distinct records this text appears
-    record_ids: List[int]  # IDs of records that contain this text
-
-
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-class EntityCluster(SQLModel):
-    """
-    One cluster of similar terms (entities). Example:
-      label = "Diagnosis"
-      main_term = "ruptura LCA"
-      terms = all different spellings or languages of the same idea.
-    """
-
-    id: int  # Cluster index (0....)
-    main_term: str  # Suggested main/representative term
-    label: str  # Entity label/category (diagnosis, operation...)
-
-    total_terms: int  # How many different term variants in this cluster
-    total_occurrences: int  # Sum of frequencies of all terms in this cluster
-    n_records: int  # In how many records any term from this cluster appears
-
-    terms: List[ClusteredTerm] = Field(default_factory=list)
+    # Mapping status and metadata
+    status: str = Field(
+        default="pending", index=True
+    )  # 'pending', 'approved', 'rejected'
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

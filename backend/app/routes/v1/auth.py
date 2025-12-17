@@ -285,7 +285,7 @@ async def read_users_me(
 
 
 @router.get(
-    "/me/stats",
+    "/me/statistics",
     response_model=UserStatsResponse,
     status_code=status.HTTP_200_OK,
     summary="Get current user statistics",

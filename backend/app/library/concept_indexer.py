@@ -1,6 +1,6 @@
 from math import ceil
 
-from typing import List, Union
+from typing import List, Union, Optional, Dict, Any
 
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
@@ -47,7 +47,8 @@ class ConceptIndexer:
             The dimensionality of the embedding vectors.
         """
         if self._embedding_dim is None:
-            self._embedding_dim = self.model.get_sentence_embedding_dimension()
+            self._embedding_dim = 768
+            # self._embedding_dim = self.model.get_sentence_embedding_dimension()
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
@@ -198,7 +199,7 @@ class ConceptIndexer:
                         {
                             "multi_match": {
                                 "query": term_text,
-                                "fields": ["vocab_term_name"]
+                                "fields": ["vocab_term_name"],
                             }
                         },
                         # vector search: 2/3
@@ -206,8 +207,8 @@ class ConceptIndexer:
                             "knn": {
                                 "field": "embedding",
                                 "query_vector": term_embedding,
-                                "k": 50,    # returns top 50 results
-                                "num_candidates": 100   # finds 100 most similar
+                                "k": 50,  # returns top 50 results
+                                "num_candidates": 100,  # finds 100 most similar
                             }
                         },
                         {
@@ -215,14 +216,14 @@ class ConceptIndexer:
                                 "field": "embedding",
                                 "query_vector": term_embedding,
                                 "k": 50,
-                                "num_candidates": 100
+                                "num_candidates": 100,
                             }
-                        }
+                        },
                     ],
-                    "rank_constant": 60,    # 1 / (rank_constant + rank)
-                    "window_size": 100  # how many to consider from each category
+                    "rank_constant": 60,  # 1 / (rank_constant + rank)
+                    "window_size": 100,  # how many to consider from each category
                 }
-            }
+            },
         }
         response = es_client.search(index=relevant_indices, body=query)
         concept_ids = [int(hit["_id"]) for hit in response["hits"]["hits"]]
@@ -230,6 +231,105 @@ class ConceptIndexer:
         # TODO: implement reranking
 
         return concept_ids
+
+    def search_concepts(
+        self,
+        query_text: str,
+        vocab_ids: List[int],
+        limit: int = 10,
+        domain_id: Optional[str] = None,
+        concept_class_id: Optional[str] = None,
+        standard_concept: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search for concepts across multiple vocabularies with filters.
+
+        Performs hybrid search (text + semantic) and returns results with scores.
+        Results are from Elasticsearch only - database filtering happens in the route.
+
+        Args:
+            query_text: The search query text.
+            vocab_ids: List of vocabulary IDs to search across.
+            limit: Maximum number of results to return.
+            domain_id: Optional domain filter (applied in DB layer).
+            concept_class_id: Optional concept class filter (applied in DB layer).
+            standard_concept: Optional standard concept filter (applied in DB layer).
+
+        Returns:
+            A list of dictionaries with 'concept_id', 'score', and 'vocab_id'.
+        """
+        if not vocab_ids:
+            return []
+
+        relevant_indices = [f"concepts_{id}" for id in vocab_ids]
+
+        # Check if any indices exist
+        existing_indices = []
+        for idx in relevant_indices:
+            if es_client.indices.exists(index=idx):
+                existing_indices.append(idx)
+
+        if not existing_indices:
+            return []
+
+        query_embedding = self._calculate_embedding(query_text)
+
+        # Use RRF (Reciprocal Rank Fusion) for hybrid search
+        query = {
+            "size": limit * 2,  # Get more to account for DB filtering
+            "query": {
+                "rrf": {
+                    "queries": [
+                        # Text search
+                        {
+                            "multi_match": {
+                                "query": query_text,
+                                "fields": ["vocab_term_name^2", "vocab_term_id"],
+                                "type": "best_fields",
+                            }
+                        },
+                        # Vector search (weighted more heavily)
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": query_embedding,
+                                "k": 50,
+                                "num_candidates": 100,
+                            }
+                        },
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": query_embedding,
+                                "k": 50,
+                                "num_candidates": 100,
+                            }
+                        },
+                    ],
+                    "rank_constant": 60,
+                    "window_size": 100,
+                }
+            },
+        }
+
+        try:
+            response = es_client.search(index=existing_indices, body=query)
+
+            results = []
+            for hit in response["hits"]["hits"]:
+                # Extract vocab_id from index name (e.g., "concepts_1" -> 1)
+                vocab_id = int(hit["_index"].split("_")[1])
+                results.append(
+                    {
+                        "concept_id": int(hit["_id"]),
+                        "score": float(hit["_score"]),
+                        "vocab_id": vocab_id,
+                    }
+                )
+
+            return results
+        except Exception as e:
+            print(f"Error searching concepts: {e}")
+            return []
 
 
 # ================================================

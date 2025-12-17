@@ -16,7 +16,7 @@
 }
 
 .sidebar {
-    flex: 0 0 180px;
+    flex: 0 0 160px;
 }
 
 .main {
@@ -25,12 +25,12 @@
 }
 
 .footer {
-    padding: 16px 24px;
+    padding: 8px 24px;
     text-align: center;
     font-size: 13px;
     color: #6b7280;
     border-top: 1px solid #e5e7eb;
     background-color: #ffffff;
-    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: sans-serif;
 }
 

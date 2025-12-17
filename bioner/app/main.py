@@ -1,10 +1,19 @@
 import litserve as ls
 import logging
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 from app.interfaces import NERRequest
 from app.engines import build_engine
 
 logging.basicConfig(level=logging.INFO)
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    if v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    raise ArgumentTypeError("Boolean value expected.")
 
 class NERAPI(ls.LitAPI):
     def __init__(self, 
@@ -61,7 +70,8 @@ if __name__ == "__main__":
                         help="Path to the prompts file to use (if any)."
                         )
     parser.add_argument("--use_gpu",
-                        action="store_true",
+                        type=str2bool,
+                        default=False,
                         help="Flag to use GPU for inference."
                         )
     parser.add_argument("--host",

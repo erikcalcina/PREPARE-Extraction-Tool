@@ -3,6 +3,7 @@ import Layout from 'components/Layout';
 import Table from 'components/Table';
 import Button from 'components/Button';
 import { useDatasets } from 'hooks/useDatasets';
+import { usePageTitle } from 'hooks/usePageTitle';
 import type { Dataset } from 'types';
 import styles from './styles.module.css';
 
@@ -11,6 +12,7 @@ import styles from './styles.module.css';
 // ================================================
 
 const Datasets = () => {
+    usePageTitle('Datasets');
     const { datasets, isLoading, error, removeDataset, downloadDataset } = useDatasets();
 
     const formatDate = (dateString: string): string => {
