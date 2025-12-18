@@ -223,7 +223,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 writer.writerow(
                     [
                         record.patient_id,
@@ -241,7 +245,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 data.append(
                     {
                         "patient_id": record.patient_id,
