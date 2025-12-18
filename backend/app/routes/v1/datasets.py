@@ -6,6 +6,7 @@ from typing import Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
+from collections import defaultdict, Counter
 
 from hdbscan import HDBSCAN
 
@@ -1009,36 +1010,46 @@ def create_clusters_for_dataset(
     # Create new clusters
     cluster_map = {}  # cluster_id (from HDBSCAN) -> Cluster DB object
 
+    cluster_terms = defaultdict(list)
+    noise_terms = []
+
     for st, cid in zip(source_terms, labels_arr):
-
         if cid == -1:
-            # HDBSCAN noise → create a one-term cluster
-            new_cluster = Cluster(
-                dataset_id=dataset_id, label=label, title=st.value  # title = first term
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
+            noise_terms.append(st)
+        else:
+            cluster_terms[cid].append(st)
 
+    for cid, terms in cluster_terms.items():
+
+        counter = Counter(st.value for st in terms)
+
+        title = counter.most_common(1)[0][0]
+
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=label,
+            title=title,
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
+
+        for st in terms:
             st.cluster_id = new_cluster.id
             db.add(st)
-            continue
 
-        # If the cluster is seen for the first time
-        if cid not in cluster_map:
-            new_cluster = Cluster(
-                dataset_id=dataset_id,
-                label=label,
-                title=st.value,  # first term becomes cluster title
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
+    
+    for st in noise_terms:
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=label,
+            title=st.value,
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
 
-            cluster_map[cid] = new_cluster
-
-        # Assign term to cluster
-        st.cluster_id = cluster_map[cid].id
+        st.cluster_id = new_cluster.id
         db.add(st)
 
     db.commit()
