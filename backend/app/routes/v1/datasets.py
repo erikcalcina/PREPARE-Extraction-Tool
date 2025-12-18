@@ -987,11 +987,15 @@ def create_clusters_for_dataset(
     embedding_model = model_registry.get_model("embedding")
     embeddings = embedding_model.embed(texts)
 
-    clusterer = HDBSCAN(
-        min_cluster_size=2,
-        metric="euclidean",
-        cluster_selection_method="eom",
-    )
+    # Default clustering parameters (can be tuned)
+    HDBSCAN_PARAMS = {
+        "min_cluster_size": 2,
+        "min_samples": None,
+        "metric": "euclidean",
+        "cluster_selection_method": "eom",
+    }
+
+    clusterer = HDBSCAN(**HDBSCAN_PARAMS)
 
     labels_arr = clusterer.fit_predict(embeddings)
 
