@@ -1,53 +1,84 @@
-import classNames from 'classnames';
+import { NavLink, useNavigate } from 'react-router-dom';
 
-import Button from "components/Button";
-import PrepareLogo from '../../assets/images/prepare_lo....svg';
+import UserAvatar from 'components/UserAvatar';
+import Dropdown from 'components/Dropdown';
+import Logo from 'components/Logo';
+
+import { useAuth } from 'hooks/useAuth';
 
 import styles from './styles.module.css';
 
-// ====================================
-// Interface
-// ====================================
 
-type User = {
-    name: string;
-};
-
-export interface HeaderProps {
-    user?: User;
-    onLogin?: () => void;
-    onLogout?: () => void;
-    onCreateAccount?: () => void;
-}
-
-// ====================================
+// ================================================
 // Component
-// ====================================
+// ================================================
 
-const Header = ({ user, onLogin, onLogout, onCreateAccount }: HeaderProps) => (
-    <header>
-        <div className={classNames(styles.header)}>
-            <div>
-                <img src={PrepareLogo} alt="Prepare Rehab Logo" style={{ width: 32, height: 32 }} />
-                <h1>PREPARE REHAB</h1>
+const NavBar = () => {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const dropdownItems = [
+        {
+            label: 'View Profile',
+            onClick: () => navigate('/profile'),
+        },
+        {
+            label: 'Logout',
+            onClick: logout,
+            variant: 'danger' as const,
+        },
+    ];
+
+    return (
+        <header className={styles.header}>
+            <div className={styles.left}>
+                <Logo size="small" />
             </div>
-            <div>
-                {user ? (
-                    <>
-                        <span className={styles.welcome}>
-                            Welcome, <b>{user.name}</b>!
-                        </span>
-                        <Button size="small" onClick={onLogout} label="Log out" />
-                    </>
-                ) : (
-                    <>
-                        <Button size="small" onClick={onLogin} label="Log in" />
-                        <Button primary size="small" onClick={onCreateAccount} label="Sign up" />
-                    </>
+
+            <nav className={styles.nav}>
+                <NavLink
+                    to="/datasets"
+                    className={({ isActive }) =>
+                        `${styles.navLink} ${isActive ? styles.active : ''}`
+                    }
+                >
+                    Datasets
+                </NavLink>
+                <NavLink
+                    to="/vocabularies"
+                    className={({ isActive }) =>
+                        `${styles.navLink} ${isActive ? styles.active : ''}`
+                    }
+                >
+                    Vocabularies
+                </NavLink>
+                <NavLink
+                    to="/monitor"
+                    className={({ isActive }) =>
+                        `${styles.navLink} ${isActive ? styles.active : ''}`
+                    }
+                >
+                    Monitor
+                </NavLink>
+            </nav>
+
+            <div className={styles.right}>
+                {user && (
+                    <Dropdown
+                        trigger={
+                            <UserAvatar
+                                username={user.username}
+                                size="medium"
+                            />
+                        }
+                        items={dropdownItems}
+                        align="right"
+                    />
                 )}
             </div>
-        </div>
-    </header>
-);
+        </header>
+    );
+};
 
-export default Header;
+export default NavBar;
+

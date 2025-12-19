@@ -72,6 +72,7 @@ def get_vocabularies(
     vocabularies = db.exec(
         select(Vocabulary)
         .where(Vocabulary.user_id == current_user.id)
+        .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -110,12 +111,20 @@ async def create_vocabulary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    REQUIRED_COLUMNS = ["concept_id", "concept_name", "domain_id", "concept_class_id", "standard_concept", "concept_code", "valid_start_date", "valid_end_date", "invalid_reason"]
+    REQUIRED_COLUMNS = [
+        "concept_id",
+        "concept_name",
+        "domain_id",
+        "concept_class_id",
+        "standard_concept",
+        "concept_code",
+        "valid_start_date",
+        "valid_end_date",
+        "invalid_reason",
+    ]
     concept_list = await parse_concepts_file(file, REQUIRED_COLUMNS)
 
-    vocabulary = Vocabulary(
-        name=name, version=version, user_id=current_user.id
-    )
+    vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
     db.add(vocabulary)
     db.commit()
     db.refresh(vocabulary)
@@ -126,11 +135,11 @@ async def create_vocabulary(
 
     for c in concept_list:
         c.vocabulary_id = vocabulary_id
-    
+
     db.add_all(concept_list)
     db.flush()
     db.refresh(vocabulary)
-    
+
     # NEED TO ADD CONCEPTS TO INDEX
     indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
 
@@ -204,58 +213,6 @@ def delete_vocabulary(
     return MessageOutput(message="Vocabulary deleted successfully")
 
 
-@router.get(
-    "/{vocabulary_id}/download",
-    response_class=StreamingResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Download vocabulary",
-    description="Downloads a vocabulary's concepts as a file",
-    response_description="The file containing the vocabulary concepts",
-)
-def download_vocabulary_csv(
-    vocabulary_id: int,
-    format: str = "csv",
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
-):
-    # TODO: enable vocabulary download as JSON or CSV (?format=json or ?format=csv, where csv is the default)
-
-    vocabulary = db.get(Vocabulary, vocabulary_id)
-    if vocabulary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
-        )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    concepts = vocabulary.concepts
-
-    if not concepts:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No concepts found for this vocabulary",
-        )
-
-    # TODO: make a separate function for this
-    # FIX: the solution below does not parse the text correctly. There should be
-    #      one column containing the whole text (parsed accordingly) - newlines
-    #      should be properly handled (i.e. "Text text\n\ntext text" in a single line).
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=["vocab_term_id", "vocab_term_name"])
-    writer.writeheader()
-    for c in concepts:
-        # TODO: add other fields (description, synonyms, etc.)
-        writer.writerow(
-            {"vocab_term_id": c.vocab_term_id, "vocab_term_name": c.vocab_term_name}
-        )
-    output.seek(0)
-
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={vocabulary.name}.csv"},
-    )
-
-
 # ================================================
 # Concepts routes
 # ================================================
@@ -282,6 +239,10 @@ def get_concepts(
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
 
+    # TODO: Search over Elasticsearch index if query parameters are provided
+    # (query parameters must be added to the endpoint)
+    # query parameters: text (for searching over concept names and alternatives), vocabulary_id (for searching over concepts in a specific vocabulary)
+
     # Get total count
     total = db.exec(
         select(func.count())
@@ -293,6 +254,7 @@ def get_concepts(
     concepts = db.exec(
         select(Concept)
         .where(Concept.vocabulary_id == vocabulary_id)
+        .order_by(Concept.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
@@ -336,7 +298,7 @@ def add_concept(
         concept_code=concept.concept_code,
         valid_start_date=concept.valid_start_date,
         valid_end_date=concept.valid_end_date,
-        invalid_reason=concept.invalid_reason
+        invalid_reason=concept.invalid_reason,
     )
 
     db.add(new_concept)

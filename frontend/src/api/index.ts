@@ -7,6 +7,7 @@ import type {
     DatasetOutput,
     DatasetCreate,
     DatasetStats,
+    DatasetOverviewOutput,
     RecordsOutput,
     RecordOutput,
     SourceTermsOutput,
@@ -16,6 +17,18 @@ import type {
     VocabularyOutput,
     VocabularyCreate,
     MessageOutput,
+    ClustersOutput,
+    ClusterData,
+    ClusterCreateRequest,
+    ClusterMergeRequest,
+    ClusterMappingsOutput,
+    ConceptSearchResults,
+    ConceptHierarchy,
+    AutoMapRequest,
+    MapClusterRequest,
+    AutoMapAllRequest,
+    AutoMapAllResponse,
+    ConceptSearchParams,
 } from 'types';
 
 // ================================================
@@ -134,7 +147,7 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 export async function getUserStats(): Promise<UserStats> {
-    return apiRequest<UserStats>('/auth/me/stats');
+    return apiRequest<UserStats>('/auth/me/statistics');
 }
 
 // ================================================
@@ -149,10 +162,64 @@ export async function getDataset(id: number): Promise<DatasetOutput> {
     return apiRequest<DatasetOutput>(`/datasets/${id}`);
 }
 
-export async function createDataset(data: DatasetCreate): Promise<DatasetOutput> {
-    return apiRequest<DatasetOutput>('/datasets/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createDataset(
+    data: DatasetCreate,
+    onProgress?: (progress: number) => void
+): Promise<DatasetOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('labels', data.labels);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/datasets/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
@@ -197,7 +264,11 @@ export async function downloadDataset(id: number): Promise<void> {
 }
 
 export async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
-    return apiRequest<DatasetStats>(`/datasets/${datasetId}/stats`);
+    return apiRequest<DatasetStats>(`/datasets/${datasetId}/statistics`);
+}
+
+export async function getDatasetOverview(datasetId: number): Promise<DatasetOverviewOutput> {
+    return apiRequest<DatasetOverviewOutput>(`/datasets/${datasetId}/overview`);
 }
 
 // ================================================
@@ -207,10 +278,28 @@ export async function getDatasetStats(datasetId: number): Promise<DatasetStats> 
 export async function getRecords(
     datasetId: number,
     page = 1,
-    limit = 50
+    limit = 50,
+    patientId?: string,
+    text?: string,
+    reviewed?: boolean
 ): Promise<RecordsOutput> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+    });
+
+    if (patientId) {
+        params.append('patient_id', patientId);
+    }
+    if (text) {
+        params.append('text', text);
+    }
+    if (reviewed !== undefined) {
+        params.append('reviewed', reviewed.toString());
+    }
+
     return apiRequest<RecordsOutput>(
-        `/datasets/${datasetId}/records?page=${page}&limit=${limit}`
+        `/datasets/${datasetId}/records?${params.toString()}`
     );
 }
 
@@ -266,6 +355,37 @@ export async function deleteSourceTerm(termId: number): Promise<MessageOutput> {
 }
 
 // ================================================
+// Bioner Extraction API
+// ================================================
+
+export async function extractRecordTerms(
+    datasetId: number,
+    recordId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/${recordId}/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
+}
+
+export async function extractDatasetTerms(
+    datasetId: number,
+    labels: string[]
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/extract`,
+        {
+            method: 'POST',
+            body: JSON.stringify({ labels }),
+        }
+    );
+}
+
+// ================================================
 // Vocabularies API
 // ================================================
 
@@ -277,10 +397,64 @@ export async function getVocabulary(id: number): Promise<VocabularyOutput> {
     return apiRequest<VocabularyOutput>(`/vocabularies/${id}`);
 }
 
-export async function createVocabulary(data: VocabularyCreate): Promise<VocabularyOutput> {
-    return apiRequest<VocabularyOutput>('/vocabularies/', {
-        method: 'POST',
-        body: JSON.stringify(data),
+export async function createVocabulary(
+    data: VocabularyCreate,
+    onProgress?: (progress: number) => void
+): Promise<VocabularyOutput> {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('version', data.version);
+        formData.append('file', data.file);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                onProgress(percentComplete);
+            }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response);
+                } catch (err) {
+                    reject(new Error('Failed to parse response'));
+                }
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    reject(new Error(error.detail || `HTTP ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+                }
+            }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+        });
+
+        // Open connection and set headers
+        xhr.open('POST', `${API_BASE_URL}/vocabularies/`);
+
+        const token = getToken();
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        // Send request
+        xhr.send(formData);
     });
 }
 
@@ -322,5 +496,246 @@ export async function downloadVocabulary(id: number): Promise<void> {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// ================================================
+// Clustering API
+// ================================================
+
+export async function getClusters(
+    datasetId: number,
+    label?: string
+): Promise<ClustersOutput> {
+    const params = label ? `?label=${encodeURIComponent(label)}` : '';
+    return apiRequest<ClustersOutput>(`/datasets/${datasetId}/clusters${params}`);
+}
+
+export async function rebuildClusters(
+    datasetId: number,
+    label: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/${datasetId}/clusters/create?label=${encodeURIComponent(label)}`,
+        { method: 'POST' }
+    );
+}
+
+export async function createCluster(
+    datasetId: number,
+    data: ClusterCreateRequest
+): Promise<ClusterData> {
+    return apiRequest<ClusterData>(`/datasets/${datasetId}/clusters`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function assignTermToCluster(
+    termId: number,
+    clusterId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/source-terms/${termId}/map-cluster/${clusterId}`,
+        { method: 'POST' }
+    );
+}
+
+export async function unassignTermFromCluster(
+    termId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/source-terms/${termId}/unmap-cluster`, {
+        method: 'POST',
+    });
+}
+
+export async function renameCluster(
+    clusterId: number,
+    title: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/clusters/${clusterId}?title=${encodeURIComponent(title)}`,
+        { method: 'PUT' }
+    );
+}
+
+export async function mergeClusters(
+    datasetId: number,
+    data: ClusterMergeRequest
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/${datasetId}/clusters/merge`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteCluster(clusterId: number): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/clusters/${clusterId}`, {
+        method: 'DELETE',
+    });
+}
+
+// ================================================
+// Mapping API
+// ================================================
+
+export async function getDatasetMappings(
+    datasetId: number,
+    label?: string
+): Promise<ClusterMappingsOutput> {
+    const params = label ? `?label=${encodeURIComponent(label)}` : '';
+    return apiRequest<ClusterMappingsOutput>(`/datasets/${datasetId}/mappings${params}`);
+}
+
+export async function autoMapCluster(
+    datasetId: number,
+    clusterId: number,
+    request: AutoMapRequest
+): Promise<ConceptSearchResults> {
+    return apiRequest<ConceptSearchResults>(
+        `/datasets/${datasetId}/clusters/${clusterId}/auto-map`,
+        {
+            method: 'POST',
+            body: JSON.stringify(request),
+        }
+    );
+}
+
+export async function mapClusterToConcept(
+    datasetId: number,
+    clusterId: number,
+    request: MapClusterRequest
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/${datasetId}/clusters/${clusterId}/map`,
+        {
+            method: 'POST',
+            body: JSON.stringify(request),
+        }
+    );
+}
+
+export async function deleteClusterMapping(
+    datasetId: number,
+    clusterId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/datasets/${datasetId}/clusters/${clusterId}/mapping`,
+        {
+            method: 'DELETE',
+        }
+    );
+}
+
+export async function autoMapAllClusters(
+    datasetId: number,
+    request: AutoMapAllRequest
+): Promise<AutoMapAllResponse> {
+    return apiRequest<AutoMapAllResponse>(
+        `/datasets/${datasetId}/auto-map-all`,
+        {
+            method: 'POST',
+            body: JSON.stringify(request),
+        }
+    );
+}
+
+export async function searchConcepts(
+    params: ConceptSearchParams
+): Promise<ConceptSearchResults> {
+    const queryParams = new URLSearchParams({
+        query: params.query,
+        vocabulary_ids: params.vocabulary_ids.join(','),
+        limit: (params.limit || 10).toString(),
+    });
+
+    if (params.domain_id) {
+        queryParams.append('domain_id', params.domain_id);
+    }
+    if (params.concept_class_id) {
+        queryParams.append('concept_class_id', params.concept_class_id);
+    }
+    if (params.standard_concept) {
+        queryParams.append('standard_concept', params.standard_concept);
+    }
+
+    return apiRequest<ConceptSearchResults>(
+        `/concepts/search?${queryParams.toString()}`
+    );
+}
+
+export async function getConceptHierarchy(
+    conceptId: number
+): Promise<ConceptHierarchy> {
+    return apiRequest<ConceptHierarchy>(`/concepts/${conceptId}/hierarchy`);
+}
+
+export async function exportMappings(
+    datasetId: number,
+    statusFilter?: string
+): Promise<void> {
+    const token = getToken();
+    const headers: HeadersInit = {};
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const params = statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : '';
+    const response = await fetch(
+        `${API_BASE_URL}/datasets/${datasetId}/mappings/export${params}`,
+        { headers }
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+        throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition?.match(/filename=(.+)/);
+    const filename = filenameMatch ? filenameMatch[1] : `mappings_${datasetId}.csv`;
+
+    // Create blob and trigger download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+export async function importMappings(
+    datasetId: number,
+    file: File
+): Promise<MessageOutput> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = getToken();
+    const headers: HeadersInit = {};
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/datasets/${datasetId}/mappings/import`,
+        {
+            method: 'POST',
+            headers,
+            body: formData,
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Import failed' }));
+        throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
 }
 

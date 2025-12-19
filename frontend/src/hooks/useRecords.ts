@@ -16,6 +16,8 @@ import {
     markRecordReviewed as markRecordReviewedAPI,
     createSourceTerm as createSourceTermAPI,
     deleteSourceTerm as deleteSourceTermAPI,
+    extractRecordTerms as extractRecordTermsAPI,
+    extractDatasetTerms as extractDatasetTermsAPI,
 } from 'api';
 
 // ================================================
@@ -32,7 +34,14 @@ export function useRecords(datasetId: number) {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [isExtractingDataset, setIsExtractingDataset] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Filter state
+    const [patientIdFilter, setPatientIdFilter] = useState<string>('');
+    const [textFilter, setTextFilter] = useState<string>('');
+    const [reviewedFilter, setReviewedFilter] = useState<boolean | undefined>(undefined);
 
     // Fetch dataset info
     const fetchDataset = useCallback(async () => {
@@ -59,7 +68,14 @@ export function useRecords(datasetId: number) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await getRecords(datasetId, page, limit);
+            const response = await getRecords(
+                datasetId,
+                page,
+                limit,
+                patientIdFilter || undefined,
+                textFilter || undefined,
+                reviewedFilter
+            );
             setRecords(response.records);
             setPagination(response.pagination);
         } catch (err) {
@@ -67,7 +83,7 @@ export function useRecords(datasetId: number) {
         } finally {
             setIsLoading(false);
         }
-    }, [datasetId]);
+    }, [datasetId, patientIdFilter, textFilter, reviewedFilter]);
 
     // Load more records (for infinite scroll)
     const loadMoreRecords = useCallback(async () => {
@@ -78,7 +94,14 @@ export function useRecords(datasetId: number) {
 
         setIsLoadingMore(true);
         try {
-            const response = await getRecords(datasetId, nextPage, pagination.limit);
+            const response = await getRecords(
+                datasetId,
+                nextPage,
+                pagination.limit,
+                patientIdFilter || undefined,
+                textFilter || undefined,
+                reviewedFilter
+            );
             setRecords(prev => [...prev, ...response.records]);
             setPagination(response.pagination);
         } catch (err) {
@@ -86,7 +109,7 @@ export function useRecords(datasetId: number) {
         } finally {
             setIsLoadingMore(false);
         }
-    }, [datasetId, pagination, isLoadingMore]);
+    }, [datasetId, pagination, isLoadingMore, patientIdFilter, textFilter, reviewedFilter]);
 
     // Check if there are more records to load
     const hasMore = pagination ? pagination.page < pagination.total_pages : false;
@@ -172,6 +195,61 @@ export function useRecords(datasetId: number) {
         }
     }, [fetchStats]);
 
+    // Extract terms for the selected record using bioner
+    const extractTermsForRecord = useCallback(async () => {
+        if (!selectedRecord) {
+            throw new Error('No record selected');
+        }
+        if (!dataset?.labels || dataset.labels.length === 0) {
+            throw new Error('No labels defined for this dataset');
+        }
+
+        setIsExtracting(true);
+        try {
+            const response = await extractRecordTermsAPI(
+                datasetId,
+                selectedRecord.id,
+                dataset.labels
+            );
+            // Refresh the terms for the selected record
+            const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+            setSelectedRecordTerms(termsResponse.source_terms);
+            // Refresh stats
+            await fetchStats();
+            return response;
+        } catch (err) {
+            console.error('Failed to extract terms for record:', err);
+            throw err;
+        } finally {
+            setIsExtracting(false);
+        }
+    }, [datasetId, selectedRecord, dataset, fetchStats]);
+
+    // Extract terms for all records in the dataset using bioner
+    const extractTermsForDataset = useCallback(async () => {
+        if (!dataset?.labels || dataset.labels.length === 0) {
+            throw new Error('No labels defined for this dataset');
+        }
+
+        setIsExtractingDataset(true);
+        try {
+            const response = await extractDatasetTermsAPI(datasetId, dataset.labels);
+            // Refresh the terms for the selected record if one is selected
+            if (selectedRecord) {
+                const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+                setSelectedRecordTerms(termsResponse.source_terms);
+            }
+            // Refresh stats
+            await fetchStats();
+            return response;
+        } catch (err) {
+            console.error('Failed to extract terms for dataset:', err);
+            throw err;
+        } finally {
+            setIsExtractingDataset(false);
+        }
+    }, [datasetId, dataset, selectedRecord, fetchStats]);
+
     // Fetch on mount
     useEffect(() => {
         fetchDataset();
@@ -189,6 +267,8 @@ export function useRecords(datasetId: number) {
         isLoading,
         isLoadingMore,
         isLoadingTerms,
+        isExtracting,
+        isExtractingDataset,
         hasMore,
         error,
         fetchRecords,
@@ -199,6 +279,15 @@ export function useRecords(datasetId: number) {
         fetchStats,
         addSourceTerm,
         removeSourceTerm,
+        extractTermsForRecord,
+        extractTermsForDataset,
+        // Filter state and setters
+        patientIdFilter,
+        setPatientIdFilter,
+        textFilter,
+        setTextFilter,
+        reviewedFilter,
+        setReviewedFilter,
     };
 }
 

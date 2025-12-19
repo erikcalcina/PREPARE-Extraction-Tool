@@ -1,7 +1,11 @@
-from collections import defaultdict
-from datetime import datetime, timezone
+import io
+import csv
+import json
+
 from dateutil import parser
-from typing import List, Dict
+from datetime import datetime
+
+from typing import List
 
 from fastapi import HTTPException, status, UploadFile
 
@@ -21,7 +25,7 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
 
     if filename.endswith(".csv"):
         return parse_csv(text, required_columns)
-        
+
     elif filename.endswith(".json"):
         return parse_json(text, required_columns)
 
@@ -30,10 +34,9 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
         )
 
+
 def parse_csv(text, required_columns) -> List[Record]:
     """Parse a CSV file into a list of records."""
-    import csv
-    import io
 
     try:
         reader = csv.DictReader(io.StringIO(text))
@@ -44,7 +47,7 @@ def parse_csv(text, required_columns) -> List[Record]:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="CSV file is empty or invalid.",
             )
-        
+
         # Validate that all required fields exist
         missing = [col for col in required_columns if col not in csv_columns]
 
@@ -58,7 +61,7 @@ def parse_csv(text, required_columns) -> List[Record]:
         for row in reader:
             if not row.get("text"):
                 continue
-            
+
             date_str = row.get("date")
             if date_str:
                 try:
@@ -70,24 +73,24 @@ def parse_csv(text, required_columns) -> List[Record]:
 
             records.append(
                 Record(
-                patient_id=row["patient_id"],
-                seq_number=row.get("seq_number"),
-                date=date_obj,
-                text=row["text"]
+                    patient_id=row["patient_id"],
+                    seq_number=row.get("seq_number"),
+                    date=date_obj,
+                    text=row["text"],
                 )
-            ) 
+            )
 
         return records
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {e}",
         )
-    
+
+
 def parse_json(text, required_columns) -> List[Record]:
     """Parse a JSON file into a list of records."""
-    import json
 
     try:
         items = json.loads(text)
@@ -100,24 +103,20 @@ def parse_json(text, required_columns) -> List[Record]:
 
         if not items:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="JSON is empty."
+                status_code=status.HTTP_400_BAD_REQUEST, detail="JSON is empty."
             )
-        
-        # Validate that all required fields exist
-        missing = [col for col in required_columns if col not in items[0]]
 
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {', '.join(missing)}",
-            )
-        
         records = []
-        for obj in items:
-            if not obj.get("text"):
-                continue
-            
+        for i, obj in enumerate(items):
+            # Validate that all required fields exist
+            missing = [col for col in required_columns if col not in obj]
+
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required columns at index {i}: {', '.join(missing)}",
+                )
+
             date_str = obj.get("date")
             if date_str:
                 try:
@@ -129,12 +128,12 @@ def parse_json(text, required_columns) -> List[Record]:
 
             records.append(
                 Record(
-                patient_id=obj["patient_id"],
-                seq_number=obj.get("seq_number"),
-                date=date_obj,
-                text=obj["text"]
+                    patient_id=obj["patient_id"],
+                    seq_number=obj.get("seq_number"),
+                    date=date_obj,
+                    text=obj["text"],
                 )
-            ) 
+            )
 
         return records
 
@@ -143,12 +142,12 @@ def parse_json(text, required_columns) -> List[Record]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse JSON: {e}",
         )
-    
 
-async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[Concept]:
+
+async def parse_concepts_file(
+    file: UploadFile, required_columns: list
+) -> List[Concept]:
     """Parse a CSV file into a list of concepts."""
-    import csv
-    import io
 
     raw = await file.read()
     filename = file.filename.lower()
@@ -168,7 +167,7 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="CSV file is empty or invalid.",
             )
-        
+
         missing = [col for col in required_columns if col not in csv_columns]
 
         if missing:
@@ -191,21 +190,71 @@ async def parse_concepts_file(file: UploadFile, required_columns: list) -> List[
                     concept_class_id=row["concept_class_id"],
                     standard_concept=row.get("standard_concept"),
                     concept_code=row.get("concept_code"),
-                    valid_start_date=datetime.strptime(row["valid_start_date"], "%Y%m%d"),
+                    valid_start_date=datetime.strptime(
+                        row["valid_start_date"], "%Y%m%d"
+                    ),
                     valid_end_date=datetime.strptime(row["valid_end_date"], "%Y%m%d"),
-                    invalid_reason=row.get("invalid_reason")
+                    invalid_reason=row.get("invalid_reason"),
                 )
-            ) 
+            )
 
         return concepts
-    
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {e}",
         )
-    
+
 
 # ================================================
 # Functions to download files
 # ================================================
+
+
+def download_annotated_dataset(records, format):
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(
+            ["patient_id", "seq_number", "date", "entity_type", "entity_name"]
+        )
+        for record in records:
+            for term in record.source_terms:
+                entity_type = term.label
+                entity_name = term.cluster.title
+                writer.writerow(
+                    [
+                        record.patient_id,
+                        record.seq_number,
+                        record.date,
+                        entity_type,
+                        entity_name,
+                    ]
+                )
+        output.seek(0)
+        return output.getvalue(), "text/csv"
+
+    elif format == "json":
+        data = []
+        for record in records:
+            for term in record.source_terms:
+                entity_type = term.label
+                entity_name = term.cluster.title
+                data.append(
+                    {
+                        "patient_id": record.patient_id,
+                        "seq_number": record.seq_number,
+                        "date": record.date.isoformat() if record.date else None,
+                        "entity_type": entity_type,
+                        "entity_name": entity_name,
+                    }
+                )
+        return json.dumps(data), "application/json"
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsuported file format: {format}",
+        )

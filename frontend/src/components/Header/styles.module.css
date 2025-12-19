@@ -1,34 +1,45 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  padding: 15px 20px;
-  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
-.logo {
-  width: 32px;
-  height: 32px;
-  display: inline-block;
-  vertical-align: top;
+.left {
+    flex: 0 0 auto;
 }
 
-.header h1 {
-  display: inline-block;
-  vertical-align: top;
-  margin: 6px 0 6px 10px;
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1;
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.header button + button {
-  margin-left: 10px;
+.navLink {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    text-decoration: none;
+    transition: all 0.2s ease;
 }
 
-.header .welcome {
-  margin-right: 10px;
-  color: #333;
-  font-size: 14px;
+.navLink:hover {
+    background-color: #f3f4f6;
+    color: #1e3a5f;
 }
+
+.navLink.active {
+    background-color: #e8f4fc;
+    color: #1e3a5f;
+    font-weight: 600;
+}
+
+.right {
+    flex: 0 0 auto;
+}
+

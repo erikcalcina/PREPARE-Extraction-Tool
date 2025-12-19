@@ -2,55 +2,87 @@
     font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+/* Header with Navigation */
 .header {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
     align-items: center;
-    justify-content: space-between;
     margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.titleSection {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.backButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
+.navButton {
+    padding: 10px 20px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     cursor: pointer;
-    color: #6b7280;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
 }
 
-.backButton:hover {
+.navButton:hover {
     background: #f3f4f6;
     color: #1e3a5f;
+    border-color: #d1d5db;
 }
 
-.title {
+.pageInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.pageTitle {
     margin: 0;
     font-size: 24px;
     font-weight: 700;
     color: #1e3a5f;
 }
 
-.subtitle {
-    margin: 4px 0 0;
+.datasetLink {
+    margin: 0;
+    padding: 0;
     font-size: 14px;
     color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.datasetLink:hover {
+    color: #1e3a5f;
+    text-decoration: underline;
+}
+
+/* Statistics Section */
+.statsSection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
 }
 
 /* Stats Cards */
 .statsGrid {
     display: flex;
     gap: 12px;
+    flex: 1;
+}
+
+.pageActions {
+    display: flex;
+    gap: 8px;
 }
 
 .statCard {
@@ -93,7 +125,7 @@
     display: grid;
     grid-template-columns: 380px 1fr;
     gap: 20px;
-    min-height: calc(100vh - 280px);
+    min-height: calc(100vh - 240px);
 }
 
 /* Records List Panel */
@@ -104,7 +136,7 @@
     border: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 280px);
+    max-height: calc(100vh - 240px);
 }
 
 .recordsPanelHeader {
@@ -140,6 +172,33 @@
 
 .searchInput::placeholder {
     color: #9ca3af;
+}
+
+.filterGroup {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding: 8px 0;
+}
+
+.filterGroup label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+}
+
+.filterGroup input[type="radio"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: #4CAF50;
+}
+
+.filterGroup label:hover span {
+    color: #1e3a5f;
 }
 
 .recordsList {
@@ -249,9 +308,9 @@
 /* Detail Panels Container */
 .detailPanels {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 16px;
-    max-height: calc(100vh - 280px);
+    max-height: calc(100vh - 240px);
     overflow: hidden;
 }
 
@@ -319,6 +378,33 @@
     background: #e5e7eb;
 }
 
+.actionButton.cluster {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+}
+
+.actionButton.cluster:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+}
+
+.actionButton.extract {
+    background: #7c3aed;
+    color: #ffffff;
+}
+
+.actionButton.extract:hover {
+    background: #6d28d9;
+}
+
+.actionButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.actionButton:disabled:hover {
+    background: inherit;
+}
+
 .recordTextContent {
     flex: 1;
     overflow-y: auto;
@@ -334,6 +420,8 @@
     background: #f9fafb;
     border-radius: 8px;
     white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 /* Extracted Terms Panel */
@@ -344,8 +432,8 @@
     border: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
-    flex: 0 0 auto;
-    max-height: 280px;
+    flex: 0 0 320px;
+    max-height: calc(100vh - 240px);
     overflow: hidden;
 }
 
@@ -479,8 +567,8 @@
 
 .termItem {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 8px;
     padding: 10px 12px;
     background: #f9fafb;
     border-radius: 6px;
@@ -488,16 +576,17 @@
 }
 
 .termInfo {
-    flex: 1;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .termValue {
     font-size: 13px;
     font-weight: 600;
     color: #1e3a5f;
+    display: flex;
+    align-items: center;
 }
 
 .termMeta {
@@ -512,16 +601,20 @@
     padding: 2px 8px;
     border-radius: 4px;
     font-weight: 500;
+    font-size: 12px;
+    width: fit-content;
 }
 
 /* termLabel colors are defined with labelButton classes above */
 
 .termPosition {
     color: #9ca3af;
+    display: flex;
+    align-items: center;
 }
 
 .termViewButton {
-    padding: 6px 12px;
+    padding: 4px 10px;
     font-size: 12px;
     font-weight: 500;
     color: #059669;
@@ -530,6 +623,9 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-family: inherit;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
 }
 
 .termViewButton:hover {

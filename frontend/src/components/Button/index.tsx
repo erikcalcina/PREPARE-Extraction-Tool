@@ -15,6 +15,10 @@ export interface ButtonProps {
     size?: 'small' | 'medium' | 'large';
     /** Button contents */
     label: string;
+    /** Button type */
+    type?: 'button' | 'submit' | 'reset';
+    /** Disabled state */
+    disabled?: boolean;
     /** Optional click handler */
     onClick?: () => void;
 }
@@ -27,6 +31,7 @@ export interface ButtonProps {
 const Button = ({
     primary = false,
     size = 'medium',
+    type = 'button',
     backgroundColor,
     label,
     ...props
@@ -34,7 +39,7 @@ const Button = ({
     const mode = primary ? styles.primary : styles.secondary;
     return (
         <button
-            type="button"
+            type={type}
             className={classNames(styles.button, styles[size], mode)}
             style={{ backgroundColor }}
             {...props}

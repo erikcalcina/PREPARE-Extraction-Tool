@@ -3,6 +3,7 @@ import Layout from 'components/Layout';
 import Button from 'components/Button';
 import UserAvatar from 'components/UserAvatar';
 import { useAuth } from 'hooks/useAuth';
+import { usePageTitle } from 'hooks/usePageTitle';
 import { getUserStats } from 'api';
 import type { UserStats } from 'types';
 import styles from './styles.module.css';
@@ -12,6 +13,7 @@ import styles from './styles.module.css';
 // ================================================
 
 const UserProfile = () => {
+    usePageTitle('Profile');
     const { user, logout } = useAuth();
     const [stats, setStats] = useState<UserStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);

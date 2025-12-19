@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -9,7 +10,7 @@ from elasticsearch.exceptions import ApiError
 
 from app.routes.v1 import api_router
 from app.core.settings import settings
-from app.core.database import init_db
+from app.core.database import check_migration_status
 from app.core.elastic import check_es_connection
 from app.core.model_registry import register_models
 from app.core.middleware import SecurityHeadersMiddleware
@@ -20,6 +21,8 @@ from app.core.exceptions import (
     generic_exception_handler,
 )
 
+logger = logging.getLogger(__name__)
+
 # ================================================
 # Application setup
 # ================================================
@@ -27,8 +30,19 @@ from app.core.exceptions import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize the database
-    init_db()
+    # Check database migration status
+    migration_status = check_migration_status()
+
+    if not migration_status["up_to_date"]:
+        logger.warning(
+            "Database migrations are not up to date!\n"
+            f"  Current revision: {migration_status['current']}\n"
+            f"  Latest revision:  {migration_status['head']}\n"
+            "  Please run: alembic upgrade head"
+        )
+    else:
+        logger.info(f"Database is up to date (revision: {migration_status['current']})")
+
     # Register the models
     register_models()
     # Check connection to elasticsearch

@@ -1,4 +1,5 @@
 import Layout from 'components/Layout';
+import { usePageTitle } from 'hooks/usePageTitle';
 import styles from './styles.module.css';
 
 // ================================================
@@ -6,6 +7,7 @@ import styles from './styles.module.css';
 // ================================================
 
 const Monitor = () => {
+    usePageTitle('Monitor');
     return (
         <Layout>
             <div className={styles.page}>

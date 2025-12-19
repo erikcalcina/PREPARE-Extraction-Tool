@@ -1,11 +1,11 @@
 import re
 from math import ceil
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator
-from app.models_db import Record, Concept, SourceTerm
+from app.models_db import Record, Concept, SourceTerm, Cluster
 
 
 # ================================================
@@ -172,13 +172,38 @@ class DatasetsOutput(BaseModel):
     pagination: PaginationMetadata
 
 
-class DatasetStatsResponse(BaseModel):
+class DatasetStatisticsResponse(BaseModel):
     """Model for dataset statistics."""
 
     total_records: int
     processed_count: int
     pending_review_count: int
     extracted_terms_count: int
+
+
+class ClusteringStatsResponse(BaseModel):
+    """Model for clustering statistics."""
+
+    total_clusters: int
+    clustered_terms: int
+    unclustered_terms: int
+
+
+class MappingStatsResponse(BaseModel):
+    """Model for concept mapping statistics."""
+
+    total_clusters: int
+    mapped_clusters: int
+    unmapped_clusters: int
+
+
+class DatasetOverviewResponse(BaseModel):
+    """Model for comprehensive dataset overview with all statistics."""
+
+    dataset: DatasetResponse
+    stats: DatasetStatisticsResponse
+    clustering_stats: ClusteringStatsResponse
+    mapping_stats: MappingStatsResponse
 
 
 # ================================================
@@ -287,6 +312,7 @@ class ConceptsOutput(BaseModel):
     """Wrapper for paginated list of concepts."""
 
     concepts: List[Concept]
+    pagination: PaginationMetadata
 
 
 # ================================================
@@ -317,21 +343,32 @@ class SourceTermsOutput(BaseModel):
 
 
 # ================================================
-# Mapping models
+# Clustering response models
 # ================================================
 
 
-class MapRequest(BaseModel):
-    """Request model for mapping source terms to vocabularies."""
+class ClusterCreate(BaseModel):
+    """Create new empty cluster manually"""
 
-    vocabulary_ids: List[int]
+    label: str
+    title: str
 
 
-# TODO: check if this should be a SQLModel table or only a Pydantic model
-# This is a Pydantic model because it is not stored in the database. We only use it to return structured JSON to the frontend.
-# The real data in the dstabase is stored in the Cluster and SourceTerm tables.
-# ClusteredTerm and EntityCluster are just response objects, created in memory.
-# So they should be Pydantic models, not SQLModel tables.
+class ClusterMerge(BaseModel):
+    """Merge multiple clusters"""
+
+    cluster_ids: List[int] = Field(min_length=2)
+    new_title: str
+
+
+class ClustersOutput(BaseModel):
+    clusters: List[Cluster]
+
+
+class ClusterOutput(BaseModel):
+    cluster: Cluster
+
+
 class ClusteredTerm(BaseModel):
     term_id: int
     text: str
@@ -340,11 +377,158 @@ class ClusteredTerm(BaseModel):
     record_ids: List[int]
 
 
-class EntityCluster(BaseModel):
+class ClusterResponse(BaseModel):
+    """Rich cluster data for frontend display"""
+
     id: int
-    main_term: str
+    dataset_id: int
     label: str
+    title: str
     total_terms: int
     total_occurrences: int
-    n_records: int
+    unique_records: int
     terms: List[ClusteredTerm]
+
+
+class ClustersStatisticsOutput(BaseModel):
+    """Complete clustering state for a dataset/label"""
+
+    clusters: List[ClusterResponse]
+    unclustered_terms: List[ClusteredTerm]
+    total_number_terms: int
+    labels: List[str]
+
+
+# ================================================
+# Mapping models
+# ================================================
+
+
+class TermToClusterMapping(BaseModel):
+    """Mapping of a source term to a cluster"""
+
+    term_id: int
+    cluster_id: int
+
+
+class BatchTermToClusterMapping(BaseModel):
+    """Bulk term to cluster mappings"""
+
+    mappings: List[TermToClusterMapping]
+
+
+class MapRequest(BaseModel):
+    """Request model for mapping source terms to vocabularies."""
+
+    vocabulary_ids: List[int]
+
+
+# ================================================
+# Cluster to Concept Mapping models
+# ================================================
+
+
+class ConceptSearchRequest(BaseModel):
+    """Request model for searching concepts"""
+
+    query: str
+    vocabulary_ids: List[int]
+    domain_id: Optional[str] = None
+    concept_class_id: Optional[str] = None
+    standard_concept: Optional[str] = None
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class ConceptSearchResult(BaseModel):
+    """Search result with concept and match score"""
+
+    concept: Concept
+    score: float
+    vocabulary_name: str
+
+
+class ConceptSearchResults(BaseModel):
+    """List of concept search results"""
+
+    results: List[ConceptSearchResult]
+    total: int
+
+
+class ClusterMappingResponse(BaseModel):
+    """Response model for cluster mapping information"""
+
+    cluster_id: int
+    cluster_title: str
+    cluster_label: str
+    cluster_term_count: int
+    cluster_total_occurrences: int
+    concept_id: Optional[int] = None
+    concept_name: Optional[str] = None
+    concept_code: Optional[str] = None
+    concept_domain: Optional[str] = None
+    concept_class: Optional[str] = None
+    vocabulary_id: Optional[int] = None
+    vocabulary_name: Optional[str] = None
+    status: str = "unmapped"  # 'unmapped', 'pending', 'approved', 'rejected'
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class ClusterMappingsOutput(BaseModel):
+    """Output model for list of cluster mappings"""
+
+    mappings: List[ClusterMappingResponse]
+    total_clusters: int
+    mapped_count: int
+    unmapped_count: int
+    approved_count: int
+
+
+class AutoMapRequest(BaseModel):
+    """Request model for auto-mapping clusters"""
+
+    vocabulary_ids: List[int]
+    use_cluster_terms: bool = True
+    domain_id: Optional[str] = None
+    concept_class_id: Optional[str] = None
+    standard_concept: Optional[str] = None
+
+
+class MapClusterRequest(BaseModel):
+    """Request model for manually mapping a cluster to a concept"""
+
+    concept_id: int
+    status: str = "pending"  # 'pending', 'approved', 'rejected'
+
+
+class AutoMapAllRequest(BaseModel):
+    """Request model for bulk auto-mapping"""
+
+    vocabulary_ids: List[int]
+    label: Optional[str] = None
+    use_cluster_terms: bool = True
+
+
+class AutoMapAllResponse(BaseModel):
+    """Response for bulk auto-mapping operation"""
+
+    mapped_count: int
+    failed_count: int
+    total_clusters: int
+
+
+class ConceptHierarchy(BaseModel):
+    """Concept with its hierarchical relationships"""
+
+    concept: Concept
+    parents: List[Concept] = Field(default_factory=list)
+    children: List[Concept] = Field(default_factory=list)
+    related_concepts: List[Concept] = Field(default_factory=list)
+
+
+class MappingExportRequest(BaseModel):
+    """Request model for exporting mappings"""
+
+    status_filter: Optional[str] = (
+        None  # 'approved', 'pending', 'rejected', None for all
+    )
