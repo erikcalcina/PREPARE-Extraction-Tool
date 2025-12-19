@@ -19,6 +19,8 @@ from app.core.database import (
     Record,
     User,
     SourceTerm,
+)
+from app.schemas import ( 
     EntityCluster,
     ClusteredTerm,
 )

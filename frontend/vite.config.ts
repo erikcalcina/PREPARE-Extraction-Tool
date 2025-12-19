@@ -14,10 +14,9 @@ export default defineConfig(({ mode }) => {
   // Load env from parent directory (where .env is located)
   const env = loadEnv(mode, path.resolve(dirname, '..'), '');
 
-  // Extract port from FRONTEND_HOST (e.g., "http://localhost:5173" -> 5173)
+  // Extract port from FRONTEND_HOST (e.g., "http://localhost:5175" -> 5175)
   const frontendPort = env.FRONTEND_HOST
-    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5173
-    : 5173;
+    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5175: 5175;
 
   return {
     plugins: [react(), tsconfigPaths()],
@@ -25,7 +24,7 @@ export default defineConfig(({ mode }) => {
       port: frontendPort,
       proxy: {
         '/api': {
-          target: env.BACKEND_HOST || 'http://localhost:8000',
+          target: env.BACKEND_HOST || 'http://localhost:8002',
           changeOrigin: true,
         },
       },
