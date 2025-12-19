@@ -103,7 +103,10 @@ def get_datasets(
             uploaded=dataset.uploaded,
             last_modified=dataset.last_modified,
             labels=dataset.labels,
-            record_count=len(dataset.records),
+            record_count=db.query(
+                func.count(Record.id))
+                .filter(Record.dataset_id == dataset.id)
+                .scalar(),
         )
         for dataset in datasets
     ]
@@ -132,8 +135,8 @@ async def create_dataset(
     db: Session = Depends(get_session),
 ):
     REQUIRED_COLUMNS = ["text", "patient_id"]
-    record_list = await parse_records_file(file, REQUIRED_COLUMNS)
 
+    # create a new Dataset
     label_list = [label.strip() for label in labels.split(",")]
     dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
     db.add(dataset)
@@ -142,12 +145,26 @@ async def create_dataset(
     db.refresh(dataset)
 
     dataset_id = dataset.id
-    for r in record_list:
-        r.dataset_id = dataset_id
 
-    db.add_all(record_list)
-    db.commit()
-    db.refresh(dataset)
+    BATCH_SIZE = 2000
+    batch = []
+    total = 0
+    async for record in parse_records_file(file, REQUIRED_COLUMNS):
+        record.dataset_id = dataset_id
+        batch.append(record)
+
+        if len(batch) >= BATCH_SIZE:
+            db.bulk_save_objects(batch, return_defaults=True)
+            db.commit()
+            total += len(batch)
+            batch.clear()
+            print("Rows saved:", total)
+    
+    if batch:
+        db.bulk_save_objects(batch, return_defaults=True)
+        db.commit()
+        total += len(batch)
+        print("All rows saved.")
 
     dataset_response = DatasetResponse(
         id=dataset.id,
@@ -155,7 +172,7 @@ async def create_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
-        record_count=len(dataset.records),
+        record_count=total,
     )
     return DatasetOutput(dataset=dataset_response)
 
@@ -185,7 +202,10 @@ def get_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
-        record_count=len(dataset.records),
+        record_count=db.query(
+            func.count(Record.id))
+            .filter(Record.dataset_id == dataset.id)
+            .scalar()
     )
     return DatasetOutput(dataset=dataset_response)
 
