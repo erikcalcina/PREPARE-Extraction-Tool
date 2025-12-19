@@ -19,57 +19,66 @@ from app.models_db import Record, Concept
 
 async def parse_records_file(file: UploadFile, required_columns: list) -> List[Record]:
     """Parse a file into a list of records."""
-    raw = await file.read()
     filename = file.filename.lower()
-    text = raw.decode("utf-8")
 
     if filename.endswith(".csv"):
-        return parse_csv(text, required_columns)
+        return parse_csv_stream(file, required_columns)
 
     elif filename.endswith(".json"):
+        raw = await file.read()
+        text = raw.decode("utf-8")
         return parse_json(text, required_columns)
 
     else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type.",
         )
 
 
-def parse_csv(text, required_columns) -> List[Record]:
-    """Parse a CSV file into a list of records."""
+def parse_csv_stream(
+    file: UploadFile,
+    required_columns: List[str],
+) -> List[Record]:
+    """
+    Parse CSV file using streaming (line-by-line).
+
+    This function DOESNT read the whole file into memory,
+    which makes it easier ans safe for large CSV uploads.
+    """
 
     try:
-        reader = csv.DictReader(io.StringIO(text))
-        csv_columns = reader.fieldnames
+        # Wrap raw file stream into text mode
+        text_stream = io.TextIOWrapper(file.file, encoding="utf-8")
+        reader = csv.DictReader(text_stream)
 
-        if csv_columns is None:
+        if reader.fieldnames is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="CSV file is empty or invalid.",
             )
 
-        # Validate that all required fields exist
-        missing = [col for col in required_columns if col not in csv_columns]
-
+        # Validate required columns
+        missing = [c for c in required_columns if c not in reader.fieldnames]
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Missing required columns: {', '.join(missing)}",
             )
 
-        records = []
+        records: List[Record] = []
+
         for row in reader:
             if not row.get("text"):
                 continue
 
-            date_str = row.get("date")
-            if date_str:
+            # Psrse optional date field
+            date_obj = None
+            if row.get("date"):
                 try:
-                    date_obj = parser.parse(date_str)
-                except (ValueError, TypeError):
-                    date_obj = None
-            else:
-                date_obj = None
+                    date_obj = parser.parse(row["date"])
+                except Exception:
+                    pass
 
             records.append(
                 Record(
@@ -82,10 +91,13 @@ def parse_csv(text, required_columns) -> List[Record]:
 
         return records
 
-    except Exception as e:
+    except HTTPException:
+        raise
+
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse CSV: {e}",
+            detail=f"Failed to parse CSV file: {exc}",
         )
 
 
@@ -223,7 +235,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 writer.writerow(
                     [
                         record.patient_id,
@@ -241,7 +257,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 data.append(
                     {
                         "patient_id": record.patient_id,
