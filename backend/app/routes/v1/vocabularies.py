@@ -3,7 +3,7 @@ import csv
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, text
 
 from app.core.database import get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
@@ -76,14 +76,17 @@ def get_vocabularies(
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
-
+    
     vocabulary_responses = [
         VocabularyResponse(
             id=vocabulary.id,
             name=vocabulary.name,
             uploaded=vocabulary.uploaded,
             version=vocabulary.version,
-            concept_count=len(vocabulary.concepts),
+            concept_count=db.query(
+                func.count(Concept.id))
+                .filter(Concept.vocabulary_id == vocabulary.id)
+                .scalar()
         )
         for vocabulary in vocabularies
     ]
@@ -94,7 +97,6 @@ def get_vocabularies(
             total, pagination.limit, pagination.offset
         ),
     )
-
 
 @router.post(
     "/",
@@ -122,35 +124,45 @@ async def create_vocabulary(
         "valid_end_date",
         "invalid_reason",
     ]
-    concept_list = await parse_concepts_file(file, REQUIRED_COLUMNS)
 
+    # create a new Vocabulary
     vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
     db.add(vocabulary)
     db.commit()
     db.refresh(vocabulary)
     vocabulary_id = vocabulary.id
 
-    # NEED TO CREATE NEW ES ALSO
+    # create new ES index also
     indexer.create_concept_index(vocabulary_id)
 
-    for c in concept_list:
-        c.vocabulary_id = vocabulary_id
+    BATCH_SIZE = 2000
+    batch = []
+    total = 0
+    async for concept in parse_concepts_file(file, REQUIRED_COLUMNS):
+        concept.vocabulary_id = vocabulary_id
+        batch.append(concept)
 
-    db.add_all(concept_list)
-    db.flush()
-    db.refresh(vocabulary)
+        if len(batch) >= BATCH_SIZE:
+            db.bulk_save_objects(batch, return_defaults=True)
+            db.commit()
+            total += len(batch)
+            indexer.add_bulk_to_index(vocabulary_id, batch)
+            batch.clear()
+            print("Rows saved:", total)
 
-    # NEED TO ADD CONCEPTS TO INDEX
-    indexer.add_bulk_to_index(vocabulary_id, vocabulary.concepts)
-
-    db.commit()
-
+    if batch:
+        db.bulk_save_objects(batch, return_defaults=True)
+        db.commit()
+        total += len(batch)
+        indexer.add_bulk_to_index(vocabulary_id, batch)
+        print("Rows saved:", total, "-> ALL")
+    
     vocabulary_response = VocabularyResponse(
         id=vocabulary.id,
         name=vocabulary.name,
         uploaded=vocabulary.uploaded,
         version=vocabulary.version,
-        concept_count=len(vocabulary.concepts),
+        concept_count=total,
     )
     return VocabularyOutput(vocabulary=vocabulary_response)
 
@@ -180,7 +192,10 @@ def get_vocabulary(
         name=vocabulary.name,
         uploaded=vocabulary.uploaded,
         version=vocabulary.version,
-        concept_count=len(vocabulary.concepts),
+        concept_count=db.query(
+            func.count(Concept.id))
+            .filter(Concept.vocabulary_id == vocabulary.id)
+            .scalar()
     )
     return VocabularyOutput(vocabulary=vocabulary_response)
 
