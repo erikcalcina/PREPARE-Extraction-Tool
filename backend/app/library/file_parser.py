@@ -20,19 +20,20 @@ from app.models_db import Record, Concept
 
 async def parse_records_file(file: UploadFile, required_columns: list) -> List[Record]:
     """Parse a file into a list of records."""
-    raw = await file.read()
     filename = file.filename.lower()
-    text = raw.decode("utf-8")
 
     if filename.endswith(".csv"):
-        return parse_csv(text, required_columns)
+        return parse_csv(file, required_columns)
 
     elif filename.endswith(".json"):
+        raw = await file.read()
+        text = raw.decode("utf-8")
         return parse_json(text, required_columns)
 
     else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type.",
         )
 
 async def parse_json(
@@ -194,7 +195,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 writer.writerow(
                     [
                         record.patient_id,
@@ -212,7 +217,11 @@ def download_annotated_dataset(records, format):
         for record in records:
             for term in record.source_terms:
                 entity_type = term.label
-                entity_name = term.cluster.title
+                entity_name = (
+                    term.cluster.title
+                    if term.cluster is not None
+                    else term.value
+                )
                 data.append(
                     {
                         "patient_id": record.patient_id,
