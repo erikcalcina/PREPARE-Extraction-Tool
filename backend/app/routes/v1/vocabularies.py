@@ -3,7 +3,7 @@ import csv
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func, text
+from sqlmodel import Session, select, func
 
 from app.core.database import get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
