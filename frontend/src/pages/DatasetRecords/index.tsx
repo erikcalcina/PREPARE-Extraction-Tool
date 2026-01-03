@@ -195,6 +195,9 @@ const DatasetRecords = () => {
     const [patientIdQuery, setPatientIdQuery] = useState('');
     const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'reviewed' | 'not_reviewed'>('all');
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const [displayMode, setDisplayMode] =
+        useState<'percentage' | 'ratio'>('percentage');
+
 
     // Annotation state
     const [isAnnotating, setIsAnnotating] = useState(false);
@@ -403,7 +406,16 @@ const DatasetRecords = () => {
         totalRecords > 0
             ? Math.round((processedRecords / totalRecords) * 100)
                 : 0;
-    const processedRatio = `${processedRecords} / ${totalRecords}`;
+
+    const reviewedValue =
+        displayMode === 'percentage'
+            ? processedPercentage
+            : processedRecords;
+
+    const reviewedSuffix =
+        displayMode === 'percentage'
+            ? '%'
+            : ` / ${totalRecords}`;
 
     return (
         <Layout>
@@ -452,16 +464,22 @@ const DatasetRecords = () => {
                         />
                         <StatCard
                             label="Reviewed"
-                            value={processedPercentage}
-                            suffix="%"
+                            value={reviewedValue}
+                            suffix={reviewedSuffix}
                             variant="processed"
                         />
-                        <StatCard
-                            label="Reviewed"
-                            value={displayMode === 'percentage' ? processedPercentage : processedRatio}
-                            suffix={displayMode === 'percentage' ? '%' : ''}
-                            variant="processed"
-                        />
+                    </div>
+                    <div className={styles.statsToggle}>
+                        <button
+                            className={styles.toggleButton}
+                            onClick={() =>
+                                setDisplayMode(
+                                    displayMode === 'percentage' ? 'ratio' : 'percentage'
+                                )
+                            }
+                        >
+                            Show {displayMode === 'percentage' ? 'Reviewed Ratio' : 'Reviewed Percentage'}
+                        </button>
                     </div>
                     <div className={styles.pageActions}>
                         <button

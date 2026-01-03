@@ -191,20 +191,19 @@
     transition: all 0.2s ease;
 }
 
-.workflowCard:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-}
-
 .workflowHeader {
     display: flex;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 12px;
 }
 
-.workflowIcon {
-    font-size: 32px;
-    line-height: 1;
+.workflowIcon { 
+    font-size: 28px;
+    line-height: 0.5;    
+    flex-shrink: 0;    
+    color: #94a3b8;     
+    opacity: 1.0;
 }
 
 .workflowTitle {
