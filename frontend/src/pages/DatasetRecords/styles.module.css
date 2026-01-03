@@ -29,7 +29,7 @@
 
 .navButton:hover {
     background: #f3f4f6;
-    color: #1e3a5f;
+    color: #11364c;
     border-color: #d1d5db;
 }
 
@@ -44,7 +44,7 @@
     margin: 0;
     font-size: 24px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .datasetLink {
@@ -60,7 +60,7 @@
 }
 
 .datasetLink:hover {
-    color: #1e3a5f;
+    color: #11364c;
     text-decoration: underline;
 }
 
@@ -87,7 +87,7 @@
 
 .statCard {
     background: #ffffff;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 10px 16px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e7eb;
@@ -105,11 +105,11 @@
 .statValue {
     font-size: 18px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .statValue.processed {
-    color: #059669;
+    color: #2e9d72;
 }
 
 .statValue.pending {
@@ -117,7 +117,7 @@
 }
 
 .statValue.terms {
-    color: #7c3aed;
+    color: #195071;
 }
 
 /* Main Content Area */
@@ -148,7 +148,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .searchInput {
@@ -198,7 +198,7 @@
 }
 
 .filterGroup label:hover span {
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .recordsList {
@@ -235,7 +235,7 @@
 .recordId {
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .recordTime {
@@ -283,7 +283,7 @@
 
 .statusBadge.reviewed {
     background: #dbeafe;
-    color: #1e40af;
+    color: #11364c;
 }
 
 .termCount {
@@ -340,7 +340,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .detailActions {
@@ -379,21 +379,21 @@
 }
 
 .actionButton.cluster {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #11364c 0%, #11364c 100%);
     color: #ffffff;
 }
 
 .actionButton.cluster:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+    background: linear-gradient(135deg, #11364c 0%, #11364c 100%);
 }
 
 .actionButton.extract {
-    background: #7c3aed;
+    background: #11364c;
     color: #ffffff;
 }
 
 .actionButton.extract:hover {
-    background: #6d28d9;
+    background: #11364c;
 }
 
 .actionButton:disabled {
@@ -418,7 +418,7 @@
     margin: 0;
     padding: 16px;
     background: #f9fafb;
-    border-radius: 8px;
+    border-radius: 4px;
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -427,7 +427,7 @@
 /* Extracted Terms Panel */
 .termsPanel {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     border: 1px solid #e5e7eb;
     display: flex;
@@ -447,7 +447,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
 }
 
 .termsPanelContent {
@@ -545,11 +545,11 @@
 
 @keyframes focusPulse {
     0% {
-        outline-color: #3b82f6;
+        outline-color: #11364c;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
     }
     50% {
-        outline-color: #3b82f6;
+        outline-color: #11364c;
         box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
     }
     100% {
@@ -571,7 +571,7 @@
     gap: 8px;
     padding: 10px 12px;
     background: #f9fafb;
-    border-radius: 6px;
+    border-radius: 4px;
     border: 1px solid #e5e7eb;
 }
 
@@ -584,7 +584,7 @@
 .termValue {
     font-size: 13px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
     display: flex;
     align-items: center;
 }
@@ -791,7 +791,7 @@
     margin: 0 0 12px;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11364c;
     flex-shrink: 0;
 }
 
@@ -965,7 +965,7 @@
 .annotationValue {
     font-size: 13px;
     font-weight: 500;
-    color: #1e3a5f;
+    color: #11364c;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -121,19 +121,21 @@ function HighlightedText({ text, terms, labels, focusedTermId }: HighlightedText
 interface StatCardProps {
     label: string;
     value: number;
+    suffix?: string;
     variant?: 'default' | 'processed' | 'pending' | 'terms';
 }
 
-function StatCard({ label, value, variant = 'default' }: StatCardProps) {
+function StatCard({ label, value, suffix = '', variant = 'default' }: StatCardProps) {
     return (
         <div className={styles.statCard}>
             <div className={`${styles.statValue} ${variant !== 'default' ? styles[variant] : ''}`}>
-                {value.toLocaleString()}
+                {value.toLocaleString()}{suffix}
             </div>
             <div className={styles.statLabel}>{label}</div>
         </div>
     );
 }
+
 
 // ================================================
 // Record Item Component
@@ -394,6 +396,15 @@ const DatasetRecords = () => {
         );
     }
 
+    const totalRecords = stats?.total_records ?? 0;
+    const processedRecords = stats?.processed_count ?? 0;   
+
+    const processedPercentage =
+        totalRecords > 0
+            ? Math.round((processedRecords / totalRecords) * 100)
+                : 0;
+    const processedRatio = `${processedRecords} / ${totalRecords}`;
+
     return (
         <Layout>
             <div className={styles.page}>
@@ -435,19 +446,21 @@ const DatasetRecords = () => {
                             value={stats?.total_records ?? 0}
                         />
                         <StatCard
-                            label="Processed"
-                            value={stats?.processed_count ?? 0}
-                            variant="processed"
-                        />
-                        <StatCard
                             label="Terms"
                             value={stats?.extracted_terms_count ?? 0}
                             variant="terms"
                         />
                         <StatCard
-                            label="Pending"
-                            value={stats?.pending_review_count ?? 0}
-                            variant="pending"
+                            label="Reviewed"
+                            value={processedPercentage}
+                            suffix="%"
+                            variant="processed"
+                        />
+                        <StatCard
+                            label="Reviewed"
+                            value={displayMode === 'percentage' ? processedPercentage : processedRatio}
+                            suffix={displayMode === 'percentage' ? '%' : ''}
+                            variant="processed"
                         />
                     </div>
                     <div className={styles.pageActions}>
