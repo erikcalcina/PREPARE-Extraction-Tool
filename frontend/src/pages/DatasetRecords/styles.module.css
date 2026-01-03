@@ -120,6 +120,30 @@
     color: #195071;
 }
 
+.statsToggle {
+    display: flex;
+    align-items: center;
+    margin-left: 12px; /* small gap from statsGrid */
+}
+
+.toggleButton {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+    background: #f3f4f6;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.toggleButton:hover {
+    background: #e5e7eb;
+    color: #11364c;
+    border-color: #d1d5db;
+}
+
 /* Main Content Area */
 .content {
     display: grid;
