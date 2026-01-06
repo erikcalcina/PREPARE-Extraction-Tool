@@ -19,9 +19,8 @@ COPY ./alembic.ini /code/alembic.ini
 COPY ./scripts /code/scripts
 
 # Optional: Run migrations automatically on container startup
-# Uncomment the following lines to auto-apply migrations (use with caution in production)
-# RUN chmod +x /code/scripts/db_migrate.py
-# CMD python /code/scripts/db_migrate.py upgrade && uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Uncomment the following line to auto-apply migrations (use with caution in production)
+# CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Set the command to run the uvicorn server
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
