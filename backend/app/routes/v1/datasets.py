@@ -1,7 +1,7 @@
 import re
 from typing import List
+import math
 
-from collections import defaultdict
 from datetime import datetime, timezone
 
 from typing import Optional, Union
@@ -1027,7 +1027,8 @@ def _merge_labels_by_spelling(labels_arr: List[int], texts: List[str], max_typos
         cluster_to_terms[int(cid)].append(base)
 
     if len(cluster_to_terms) <= 1:
-        return labels_arr
+        return labels_arr.tolist() if hasattr(labels_arr, "tolist") else list(labels_arr)
+
 
     # Pick a representative base key for each cluster (most frequent base form)
     rep = {}
@@ -1074,6 +1075,106 @@ def _merge_labels_by_spelling(labels_arr: List[int], texts: List[str], max_typos
             merged.append(remap[int(cid)])
     return merged
 
+def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    """Compute cosine similarity for two vectors"""
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    denom = math.sqrt(na) * math.sqrt(nb)
+    if denom == 0.0:
+        return 0.0
+    return dot / denom
+
+
+def _to_list_matrix(embeddings) -> List[List[float]]:
+    """
+    Convert embeddings to list of listd regardless of whether they come as:
+    1. list of lists
+    2. numpy array
+    3. something with .tolist()
+    or one option?
+    """
+    if hasattr(embeddings, "tolist"):
+        return embeddings.tolist()
+    return embeddings
+
+
+def _compute_centroid(vecs: List[List[float]]) -> List[float]:
+    """Compute mean vector (centroid) for a list of vectors."""
+    if not vecs:
+        return []
+    dim = len(vecs[0])
+    acc = [0.0] * dim
+    for v in vecs:
+        for i in range(dim):
+            acc[i] += float(v[i])
+    n = float(len(vecs))
+    return [x / n for x in acc]
+
+
+def _merge_labels_by_centroid_similarity(
+    labels_arr: List[int],
+    embeddings,
+    threshold: float = 0.8,
+) -> List[int]:
+    """
+    Merge clusters if cosine similarity between their centroids >= threshold.
+    Noise (-1) is ignored.
+    Should we use numpy insted?
+    """
+    labels = labels_arr.tolist() if hasattr(labels_arr, "tolist") else list(labels_arr)
+    E = _to_list_matrix(embeddings)
+
+    # cluster_id -> list of vectors (members)
+    cluster_vecs = defaultdict(list)
+    for idx, cid in enumerate(labels):
+        if cid == -1:
+            continue
+        cluster_vecs[int(cid)].append(E[idx])
+
+    cluster_ids = list(cluster_vecs.keys())
+    if len(cluster_ids) <= 1:
+        return labels
+
+    # compute centroid for each cluster
+    centroids = {cid: _compute_centroid(cluster_vecs[cid]) for cid in cluster_ids}
+
+    # union-find for merging cluster IDs
+    parent = {cid: cid for cid in cluster_ids}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    # compare all pairs (ok for typical number of clusters per label)
+    for i in range(len(cluster_ids)):
+        for j in range(i + 1, len(cluster_ids)):
+            a = cluster_ids[i]
+            b = cluster_ids[j]
+            sim = _cosine_similarity(centroids[a], centroids[b])
+            if sim >= threshold:
+                union(a, b)
+
+    # remap label ids to merged roots
+    remap = {cid: find(cid) for cid in cluster_ids}
+    merged = []
+    for cid in labels:
+        if cid == -1:
+            merged.append(-1)
+        else:
+            merged.append(remap[int(cid)])
+    return merged
 
 
 @router.post("/{dataset_id}/clusters/create", response_model=MessageOutput)
@@ -1124,6 +1225,9 @@ def create_clusters_for_dataset(
 
     # Post-processing: merge clusters with very similar names (formatting / small typos) 2 
     labels_arr = _merge_labels_by_spelling(labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr, texts, max_typos=2)
+
+    labels_arr = _merge_labels_by_centroid_similarity(labels_arr, embeddings, threshold=0.8)
+    labels_arr = [int(x) for x in labels_arr]
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
