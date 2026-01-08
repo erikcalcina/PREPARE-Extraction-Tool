@@ -1,3 +1,6 @@
+import re
+from typing import List
+
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -952,6 +955,126 @@ def get_clusters_of_dataset(
         labels=all_labels,
     )
 
+_ROMAN = {
+    "i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5",
+    "vi": "6", "vii": "7", "viii": "8", "ix": "9", "x": "10",
+}
+
+def _normalize_term(text: str) -> str:
+    """Make text comparable: lowercase, unify separators, remove punctuation, normalize roman numerals."""
+    s = (text or "").lower().strip()
+    s = s.replace("-", " ")
+    s = re.sub(r"[^\w\s]", " ", s)      # drop punctuation
+    s = re.sub(r"\s+", " ", s).strip()  # collapse spaces
+
+    toks = []
+    for t in s.split():
+        toks.append(_ROMAN.get(t, t))
+    return " ".join(toks)
+
+def _base_form(norm: str) -> str:
+    """
+    Remove simple suffixes like:
+    - last token single letter (A/B)
+    - last token digit (1/2)
+    So: 'welby a' -> 'welby', 'cmr 1' -> 'cmr' !I AM NOT SURE IF ITS OKAY!
+    """
+    toks = norm.split()
+    if len(toks) >= 2 and (toks[-1].isdigit() or len(toks[-1]) == 1):
+        return " ".join(toks[:-1])
+    return norm
+
+def _levenshtein(a: str, b: str, max_dist: int = 2) -> int:
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > max_dist:
+        return max_dist + 1
+    if len(a) > len(b):
+        a, b = b, a
+
+    prev = list(range(len(a) + 1))
+    for i, cb in enumerate(b, start=1):
+        cur = [i]
+        # early-stop lower bound in the row
+        row_min = cur[0]
+        for j, ca in enumerate(a, start=1):
+            cost = 0 if ca == cb else 1
+            cur_val = min(
+                prev[j] + 1,      #deletion
+                cur[j - 1] + 1,   #insertion
+                prev[j - 1] + cost #substitution
+            )
+            cur.append(cur_val)
+            row_min = min(row_min, cur_val)
+
+        if row_min > max_dist:
+            return max_dist + 1
+        prev = cur
+    return prev[-1]
+
+def _merge_labels_by_spelling(labels_arr: List[int], texts: List[str], max_typos: int = 2) -> List[int]:
+    """
+    We want yo merge clusters that are basically the same name with small formatting/typo differences.
+    For example: CMR-1, cmr I, cmr  -> base 'cmr' -> same cluster.
+    """
+    # Build: cluster_id -> list of normalized base forms of its members
+    cluster_to_terms = defaultdict(list)
+    for text, cid in zip(texts, labels_arr):
+        if cid == -1:
+            continue
+        norm = _normalize_term(text)
+        base = _base_form(norm)
+        cluster_to_terms[int(cid)].append(base)
+
+    if len(cluster_to_terms) <= 1:
+        return labels_arr
+
+    # Pick a representative base key for each cluster (most frequent base form)
+    rep = {}
+    for cid, bases in cluster_to_terms.items():
+        rep[cid] = max(set(bases), key=bases.count)
+
+    # Merge clusters if their representative keys are very close
+    ids = list(rep.keys())
+    parent = {cid: cid for cid in ids}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            a, b = ids[i], ids[j]
+            da = rep[a]
+            db = rep[b]
+
+            # Quick merge if same base
+            if da == db:
+                union(a, b)
+                continue
+
+            # Allow up to `max_typos` typos
+            if _levenshtein(da, db, max_dist=max_typos) <= max_typos:
+                union(a, b)
+
+    # remap labels to merged roots
+    remap = {cid: find(cid) for cid in ids}
+    merged = []
+    for cid in labels_arr:
+        if cid == -1:
+            merged.append(-1)
+        else:
+            merged.append(remap[int(cid)])
+    return merged
+
+
 
 @router.post("/{dataset_id}/clusters/create", response_model=MessageOutput)
 def create_clusters_for_dataset(
@@ -998,6 +1121,9 @@ def create_clusters_for_dataset(
     clusterer = HDBSCAN(**HDBSCAN_PARAMS)
 
     labels_arr = clusterer.fit_predict(embeddings)
+
+    # Post-processing: merge clusters with very similar names (formatting / small typos) 2 
+    labels_arr = _merge_labels_by_spelling(labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr, texts, max_typos=2)
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
