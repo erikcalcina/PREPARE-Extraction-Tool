@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
   // Load env from parent directory (where .env is located)
   const env = loadEnv(mode, path.resolve(dirname, '..'), '');
 
-  // Extract port from FRONTEND_HOST (e.g., "http://localhost:5175" -> 5175)
+  // Extract port from FRONTEND_HOST (e.g., "http://localhost:5173" -> 5173)
   const frontendPort = env.FRONTEND_HOST
     ? parseInt(new URL(env.FRONTEND_HOST).port) || 5173: 5173;
 
