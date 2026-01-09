@@ -59,8 +59,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 For a new database:
 
 ```bash
-# Using the CLI helper
-python scripts/db_migrate.py upgrade
+# Using the convenience script
+./scripts/alembic_upgrade.sh
 
 # Or using Alembic directly
 alembic upgrade head
@@ -70,31 +70,30 @@ For an existing database that was created with `create_all()`:
 
 ```bash
 # Mark the database as being at the initial schema without running migrations
-python scripts/db_migrate.py stamp head
-
-# Or using Alembic directly
 alembic stamp head
 ```
 
 ## Common Operations
 
+We provide convenience scripts for all common migration operations. You can use these scripts or call Alembic directly.
+
 ### Check Current Migration Status
 
 ```bash
-# Show current database revision
-python scripts/db_migrate.py current
+# Using the convenience script
+./scripts/alembic_current.sh
 
-# Or using Alembic
+# Or using Alembic directly
 alembic current
 ```
 
 ### Apply Pending Migrations
 
 ```bash
-# Upgrade to the latest version
-python scripts/db_migrate.py upgrade
+# Using the convenience script (recommended)
+./scripts/alembic_upgrade.sh
 
-# Or using Alembic
+# Or using Alembic directly
 alembic upgrade head
 ```
 
@@ -103,11 +102,11 @@ alembic upgrade head
 After modifying models in `app/models_db.py`:
 
 ```bash
-# Create migration with autogenerate
-python scripts/db_migrate.py revision "add user profile fields"
+# Using the convenience script (automatically assigns sequential revision IDs)
+./scripts/alembic_autogenerate.sh "add user profile fields"
 
-# Or using Alembic
-alembic revision --autogenerate -m "add user profile fields"
+# Or using Alembic directly (manually specify revision ID)
+alembic revision --autogenerate --rev-id 004 -m "add user profile fields"
 ```
 
 **Important:** Always review the generated migration file before applying it!
@@ -115,24 +114,25 @@ alembic revision --autogenerate -m "add user profile fields"
 ### Rollback a Migration
 
 ```bash
-# Rollback one migration
-python scripts/db_migrate.py downgrade
+# Using the convenience script (rollback one migration)
+./scripts/alembic_downgrade.sh
 
-# Rollback to a specific revision
-python scripts/db_migrate.py downgrade abc123
+# Rollback multiple migrations or to specific revision
+./scripts/alembic_downgrade.sh -2      # Rollback two migrations
+./scripts/alembic_downgrade.sh 002     # Rollback to revision 002
 
-# Or using Alembic
-alembic downgrade -1
-alembic downgrade abc123
+# Or using Alembic directly
+alembic downgrade -1                   # Rollback one migration
+alembic downgrade abc123               # Rollback to specific revision
 ```
 
 ### View Migration History
 
 ```bash
-# Show migration history
-python scripts/db_migrate.py history
+# Using the convenience script
+./scripts/alembic_history.sh
 
-# Or using Alembic
+# Or using Alembic directly
 alembic history --verbose
 ```
 
@@ -172,7 +172,7 @@ class User(SQLModel, table=True):
 2. **Generate migration**:
 
 ```bash
-python scripts/db_migrate.py revision "add email to user table"
+./scripts/alembic_autogenerate.sh "add email to user table"
 ```
 
 3. **Review the generated file** in `alembic/versions/`:
@@ -205,7 +205,7 @@ def upgrade() -> None:
 5. **Apply the migration**:
 
 ```bash
-python scripts/db_migrate.py upgrade
+./scripts/alembic_upgrade.sh
 ```
 
 6. **Test your changes**:
@@ -266,10 +266,10 @@ def downgrade() -> None:
 
 ```bash
 # Good
-python scripts/db_migrate.py revision "add email verification fields to user"
+./scripts/alembic_autogenerate.sh "add email verification fields to user"
 
 # Bad
-python scripts/db_migrate.py revision "update user"
+./scripts/alembic_autogenerate.sh "update user"
 ```
 
 ### 5. Test Migrations Both Ways
@@ -278,17 +278,17 @@ Test both upgrade and downgrade:
 
 ```bash
 # Apply migration
-python scripts/db_migrate.py upgrade
+./scripts/alembic_upgrade.sh
 
 # Test application...
 
 # Rollback
-python scripts/db_migrate.py downgrade
+./scripts/alembic_downgrade.sh
 
 # Test application still works...
 
 # Re-apply
-python scripts/db_migrate.py upgrade
+./scripts/alembic_upgrade.sh
 ```
 
 ### 6. Keep Migrations Small and Focused
@@ -297,12 +297,12 @@ Create separate migrations for different concerns:
 
 ```bash
 # Instead of one large migration
-python scripts/db_migrate.py revision "add user features and fix bugs"
+./scripts/alembic_autogenerate.sh "add user features and fix bugs"
 
 # Better: Multiple focused migrations
-python scripts/db_migrate.py revision "add user email field"
-python scripts/db_migrate.py revision "add user profile table"
-python scripts/db_migrate.py revision "fix user cascade delete"
+./scripts/alembic_autogenerate.sh "add user email field"
+./scripts/alembic_autogenerate.sh "add user profile table"
+./scripts/alembic_autogenerate.sh "fix user cascade delete"
 ```
 
 ### 7. Never Edit Applied Migrations
@@ -397,7 +397,7 @@ def downgrade() -> None:
 **Solution:** Stamp the database to mark it as being at the initial revision:
 
 ```bash
-python scripts/db_migrate.py stamp head
+alembic stamp head
 ```
 
 ### Migration Fails to Apply
@@ -409,7 +409,7 @@ python scripts/db_migrate.py stamp head
 1. Check the error message - it often indicates the issue
 2. Verify database connectivity: `psql $DATABASE_URL`
 3. Check if changes already exist: `\d+ table_name` in psql
-4. Rollback and fix: `python scripts/db_migrate.py downgrade`
+4. Rollback and fix: `./scripts/alembic_downgrade.sh`
 5. Edit the migration file to handle edge cases
 
 ### Multiple Heads Detected
@@ -430,10 +430,10 @@ alembic merge heads -m "merge conflicting revisions"
 
 ```bash
 # Check current
-python scripts/db_migrate.py current
+./scripts/alembic_current.sh
 
 # Stamp to correct revision
-python scripts/db_migrate.py stamp <correct_revision>
+alembic stamp <correct_revision>
 ```
 
 ### Can't Connect to Database
@@ -463,16 +463,15 @@ Option 1: Run migrations before starting the container:
 
 ```bash
 # Create a temporary container to run migrations
-docker run --rm backend python scripts/db_migrate.py upgrade
+docker run --rm backend alembic upgrade head
 ```
 
 Option 2: Enable auto-migrations in Dockerfile:
 
-Uncomment these lines in `Dockerfile`:
+Uncomment this line in `Dockerfile`:
 
 ```dockerfile
-RUN chmod +x /code/scripts/db_migrate.py
-CMD python /code/scripts/db_migrate.py upgrade && uvicorn app.main:app --host 0.0.0.0 --port 8000
+CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 **Warning:** Auto-migrations are convenient but risky in production. Use with caution.
