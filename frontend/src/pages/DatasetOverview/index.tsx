@@ -279,12 +279,6 @@ const DatasetOverview = () => {
                             {formatDate(overview.dataset.last_modified)}
                         </span>
                     </div>
-                    <div className={styles.metadataItem}>
-                        <span className={styles.metadataLabel}>Total Records:</span>
-                        <span className={styles.metadataValue}>
-                            {overview.dataset.record_count.toLocaleString()}
-                        </span>
-                    </div>
                 </div>
 
                 {/* Statistics Cards */}

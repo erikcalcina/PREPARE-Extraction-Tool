@@ -62,7 +62,7 @@ services:
     container_name: PREPARE-USAGI-BACKEND
     restart: unless-stopped
     ports:
-      - "8002:8002"
+      - "8000:8000"
     networks:
       - prepare-usagi-public
       - default

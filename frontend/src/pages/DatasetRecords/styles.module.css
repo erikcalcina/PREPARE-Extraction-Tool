@@ -29,7 +29,7 @@
 
 .navButton:hover {
     background: #f3f4f6;
-    color: #11364c;
+    color: #11415e;
     border-color: #d1d5db;
 }
 
@@ -44,7 +44,7 @@
     margin: 0;
     font-size: 24px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
 }
 
 .datasetLink {
@@ -60,7 +60,7 @@
 }
 
 .datasetLink:hover {
-    color: #11364c;
+    color: #11415e;
     text-decoration: underline;
 }
 
@@ -105,11 +105,18 @@
 .statValue {
     font-size: 18px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
+}
+
+.statValue .ratioSuffix {    
+    font-size: 14px;    
+    font-weight: 500;    
+    color: #2cb27e;    
+    margin-left: 4px;
 }
 
 .statValue.processed {
-    color: #2e9d72;
+    color: #2cb27e;
 }
 
 .statValue.pending {
@@ -117,32 +124,9 @@
 }
 
 .statValue.terms {
-    color: #195071;
+    color: #2377aa;
 }
 
-.statsToggle {
-    display: flex;
-    align-items: center;
-    margin-left: 12px; /* small gap from statsGrid */
-}
-
-.toggleButton {
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 500;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid #e5e7eb;
-    background: #f3f4f6;
-    color: #374151;
-    transition: all 0.2s ease;
-}
-
-.toggleButton:hover {
-    background: #e5e7eb;
-    color: #11364c;
-    border-color: #d1d5db;
-}
 
 /* Main Content Area */
 .content {
@@ -172,7 +156,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
 }
 
 .searchInput {
@@ -218,11 +202,11 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
-    accent-color: #4CAF50;
+    accent-color: #2cb27e;
 }
 
 .filterGroup label:hover span {
-    color: #11364c;
+    color: #11415e;
 }
 
 .recordsList {
@@ -246,7 +230,7 @@
 
 .recordItem.selected {
     background: #ecfdf5;
-    border-color: #059669;
+    border-color: #2cb27e;
 }
 
 .recordItemHeader {
@@ -259,7 +243,7 @@
 .recordId {
     font-size: 14px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
 }
 
 .recordTime {
@@ -297,7 +281,7 @@
 
 .statusBadge.processed {
     background: #dcfce7;
-    color: #166534;
+    color: #16593f;
 }
 
 .statusBadge.pending {
@@ -307,7 +291,7 @@
 
 .statusBadge.reviewed {
     background: #dbeafe;
-    color: #11364c;
+    color: #11415e;
 }
 
 .termCount {
@@ -364,7 +348,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
 }
 
 .detailActions {
@@ -384,12 +368,12 @@
 }
 
 .actionButton.primary {
-    background: #059669;
+    background: #269b6f;
     color: #ffffff;
 }
 
 .actionButton.primary:hover {
-    background: #047857;
+    background: #20855f;
 }
 
 .actionButton.secondary {
@@ -403,21 +387,21 @@
 }
 
 .actionButton.cluster {
-    background: linear-gradient(135deg, #11364c 0%, #11364c 100%);
+    background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
     color: #ffffff;
 }
 
 .actionButton.cluster:hover {
-    background: linear-gradient(135deg, #11364c 0%, #11364c 100%);
+    background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
 }
 
 .actionButton.extract {
-    background: #11364c;
+    background: #11415e;
     color: #ffffff;
 }
 
 .actionButton.extract:hover {
-    background: #11364c;
+    background: #11415e;
 }
 
 .actionButton:disabled {
@@ -471,7 +455,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
 }
 
 .termsPanelContent {
@@ -497,35 +481,35 @@
 }
 
 .highlightedTerm.label2 {
-    background: #86efac;
-    color: #14532d;
+    background: #c3f5e2;
+    color: #16593f;
 }
 .highlightedTerm.label2:hover {
-    background: #4ade80;
+    background: #9befcf;
 }
 
 .highlightedTerm.label3 {
-    background: #93c5fd;
-    color: #1e3a8a;
+    background: #d4e6f2;
+    color: #13425e;
 }
 .highlightedTerm.label3:hover {
-    background: #60a5fa;
+    background: #93c1de;
 }
 
 .highlightedTerm.label4 {
-    background: #fde047;
+    background: #fcffa7;
     color: #713f12;
 }
 .highlightedTerm.label4:hover {
-    background: #facc15;
+    background: #f5fc28;
 }
 
 .highlightedTerm.label5 {
-    background: #f0abfc;
-    color: #701a75;
+    background: #ffd8ef;
+    color: #61103f;
 }
 .highlightedTerm.label5:hover {
-    background: #e879f9;
+    background: #ff96d3;
 }
 
 .highlightedTerm.label6 {
@@ -569,11 +553,11 @@
 
 @keyframes focusPulse {
     0% {
-        outline-color: #11364c;
+        outline-color: #11415e;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
     }
     50% {
-        outline-color: #11364c;
+        outline-color: #11415e;
         box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
     }
     100% {
@@ -608,7 +592,7 @@
 .termValue {
     font-size: 13px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
     display: flex;
     align-items: center;
 }
@@ -815,7 +799,7 @@
     margin: 0 0 12px;
     font-size: 14px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
     flex-shrink: 0;
 }
 
@@ -989,7 +973,7 @@
 .annotationValue {
     font-size: 13px;
     font-weight: 500;
-    color: #11364c;
+    color: #11415e;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

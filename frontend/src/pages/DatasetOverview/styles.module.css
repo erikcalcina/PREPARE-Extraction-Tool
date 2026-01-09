@@ -33,14 +33,14 @@
 
 .backButton:hover {
     background: #f3f4f6;
-    color: #11364c;
+    color: #11415e;
 }
 
 .title {
     margin: 0;
     font-size:24px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
 }
 
 .subtitle {
@@ -77,15 +77,15 @@
     color: #ffffff;
 }
 
-.labelBadge.label1 { background: #3b82f6; }
-.labelBadge.label2 { background: #10b981; }
-.labelBadge.label3 { background: #f59e0b; }
-.labelBadge.label4 { background: #ef4444; }
-.labelBadge.label5 { background: #8b5cf6; }
+.labelBadge.label1 { background: #2281bb; }
+.labelBadge.label2 { background: #2cb27e; }
+.labelBadge.label3 { background: #e5b300; }
+.labelBadge.label4 { background: #d31c1c; }
+.labelBadge.label5 { background: #974dff; }
 .labelBadge.label6 { background: #ec4899; }
-.labelBadge.label7 { background: #06b6d4; }
-.labelBadge.label8 { background: #84cc16; }
-.labelBadge.label9 { background: #f97316; }
+.labelBadge.label7 { background: #029cb7; }
+.labelBadge.label8 { background: #69ae01; }
+.labelBadge.label9 { background: #ec6f16; }
 
 /* Metadata Section */
 .metadata {
@@ -113,7 +113,7 @@
 .metadataValue {
     font-size: 14px;
     font-weight: 500;
-    color: #11364c;
+    color: #11415e;
 }
 
 /* Statistics Cards */
@@ -145,11 +145,11 @@
 .statValue {
     font-size: 18px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
 }
 
 .statValue.processed {
-    color: #2e9d72;
+    color: #2cb27e;
 }
 
 .statValue.pending {
@@ -157,7 +157,7 @@
 }
 
 .statValue.terms {
-    color: #195071;
+    color: #185a83;
 }
 
 /* Workflow Section */
@@ -168,7 +168,7 @@
 .sectionTitle {
     font-size: 20px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
     margin: 0 0 20px 0;
 }
 
@@ -210,7 +210,7 @@
     margin: 0 0 4px 0;
     font-size: 18px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
 }
 
 .workflowDescription {
@@ -248,7 +248,7 @@
 .workflowStatValue {
     font-size: 16px;
     font-weight: 700;
-    color: #11364c;
+    color: #11415e;
 }
 
 /* Progress Section */
@@ -275,7 +275,7 @@
 .progressText {
     font-size: 13px;
     font-weight: 600;
-    color: #11364c;
+    color: #11415e;
 }
 
 .progressBar {
@@ -311,20 +311,20 @@
 }
 
 .workflowButton.primary {
-    background: #11364c;
+    background: #11415e;
     color: #ffffff;
-    border-color: #11364c;
+    border-color: #11415e;
 }
 
 .workflowButton.primary:hover {
-    background: #11364c;
-    border-color: #11364c;
+    background: #11415e;
+    border-color: #11415e;
 }
 
 .workflowButton.secondary {
     background: #ffffff;
-    color: #11364c;
-    border-color: #11364c;
+    color: #11415e;
+    border-color: #11415e;
 }
 
 .workflowButton.secondary:hover {
