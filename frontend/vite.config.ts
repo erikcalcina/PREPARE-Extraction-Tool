@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
       port: frontendPort,
       proxy: {
         '/api': {
-          target: env.BACKEND_HOST || 'http://localhost:8002',
+          target: env.BACKEND_HOST || 'http://localhost:8000',
           changeOrigin: true,
         },
       },

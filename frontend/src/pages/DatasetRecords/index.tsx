@@ -462,24 +462,15 @@ const DatasetRecords = () => {
                             value={stats?.extracted_terms_count ?? 0}
                             variant="terms"
                         />
-                        <StatCard
-                            label="Reviewed"
-                            value={reviewedValue}
-                            suffix={reviewedSuffix}
-                            variant="processed"
-                        />
-                    </div>
-                    <div className={styles.statsToggle}>
-                        <button
-                            className={styles.toggleButton}
-                            onClick={() =>
-                                setDisplayMode(
-                                    displayMode === 'percentage' ? 'ratio' : 'percentage'
-                                )
-                            }
-                        >
-                            Show {displayMode === 'percentage' ? 'Reviewed Ratio' : 'Reviewed Percentage'}
-                        </button>
+                    <div className={styles.statCard}>            
+                        <div className={`${styles.statValue} ${styles.processed}`}>                
+                            {processedPercentage}%{' '}                
+                            <span className={styles.ratioSuffix}>                    
+                                ({processedRecords}/{totalRecords})                
+                            </span>            
+                        </div>            
+                        <div className={styles.statLabel}>Reviewed</div>        
+                        </div>
                     </div>
                     <div className={styles.pageActions}>
                         <button
