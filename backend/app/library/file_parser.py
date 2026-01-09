@@ -129,53 +129,64 @@ async def parse_csv(
             text=row["text"],
         )
 
-
-async def parse_concepts_file(
-    file: UploadFile, required_columns: list
+# Will be running in the background
+def parse_concepts_file(
+    file_path: str, required_columns: list
 ):
     """Streaming parser – yields Concept objects one by one."""
 
-    if not file.filename.lower().endswith(".csv"):
+    try:
+        with open(file_path, "rb") as f:
+            text_stream = codecs.getreader("utf-8")(f)
+            reader = csv.DictReader(text_stream, delimiter="\t")
+
+            if not reader.fieldnames:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="CSV file is empty or invalid.",
+                )
+
+            missing = [c for c in required_columns if c not in reader.fieldnames]
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required columns: {', '.join(missing)}",
+                )
+
+            for row_number, row in enumerate(reader, start=2):
+                value = row.get("concept_name")
+                if not value or not value.strip():
+                    continue
+                
+                try:
+                    yield Concept(
+                        vocab_term_id=row["concept_id"],
+                        vocab_term_name=value.strip(),
+                        domain_id=row["domain_id"],
+                        concept_class_id=row["concept_class_id"],
+                        standard_concept=row.get("standard_concept"),
+                        concept_code=row.get("concept_code"),
+                        valid_start_date=datetime.strptime(
+                            row["valid_start_date"], "%Y%m%d"
+                        ),
+                        valid_end_date=datetime.strptime(
+                            row["valid_end_date"], "%Y%m%d"
+                        ),
+                        invalid_reason=row.get("invalid_reason"),
+                    )
+
+                except Exception as row_error:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid data at CSV row {row_number}: {row_error}",
+                    )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
-
-    text_stream = codecs.getreader("utf-8")(file.file)
-    reader = csv.DictReader(text_stream, delimiter="\t")
-
-    if not reader.fieldnames:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSV file is empty or invalid.",
-        )
-
-    missing = [c for c in required_columns if c not in reader.fieldnames]
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Missing required columns: {', '.join(missing)}",
-        )
-
-    for row in reader:
-        value = row.get("concept_name")
-        if not value or not value.strip():
-            continue
-
-        yield Concept(
-            vocab_term_id=row["concept_id"],
-            vocab_term_name=value.strip(),
-            domain_id=row["domain_id"],
-            concept_class_id=row["concept_class_id"],
-            standard_concept=row.get("standard_concept"),
-            concept_code=row.get("concept_code"),
-            valid_start_date=datetime.strptime(
-                row["valid_start_date"], "%Y%m%d"
-            ),
-            valid_end_date=datetime.strptime(
-                row["valid_end_date"], "%Y%m%d"
-            ),
-            invalid_reason=row.get("invalid_reason"),
+            detail=f"Failed to parse CSV file: {e}",
         )
 
 

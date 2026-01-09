@@ -1,16 +1,18 @@
 import io
 import csv
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
-from app.core.database import get_session, Vocabulary, Concept, User
+from app.core.database import engine, get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
+from app.models_db import VocabularyStatus
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,
-    VocabularyCreate,
     VocabularyResponse,
     VocabulariesOutput,
     VocabularyOutput,
@@ -86,7 +88,11 @@ def get_vocabularies(
             concept_count=db.query(
                 func.count(Concept.id))
                 .filter(Concept.vocabulary_id == vocabulary.id)
-                .scalar()
+                .scalar(),
+            status=vocabulary.status,
+            started_at=vocabulary.started_at,
+            finished_at=vocabulary.finished_at,
+            error_message=vocabulary.error_message
         )
         for vocabulary in vocabularies
     ]
@@ -107,12 +113,58 @@ def get_vocabularies(
     response_description="Confirmation message that the vocabulary was created successfully",
 )
 async def create_vocabulary(
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     version: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type.",
+        )
+    
+    # create a new Vocabulary
+    vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
+    db.add(vocabulary)
+    db.commit()
+    db.refresh(vocabulary)
+    vocabulary_id = vocabulary.id
+
+    # save file to disk
+    file_path = await save_upload_to_disk(file)
+
+    # start background ingestion
+    background_tasks.add_task(
+        ingest_vocabulary_background,
+        vocabulary_id,
+        file_path,
+    )
+    
+    vocabulary_response = VocabularyResponse(
+        id=vocabulary.id,
+        name=vocabulary.name,
+        uploaded=vocabulary.uploaded,
+        version=vocabulary.version,
+        status=vocabulary.status
+    )
+    return VocabularyOutput(vocabulary=vocabulary_response)
+
+async def save_upload_to_disk(file: UploadFile) -> str:
+    path = f"/tmp/{uuid4()}.csv"
+
+    with open(path, "wb") as out:
+        # read 1 MB at a time
+        while chunk := await file.read(1024 * 1024):
+            out.write(chunk)
+
+    return path
+
+def ingest_vocabulary_background(vocabulary_id: int, file_path: str):
+    db = Session(engine)
+
     REQUIRED_COLUMNS = [
         "concept_id",
         "concept_name",
@@ -125,46 +177,62 @@ async def create_vocabulary(
         "invalid_reason",
     ]
 
-    # create a new Vocabulary
-    vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
-    db.add(vocabulary)
-    db.commit()
-    db.refresh(vocabulary)
-    vocabulary_id = vocabulary.id
+    try: 
+        # change Vocabulary status
+        vocab_db = db.get(Vocabulary, vocabulary_id)
+        if not vocab_db:
+            return
+        vocab_db.status = VocabularyStatus.PROCESSING
+        vocab_db.started_at = datetime.now(timezone.utc)
+        db.commit()
 
-    # create new ES index also
-    indexer.create_concept_index(vocabulary_id)
+        # create new ES index also
+        indexer.create_concept_index(vocabulary_id)
 
-    BATCH_SIZE = 2000
-    batch = []
-    total = 0
-    async for concept in parse_concepts_file(file, REQUIRED_COLUMNS):
-        concept.vocabulary_id = vocabulary_id
-        batch.append(concept)
+        # start ingesting
+        BATCH_SIZE = 2000
+        batch = []
+        total = 0
 
-        if len(batch) >= BATCH_SIZE:
+        for concept in parse_concepts_file(file_path, REQUIRED_COLUMNS):
+            concept.vocabulary_id = vocabulary_id
+            batch.append(concept)
+
+            if len(batch) >= BATCH_SIZE:
+                db.bulk_save_objects(batch, return_defaults=True)
+                db.commit()
+                total += len(batch)
+                indexer.add_bulk_to_index(vocabulary_id, batch)
+                batch.clear()
+                print("Rows saved:", total)
+
+        if batch:
             db.bulk_save_objects(batch, return_defaults=True)
             db.commit()
             total += len(batch)
             indexer.add_bulk_to_index(vocabulary_id, batch)
-            batch.clear()
-            print("Rows saved:", total)
+            print("Rows saved:", total, "-> ALL")
 
-    if batch:
-        db.bulk_save_objects(batch, return_defaults=True)
+        # success
+        vocab_db.status = VocabularyStatus.DONE
+        vocab_db.finished_at = datetime.now(timezone.utc)
         db.commit()
-        total += len(batch)
-        indexer.add_bulk_to_index(vocabulary_id, batch)
-        print("Rows saved:", total, "-> ALL")
-    
-    vocabulary_response = VocabularyResponse(
-        id=vocabulary.id,
-        name=vocabulary.name,
-        uploaded=vocabulary.uploaded,
-        version=vocabulary.version,
-        concept_count=total,
-    )
-    return VocabularyOutput(vocabulary=vocabulary_response)
+
+    except Exception as e:
+        # failure cleanup
+        db.rollback()
+        
+        vocab_db = db.get(Vocabulary, vocabulary_id)
+        vocab_db.status = VocabularyStatus.FAILED
+        vocab_db.finished_at = datetime.now(timezone.utc)
+        vocab_db.error_message = str(e)
+        db.commit()
+
+        # delete ES index
+        indexer.delete_index(vocabulary_id)
+
+    finally:
+        db.close()
 
 
 @router.get(
@@ -195,7 +263,11 @@ def get_vocabulary(
         concept_count=db.query(
             func.count(Concept.id))
             .filter(Concept.vocabulary_id == vocabulary.id)
-            .scalar()
+            .scalar(),
+        status=vocabulary.status,
+        started_at=vocabulary.started_at,
+        finished_at=vocabulary.finished_at,
+        error_message=vocabulary.error_message
     )
     return VocabularyOutput(vocabulary=vocabulary_response)
 
