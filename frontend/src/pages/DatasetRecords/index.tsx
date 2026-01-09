@@ -469,7 +469,7 @@ const DatasetRecords = () => {
                                 ({processedRecords}/{totalRecords})                
                             </span>            
                         </div>            
-                        <div className={styles.statLabel}>Reviewed</div>        
+                        <div className={styles.statLabel}>Processed</div>        
                         </div>
                     </div>
                     <div className={styles.pageActions}>

@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
 
   // Extract port from FRONTEND_HOST (e.g., "http://localhost:5175" -> 5175)
   const frontendPort = env.FRONTEND_HOST
-    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5175: 5175;
+    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5173: 5173;
 
   return {
     plugins: [react(), svgr(), tsconfigPaths()],
