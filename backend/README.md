@@ -1,6 +1,6 @@
-# Template API Service
+# Backend API
 
-This template is used to create a new API service. It uses the [FastAPI] framework.
+This project includes the PREPARE Extraction Tool backend implementation. It uses the [FastAPI] framework.
 
 ## ☑️ Requirements
 
@@ -43,7 +43,47 @@ This project uses Alembic for database schema migrations. Before running the app
 
 ```bash
 # Apply all pending migrations
-python scripts/db_migrate.py upgrade
+./scripts/alembic_upgrade.sh
+
+# Or using Alembic directly
+alembic upgrade head
+```
+
+> **⚠️ IMPORTANT: When You Modify `models_db.py`**
+>
+> Alembic does **NOT** automatically detect changes to your database models. When you add, modify, or remove fields in `app/models_db.py`, you must explicitly:
+>
+> 1. **Generate** a new migration using autogenerate (detects model changes)
+> 2. **Review** the generated migration file to ensure correctness
+> 3. **Apply** the migration to update the database schema
+>
+> Alembic's autogenerate is powerful but not perfect—always review the generated migration before applying it!
+
+### Updating the Database Schema (Two-Step Process)
+
+When you modify database models in `app/models_db.py`, follow this workflow:
+
+#### Step 1: Generate a New Migration (Autogenerate)
+
+```bash
+# Using the convenience script (automatically assigns sequential revision IDs)
+./scripts/alembic_autogenerate.sh "add user preferences table"
+
+# Or using Alembic directly
+alembic revision --autogenerate --rev-id 004 -m "add user preferences table"
+```
+
+This will:
+- Scan your `models_db.py` and compare it to the current database schema
+- Generate a new migration file in `alembic/versions/` with the detected changes
+- Use sequential revision IDs (001, 002, 003, etc.)
+
+#### Step 2: Review and Apply the Migration
+
+```bash
+# First, REVIEW the generated migration file in alembic/versions/
+# Then apply it:
+./scripts/alembic_upgrade.sh
 
 # Or using Alembic directly
 alembic upgrade head
@@ -53,16 +93,22 @@ alembic upgrade head
 
 ```bash
 # Check current migration status
-python scripts/db_migrate.py current
-
-# Create a new migration after modifying models
-python scripts/db_migrate.py revision "description of changes"
+./scripts/alembic_current.sh
 
 # Rollback the last migration
-python scripts/db_migrate.py downgrade
+./scripts/alembic_downgrade.sh
 
 # View migration history
-python scripts/db_migrate.py history
+./scripts/alembic_history.sh
+
+# Apply all pending migrations
+./scripts/alembic_upgrade.sh
+
+# Or use Alembic directly:
+alembic current                # Show current revision
+alembic downgrade -1           # Rollback one migration
+alembic history                # Show migration history
+alembic upgrade head           # Apply all pending migrations
 ```
 
 For detailed migration documentation, see [docs/migrations.md](docs/migrations.md).
