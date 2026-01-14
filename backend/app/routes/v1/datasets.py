@@ -955,36 +955,16 @@ def get_clusters_of_dataset(
         labels=all_labels,
     )
 
-_ROMAN = {
-    "i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5",
-    "vi": "6", "vii": "7", "viii": "8", "ix": "9", "x": "10",
-}
 
 def _normalize_term(text: str) -> str:
-    """Make text comparable: lowercase, unify separators, remove punctuation, normalize roman numerals."""
+    """Normalize term text: lowercase, unify separators, remove punctuation, collapse spaces."""
     s = (text or "").lower().strip()
     s = s.replace("-", " ")
-    s = re.sub(r"[^\w\s]", " ", s)      # drop punctuation
-    s = re.sub(r"\s+", " ", s).strip()  # collapse spaces
+    s = re.sub(r"[^\w\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
-    toks = []
-    for t in s.split():
-        toks.append(_ROMAN.get(t, t))
-    return " ".join(toks)
-
-def _base_form(norm: str) -> str:
-    """
-    Remove simple suffixes like:
-    - last token single letter (A/B)
-    - last token digit (1/2)
-    So: 'welby a' -> 'welby', 'cmr 1' -> 'cmr' !I AM NOT SURE IF ITS OKAY!
-    """
-    toks = norm.split()
-    if len(toks) >= 2 and (toks[-1].isdigit() or len(toks[-1]) == 1):
-        return " ".join(toks[:-1])
-    return norm
-
-def _levenshtein(a: str, b: str, max_dist: int = 2) -> int:
+def _levenshtein(a: str, b: str, max_dist: int = 1) -> int:
     if a == b:
         return 0
     if abs(len(a) - len(b)) > max_dist:
@@ -1012,19 +992,14 @@ def _levenshtein(a: str, b: str, max_dist: int = 2) -> int:
         prev = cur
     return prev[-1]
 
-def _merge_labels_by_spelling(labels_arr: List[int], texts: List[str], max_typos: int = 2) -> List[int]:
-    """
-    We want yo merge clusters that are basically the same name with small formatting/typo differences.
-    For example: CMR-1, cmr I, cmr  -> base 'cmr' -> same cluster.
-    """
+def _merge_labels_by_spelling(labels_arr: List[int], texts: List[str], max_typos: int = 1) -> List[int]:
     # Build: cluster_id -> list of normalized base forms of its members
     cluster_to_terms = defaultdict(list)
     for text, cid in zip(texts, labels_arr):
         if cid == -1:
             continue
         norm = _normalize_term(text)
-        base = _base_form(norm)
-        cluster_to_terms[int(cid)].append(base)
+        cluster_to_terms[int(cid)].append(norm)
 
     if len(cluster_to_terms) <= 1:
         return labels_arr.tolist() if hasattr(labels_arr, "tolist") else list(labels_arr)
@@ -1224,7 +1199,7 @@ def create_clusters_for_dataset(
     labels_arr = clusterer.fit_predict(embeddings)
 
     # Post-processing: merge clusters with very similar names (formatting / small typos) 2 
-    labels_arr = _merge_labels_by_spelling(labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr, texts, max_typos=2)
+    labels_arr = _merge_labels_by_spelling(labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr, texts, max_typos=1)
 
     labels_arr = _merge_labels_by_centroid_similarity(labels_arr, embeddings, threshold=0.8)
     labels_arr = [int(x) for x in labels_arr]
