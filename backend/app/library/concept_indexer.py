@@ -3,12 +3,13 @@ from math import ceil
 from typing import List, Union, Optional, Dict, Any
 
 from elasticsearch.exceptions import NotFoundError
-from elasticsearch.helpers import bulk, BulkIndexError
+from elasticsearch.helpers import bulk
 
 from app.core.elastic import es_client
 from app.core.model_registry import model_registry
 from app.models_db import SourceTerm, Concept, Cluster
 
+from model2vec import StaticModel
 
 # ================================================
 # Concept indexer in elasticsearch
@@ -36,8 +37,10 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            self._model = model_registry.get_model("embedding")
+            #self._model = model_registry.get_model("embedding")
+            self._model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
         return self._model
+
 
     @property
     def embedding_dim(self):
@@ -47,8 +50,8 @@ class ConceptIndexer:
             The dimensionality of the embedding vectors.
         """
         if self._embedding_dim is None:
-            self._embedding_dim = 768
-            # self._embedding_dim = self.model.get_sentence_embedding_dimension()
+            test_emb = self._calculate_embedding("test")
+            self._embedding_dim = test_emb.shape[0]
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
@@ -99,7 +102,8 @@ class ConceptIndexer:
         Returns:
             A list containing the embedding vector(s).
         """
-        return self.model.embed(text)
+        # return self.model.embed(text)
+        return self.model.encode(text)
 
 
     def add_bulk_to_index(

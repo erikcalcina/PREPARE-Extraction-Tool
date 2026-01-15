@@ -12,3 +12,4 @@ pyjwt
 pwdlib[argon2]
 scikit-learn
 hdbscan
+model2vec
