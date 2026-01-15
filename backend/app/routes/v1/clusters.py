@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime, timezone
+import math
+
+from app.core.model_registry import model_registry
 
 from sqlmodel import select
 from app.models_db import ClusterMergeSuggestion, SourceTerm
@@ -15,6 +18,31 @@ from app.schemas import (
     MessageOutput,
     ClusterOutput,
 )
+
+#helpers ?
+
+def _cosine_sim(a: List[float], b: List[float]) -> float:
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    denom = math.sqrt(na) * math.sqrt(nb)
+    return (dot / denom) if denom else 0.0
+
+
+def _mean_vector(vectors: List[List[float]]) -> List[float]:
+    if not vectors:
+        return []
+    dim = len(vectors[0])
+    acc = [0.0] * dim
+    for v in vectors:
+        for i in range(dim):
+            acc[i] += float(v[i])
+    n = float(len(vectors))
+    return [x / n for x in acc]
 
 
 # ================================================
@@ -40,6 +68,126 @@ def verify_dataset_ownership(dataset: Dataset, user_id: int):
 # ================================================
 # Clusters routes
 # ================================================
+
+@router.post(
+    "/datasets/{dataset_id}/clusters/merge-suggestions/generate",
+    response_model=MessageOutput,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_merge_suggestions(
+    dataset_id: int,
+    label: str,
+    threshold: float = 0.8,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Create merge suggestions (pending) for clusters in a dataset+label.
+    Does NOT merge anything automatically.
+    """
+
+    # 1) dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # 2) get clusters for dataset+label
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == label)
+    ).all()
+
+    if len(clusters) < 2:
+        return MessageOutput(message="Not enough clusters to generate suggestions")
+
+    cluster_ids = [c.id for c in clusters]
+
+    # 3) load source terms inside these clusters
+    terms = db.exec(
+        select(SourceTerm).where(SourceTerm.cluster_id.in_(cluster_ids))
+    ).all()
+
+    cluster_texts: Dict[int, List[str]] = {cid: [] for cid in cluster_ids}
+    for t in terms:
+        if t.cluster_id is None:
+            continue
+        txt = (t.value or "").strip()
+        if txt:
+            cluster_texts[int(t.cluster_id)].append(txt)
+
+    # 4) embed all term texts
+    all_texts: List[str] = []
+    owner_cluster: List[int] = []
+    for cid, texts in cluster_texts.items():
+        for s in texts:
+            all_texts.append(s)
+            owner_cluster.append(cid)
+
+    if not all_texts:
+        return MessageOutput(message="No source terms to embed")
+
+    embedding_model = model_registry.get_model("embedding")
+    if hasattr(embedding_model, "embed"):
+        emb = embedding_model.embed(all_texts)
+    else:
+        emb = embedding_model.encode(all_texts)
+
+    emb_list: List[List[float]] = emb.tolist() if hasattr(emb, "tolist") else emb
+
+    # 5) compute centroid per cluster
+    cluster_vectors: Dict[int, List[List[float]]] = {cid: [] for cid in cluster_ids}
+    for vec, cid in zip(emb_list, owner_cluster):
+        cluster_vectors[cid].append(vec)
+
+    centroids: Dict[int, List[float]] = {}
+    for cid, vecs in cluster_vectors.items():
+        if vecs:
+            centroids[cid] = _mean_vector(vecs)
+
+    # 6) avoid duplicates 
+    existing = db.exec(
+        select(ClusterMergeSuggestion)
+        .where(ClusterMergeSuggestion.dataset_id == dataset_id)
+        .where(ClusterMergeSuggestion.label == label)
+    ).all()
+
+    existing_pairs = set()
+    for s in existing:
+        a, b = int(s.cluster_a_id), int(s.cluster_b_id)
+        existing_pairs.add((min(a, b), max(a, b)))
+
+    # 7) create new suggestions based on centroid similarity
+    created = 0
+    ids = sorted(centroids.keys())
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            a = ids[i]
+            b = ids[j]
+            pair = (min(a, b), max(a, b))
+            if pair in existing_pairs:
+                continue
+
+            sim = _cosine_sim(centroids[a], centroids[b])
+            if sim >= threshold:
+                db.add(
+                    ClusterMergeSuggestion(
+                        dataset_id=dataset_id,
+                        label=label,
+                        cluster_a_id=pair[0],
+                        cluster_b_id=pair[1],
+                        score=float(sim),
+                        method="centroid",
+                        status="pending",
+                    )
+                )
+                existing_pairs.add(pair)
+                created += 1
+
+    db.commit()
+    return MessageOutput(message=f"Generated {created} merge suggestions")
+
 
 @router.get("/datasets/{dataset_id}/clusters/merge-suggestions", response_model=MergeSuggestionsOutput)
 
