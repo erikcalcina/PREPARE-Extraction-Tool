@@ -1168,3 +1168,36 @@ def merge_clusters_endpoint(
     return MessageOutput(
         message=f"Merged {len(data.cluster_ids)} clusters into '{data.new_title}' (moved {total_terms_moved} terms)"
     )
+
+
+@router.delete(
+    "/{dataset_id}/source-terms",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Delete extracted source terms in a dataset",
+    description="Removes all automatically extracted source terms for the dataset so extraction can be rerun cleanly",
+)
+def delete_extracted_source_terms(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Delete only automatically extracted terms for records in this dataset
+    terms = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.automatically_extracted == True)  # noqa: E712
+    ).all()
+
+    for term in terms:
+        db.delete(term)
+
+    db.commit()
+    return MessageOutput(message=f"Deleted {len(terms)} automatically extracted source terms")
