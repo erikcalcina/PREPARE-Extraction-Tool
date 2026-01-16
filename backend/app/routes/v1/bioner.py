@@ -44,9 +44,6 @@ def extract_entities_from_record(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    """
-    Extract named entities from a record's text and save them as source terms.
-    """
     # Verify dataset ownership
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
@@ -71,6 +68,12 @@ def extract_entities_from_record(
             detail="Record not found in this dataset",
         )
 
+    # NEW: skip extraction on reviewed records
+    if record.reviewed:
+        return MessageOutput(
+            message=f"Record {record_id} is reviewed; extraction skipped"
+        )
+
     request_data = {"medical_text": record.text, "labels": labels.labels}
 
     try:
@@ -84,24 +87,42 @@ def extract_entities_from_record(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Extraction service unavailable",
         )
-    # Save entities as source terms
-    source_terms = [
-        SourceTerm(
-            record_id=record_id,
-            value=entity["text"],
-            label=entity["label"],
-            start_position=entity["start"],
-            end_position=entity["end"],
-            score=entity["score"],
-            automatically_extracted=True,
+
+    existing_keys = {
+        (t.value, t.label, t.start_position, t.end_position)
+        for t in db.exec(
+            select(SourceTerm).where(SourceTerm.record_id == record_id)
+        ).all()
+    }
+    new_terms = []
+    for entity in entities:
+        key = (
+            entity["text"],
+            entity["label"],
+            entity["start"],
+            entity["end"],
         )
-        for entity in entities
-    ]
-    db.add_all(source_terms)
-    db.commit()
+        if key in existing_keys:
+            continue
+        existing_keys.add(key)
+        new_terms.append(
+            SourceTerm(
+                record_id=record_id,
+                value=entity["text"],
+                label=entity["label"],
+                start_position=entity["start"],
+                end_position=entity["end"],
+                score=entity["score"],
+                automatically_extracted=True,
+            )
+        )
+
+    if new_terms:
+        db.add_all(new_terms)
+        db.commit()
 
     return MessageOutput(
-        message=f"Extracted and saved {len(source_terms)} entities from record {record_id}"
+        message=f"Extracted and saved {len(new_terms)} entities from record {record_id}"
     )
 
 
@@ -137,6 +158,10 @@ def extract_entities_from_records(
 
     source_terms: List[SourceTerm] = []
     for record in records:
+        # NEW: skip reviewed records
+        if record.reviewed:
+            continue
+
         request_data = {"medical_text": record.text, "labels": labels.labels}
         try:
             response = requests.post(
@@ -150,18 +175,34 @@ def extract_entities_from_records(
                 detail="Extraction service unavailable",
             )
 
-        source_terms.extend(
-            SourceTerm(
-                record_id=record.id,
-                value=entity["text"],
-                label=entity["label"],
-                start_position=entity["start"],
-                end_position=entity["end"],
-                score=entity["score"],
-                automatically_extracted=True,
+        # NEW: avoid duplicates per record
+        existing_keys = {
+            (t.value, t.label, t.start_position, t.end_position)
+            for t in db.exec(
+                select(SourceTerm).where(SourceTerm.record_id == record.id)
+            ).all()
+        }
+        for entity in entities:
+            key = (
+                entity["text"],
+                entity["label"],
+                entity["start"],
+                entity["end"],
             )
-            for entity in entities
-        )
+            if key in existing_keys:
+                continue
+            existing_keys.add(key)
+            source_terms.append(
+                SourceTerm(
+                    record_id=record.id,
+                    value=entity["text"],
+                    label=entity["label"],
+                    start_position=entity["start"],
+                    end_position=entity["end"],
+                    score=entity["score"],
+                    automatically_extracted=True,
+                )
+            )
 
     if source_terms:
         db.add_all(source_terms)
