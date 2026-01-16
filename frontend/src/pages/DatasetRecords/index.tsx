@@ -6,6 +6,7 @@ import { usePageTitle } from 'hooks/usePageTitle';
 import type { Record as RecordType, SourceTerm, SourceTermCreate } from 'types';
 import AnnotationSidebar from './AnnotationSidebar';
 import styles from './styles.module.css';
+import ProgressBar from 'components/ProgressBar';
 
 // ================================================
 // Helper functions
@@ -215,6 +216,8 @@ const DatasetRecords = () => {
         isLoadingTerms,
         isExtracting,
         isExtractingDataset,
+        isCancellingExtraction,
+        extractionProgress,
         hasMore,
         error,
         loadMoreRecords,
@@ -224,6 +227,7 @@ const DatasetRecords = () => {
         removeSourceTerm,
         extractTermsForRecord,
         extractTermsForDataset,
+        cancelDatasetExtraction,
         fetchRecords,
         patientIdFilter,
         setPatientIdFilter,
@@ -376,8 +380,8 @@ const DatasetRecords = () => {
         if (!confirmed) return;
 
         try {
-            const response = await extractTermsForDataset();
-            alert(response.message || 'Terms extracted successfully for all records');
+            await extractTermsForDataset();
+            alert('Terms extracted successfully for all records');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to extract terms';
             alert(`Error: ${errorMessage}`);
@@ -459,7 +463,34 @@ const DatasetRecords = () => {
                         >
                             {isExtractingDataset ? 'Extracting...' : 'Extract All Terms'}
                         </button>
+                        {isExtractingDataset && (
+                            <button
+                                className={`${styles.actionButton} ${styles.secondary}`}
+                                onClick={cancelDatasetExtraction}
+                                disabled={isCancellingExtraction}
+                            >
+                                {isCancellingExtraction ? 'Cancelling…' : 'Cancel Extraction'}
+                            </button>
+                        )}
                     </div>
+                    {isExtractingDataset && (
+                        <div className={styles.progressWrapper}>
+                            <span className={styles.progressLabel}>
+                                Extraction in progress…
+                                {extractionProgress && extractionProgress.total > 0
+                                    ? ` ${extractionProgress.completed}/${extractionProgress.total}`
+                                    : ''}
+                            </span>
+                            <ProgressBar
+                                progress={
+                                    extractionProgress && extractionProgress.total > 0
+                                        ? (extractionProgress.completed / extractionProgress.total) * 100
+                                        : 0
+                                }
+                                showPercentage
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {error && <div className={styles.error}>{error}</div>}
