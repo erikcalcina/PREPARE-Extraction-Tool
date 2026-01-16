@@ -296,8 +296,25 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
         session.commit()
 
         records = session.exec(select(Record).where(Record.dataset_id == dataset_id)).all()
-        records_to_process = [r for r in records if not r.reviewed]
-        job.total = len(records_to_process)
+
+        # Skip reviewed records and records already containing automatically extracted terms
+        unreviewed_records = [r for r in records if not r.reviewed]
+        processed_records = []
+        records_to_process: List[Record] = []
+        for r in unreviewed_records:
+            has_auto = session.exec(
+                select(SourceTerm.id)
+                .where(SourceTerm.record_id == r.id)
+                .where(SourceTerm.automatically_extracted == True)  # noqa: E712
+            ).first()
+            if has_auto:
+                processed_records.append(r)
+            else:
+                records_to_process.append(r)
+
+        job.total = len(unreviewed_records)
+        job.completed = len(processed_records)
+        job.updated_at = datetime.now(timezone.utc)
         session.add(job)
         session.commit()
 

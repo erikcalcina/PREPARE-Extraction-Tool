@@ -231,6 +231,14 @@ export async function deleteDataset(id: number): Promise<MessageOutput> {
     });
 }
 
+export async function deleteDatasetExtractedTerms(
+    datasetId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/${datasetId}/source-terms`, {
+        method: 'DELETE',
+    });
+}
+
 export async function downloadDataset(id: number): Promise<void> {
     const token = getToken();
     const headers: HeadersInit = {};

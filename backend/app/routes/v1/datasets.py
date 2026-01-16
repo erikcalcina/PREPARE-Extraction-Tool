@@ -717,6 +717,17 @@ def review_record(
         )
 
     db_record.reviewed = reviewed
+
+    # When a record is reviewed, clear automatically extracted flags on its terms
+    if reviewed:
+        auto_terms = db.exec(
+            select(SourceTerm)
+            .where(SourceTerm.record_id == record_id)
+            .where(SourceTerm.automatically_extracted == True)
+        ).all()
+        for term in auto_terms:
+            term.automatically_extracted = False
+
     db.commit()
 
     return MessageOutput(

@@ -228,6 +228,7 @@ const DatasetRecords = () => {
         extractTermsForRecord,
         extractTermsForDataset,
         cancelDatasetExtraction,
+        deleteExtractedTermsForDataset,
         fetchRecords,
         patientIdFilter,
         setPatientIdFilter,
@@ -388,6 +389,21 @@ const DatasetRecords = () => {
         }
     }, [stats, extractTermsForDataset]);
 
+    const handleDeleteExtractedTerms = useCallback(async () => {
+        const confirmed = window.confirm(
+            'This will delete all automatically extracted terms in this dataset. Continue?'
+        );
+        if (!confirmed) return;
+
+        try {
+            const res = await deleteExtractedTermsForDataset();
+            alert(res.message || 'Deleted extracted terms');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete extracted terms';
+            alert(`Error: ${errorMessage}`);
+        }
+    }, [deleteExtractedTermsForDataset]);
+
     if (!parsedDatasetId) {
         return (
             <Layout>
@@ -462,6 +478,14 @@ const DatasetRecords = () => {
                             title={!dataset?.labels?.length ? 'No labels defined for this dataset' : 'Extract terms from all records'}
                         >
                             {isExtractingDataset ? 'Extracting...' : 'Extract All Terms'}
+                        </button>
+                        <button
+                            className={`${styles.actionButton} ${styles.danger}`}
+                            onClick={handleDeleteExtractedTerms}
+                            disabled={isExtractingDataset}
+                            title="Delete all automatically extracted terms"
+                        >
+                            Delete Extracted Terms
                         </button>
                         {isExtractingDataset && (
                             <button

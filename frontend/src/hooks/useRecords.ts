@@ -20,6 +20,7 @@ import {
     extractDatasetTerms as extractDatasetTermsAPI,
     getDatasetExtractionStatus as getDatasetExtractionStatusAPI,
     cancelDatasetExtraction as cancelDatasetExtractionAPI,
+        deleteDatasetExtractedTerms as deleteDatasetExtractedTermsAPI,
 } from 'api';
 
 // ================================================
@@ -46,6 +47,9 @@ export function useRecords(datasetId: number) {
         status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Persist extraction job across navigation so we can resume polling
+    const extractionStorageKey = `extractionJob-${datasetId}`;
 
     // Filter state
     const [patientIdFilter, setPatientIdFilter] = useState<string>('');
@@ -234,25 +238,15 @@ export function useRecords(datasetId: number) {
         }
     }, [datasetId, selectedRecord, dataset, fetchStats]);
 
-    // Extract terms for all records in the dataset using bioner
-    const extractTermsForDataset = useCallback(async () => {
-        if (!dataset?.labels || dataset.labels.length === 0) {
-            throw new Error('No labels defined for this dataset');
-        }
-
+    const pollExtractionJob = useCallback(async (jobId: string) => {
         setIsExtractingDataset(true);
-        setExtractionProgress({ completed: 0, total: 0, status: 'pending' });
-        try {
-            const { job_id } = await extractDatasetTermsAPI(datasetId, dataset.labels);
-            if (!job_id) {
-                throw new Error('Extraction job did not return an ID');
-            }
-            setExtractionJobId(job_id);
+        setExtractionJobId(jobId);
+        localStorage.setItem(extractionStorageKey, jobId);
 
-            // Poll until job finishes
+        try {
             // eslint-disable-next-line no-constant-condition
             while (true) {
-                const status = await getDatasetExtractionStatusAPI(datasetId, job_id);
+                const status = await getDatasetExtractionStatusAPI(datasetId, jobId);
 
                 setExtractionProgress({
                     completed: status.completed,
@@ -269,25 +263,41 @@ export function useRecords(datasetId: number) {
                 await new Promise(res => setTimeout(res, 2000));
             }
 
-            // Refresh the terms for the selected record if one is selected
             if (selectedRecord) {
                 const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
                 setSelectedRecordTerms(termsResponse.source_terms);
             }
-            // Refresh stats
             await fetchStats();
 
             return { status: 'completed' as const };
-        } catch (err) {
-            console.error('Failed to extract terms for dataset:', err);
-            throw err;
         } finally {
             setIsExtractingDataset(false);
             setIsCancellingExtraction(false);
             setExtractionJobId(null);
             setExtractionProgress(null);
+            localStorage.removeItem(extractionStorageKey);
         }
-    }, [datasetId, dataset, selectedRecord, fetchStats]);
+    }, [datasetId, selectedRecord, fetchStats, extractionStorageKey]);
+
+    // Extract terms for all records in the dataset using bioner
+    const extractTermsForDataset = useCallback(async () => {
+        if (!dataset?.labels || dataset.labels.length === 0) {
+            throw new Error('No labels defined for this dataset');
+        }
+
+        setExtractionProgress({ completed: 0, total: 0, status: 'pending' });
+        try {
+            const { job_id } = await extractDatasetTermsAPI(datasetId, dataset.labels);
+            if (!job_id) {
+                throw new Error('Extraction job did not return an ID');
+            }
+
+            return await pollExtractionJob(job_id);
+        } catch (err) {
+            console.error('Failed to extract terms for dataset:', err);
+            throw err;
+        }
+    }, [datasetId, dataset, pollExtractionJob]);
 
     const cancelDatasetExtraction = useCallback(async () => {
         if (!extractionJobId) return;
@@ -301,6 +311,29 @@ export function useRecords(datasetId: number) {
             setIsCancellingExtraction(false);
         }
     }, [datasetId, extractionJobId]);
+
+    // Resume polling if a job was running when the user navigated away
+    useEffect(() => {
+        const savedJobId = localStorage.getItem(extractionStorageKey);
+        if (savedJobId && !isExtractingDataset) {
+            pollExtractionJob(savedJobId).catch(err => {
+                console.error('Failed to resume extraction polling:', err);
+            });
+        }
+    }, [extractionStorageKey, isExtractingDataset, pollExtractionJob]);
+
+    // Delete all automatically extracted terms for the dataset
+    const deleteExtractedTermsForDataset = useCallback(async () => {
+        const res = await deleteDatasetExtractedTermsAPI(datasetId);
+        // Refresh stats after deletion
+        await fetchStats();
+        // Refresh selected record terms if one is selected
+        if (selectedRecord) {
+            const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+            setSelectedRecordTerms(termsResponse.source_terms);
+        }
+        return res;
+    }, [datasetId, selectedRecord, fetchStats]);
 
     // Fetch on mount
     useEffect(() => {
@@ -337,6 +370,7 @@ export function useRecords(datasetId: number) {
         extractTermsForRecord,
         extractTermsForDataset,
         cancelDatasetExtraction,
+        deleteExtractedTermsForDataset,
         // Filter state and setters
         patientIdFilter,
         setPatientIdFilter,
