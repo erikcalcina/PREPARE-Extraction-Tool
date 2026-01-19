@@ -11,7 +11,10 @@ import styles from './styles.module.css';
 // Helper functions
 // ================================================
 
-function getLabelColorClass(label: string): string {
+function getLabelColorClass(label: string, customColor?: string): string {
+    if (customColor) {
+        return 'custom-label';
+    }
     const labelMap: Record<string, string> = {
         'Condition': 'condition',
         'Medication': 'medication',
@@ -60,13 +63,17 @@ interface ClusterCardProps {
     cluster: ClusterData;
     onView: () => void;
     onRename: (newTitle: string) => void;
+    onLabelChange: (newLabel: string, newColor?: string) => void;
     onDelete: () => void;
     onDrop: (e: React.DragEvent) => void;
 }
 
-function ClusterCard({ cluster, onView, onRename, onDelete, onDrop }: ClusterCardProps) {
+function ClusterCard({ cluster, onView, onRename, onLabelChange, onDelete, onDrop }: ClusterCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(cluster.title);
+    const [isEditingLabel, setIsEditingLabel] = useState(false);
+    const [editLabel, setEditLabel] = useState(cluster.label);
+    const [editColor, setEditColor] = useState(cluster.label_color || '');
     const [isDragOver, setIsDragOver] = useState(false);
 
     const handleRename = () => {
@@ -74,6 +81,13 @@ function ClusterCard({ cluster, onView, onRename, onDelete, onDrop }: ClusterCar
             onRename(editTitle.trim());
         }
         setIsEditing(false);
+    };
+
+    const handleLabelSave = () => {
+        if (editLabel.trim() && (editLabel !== cluster.label || editColor !== cluster.label_color)) {
+            onLabelChange(editLabel.trim(), editColor || undefined);
+        }
+        setIsEditingLabel(false);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -91,6 +105,13 @@ function ClusterCard({ cluster, onView, onRename, onDelete, onDrop }: ClusterCar
         onDrop(e);
     };
 
+    // Inline style for custom color
+    const labelStyle = cluster.label_color ? {
+        backgroundColor: `${cluster.label_color}20`,
+        color: cluster.label_color,
+        border: `1px solid ${cluster.label_color}40`
+    } : {};
+
     return (
         <div
             className={`${styles.clusterCard} ${isDragOver ? styles.dragOver : ''}`}
@@ -99,53 +120,107 @@ function ClusterCard({ cluster, onView, onRename, onDelete, onDrop }: ClusterCar
             onDrop={handleDrop}
             data-cluster-id={cluster.id}
         >
+            {/* Left sidebar with ID and Label */}
             <div className={styles.clusterHeader}>
                 <div className={styles.clusterBadge}>{cluster.id}</div>
-                <span className={`${styles.labelBadge} ${styles[getLabelColorClass(cluster.label)]}`}>
-                    {cluster.label}
-                </span>
-            </div>
-
-            <div className={styles.clusterTitle}>
-                {isEditing ? (
-                    <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={handleRename}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRename();
-                            if (e.key === 'Escape') {
-                                setEditTitle(cluster.title);
-                                setIsEditing(false);
-                            }
-                        }}
-                        autoFocus
-                        className={styles.titleInput}
-                    />
+                
+                {isEditingLabel ? (
+                    <div className={styles.labelEditor}>
+                        <input
+                            type="text"
+                            value={editLabel}
+                            onChange={(e) => setEditLabel(e.target.value)}
+                            placeholder="Label"
+                            className={styles.labelInput}
+                            size={Math.max(8, editLabel.length)}
+                        />
+                        <input
+                            type="color"
+                            value={editColor || '#6b7280'}
+                            onChange={(e) => setEditColor(e.target.value)}
+                            className={styles.colorPicker}
+                            title="Choose label color"
+                        />
+                        <button
+                            onClick={handleLabelSave}
+                            className={styles.saveLabelBtn}
+                            title="Save"
+                        >
+                            ✓
+                        </button>
+                        <button
+                            onClick={() => {
+                                setIsEditingLabel(false);
+                                setEditLabel(cluster.label);
+                                setEditColor(cluster.label_color || '');
+                            }}
+                            className={styles.cancelLabelBtn}
+                            title="Cancel"
+                        >
+                            ×
+                        </button>
+                    </div>
                 ) : (
-                    <h3 onClick={() => setIsEditing(true)}>{cluster.title}</h3>
+                    <span
+                        className={`${styles.labelBadge} ${styles[getLabelColorClass(cluster.label, cluster.label_color)]}`}
+                        style={labelStyle}
+                        onClick={() => setIsEditingLabel(true)}
+                        title="Click to edit label and color"
+                    >
+                        {cluster.label}
+                        <span className={styles.editLabelIcon}>✎</span>
+                    </span>
                 )}
             </div>
 
-            <div className={styles.clusterStats}>
-                <span>{cluster.total_terms} terms</span>
-                <span>{cluster.total_occurrences} occurrences</span>
-                <span>{cluster.unique_records} records</span>
-            </div>
+            {/* Main content area */}
+            <div className={styles.clusterContent}>
+                {/* Title and Stats Row */}
+                <div className={styles.titleStatsRow}>
+                    <div className={styles.clusterTitle}>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onBlur={handleRename}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRename();
+                                    if (e.key === 'Escape') {
+                                        setEditTitle(cluster.title);
+                                        setIsEditing(false);
+                                    }
+                                }}
+                                autoFocus
+                                className={styles.titleInput}
+                            />
+                        ) : (
+                            <h3 onClick={() => setIsEditing(true)}>{cluster.title}</h3>
+                        )}
+                    </div>
+                    
+                    <div className={styles.clusterStats}>
+                        <span title="Total terms">{cluster.total_terms} terms</span>
+                        <span title="Total occurrences">{cluster.total_occurrences} occ</span>
+                        <span title="Unique records">{cluster.unique_records} rec</span>
+                    </div>
+                </div>
 
-            <div className={styles.termsList}>
-                {cluster.terms.slice(0, 5).map((term) => (
-                    <DraggableTerm key={term.term_id} term={term} clusterId={cluster.id} />
-                ))}
-                {cluster.terms.length > 5 && (
-                    <div className={styles.moreTerms}>+{cluster.terms.length - 5} more</div>
-                )}
-            </div>
+                {/* Terms List */}
+                <div className={styles.termsList}>
+                    {cluster.terms.slice(0, 8).map((term) => (
+                        <DraggableTerm key={term.term_id} term={term} clusterId={cluster.id} />
+                    ))}
+                    {cluster.terms.length > 8 && (
+                        <div className={styles.moreTerms}>+{cluster.terms.length - 8} more</div>
+                    )}
+                </div>
 
-            <div className={styles.clusterActions}>
-                <button onClick={onView} className={styles.btnView}>View</button>
-                <button onClick={onDelete} className={styles.btnDelete}>Delete</button>
+                {/* Actions */}
+                <div className={styles.clusterActions}>
+                    <button onClick={onView} className={styles.btnView}>View Details</button>
+                    <button onClick={onDelete} className={styles.btnDelete}>Delete</button>
+                </div>
             </div>
         </div>
     );
@@ -464,7 +539,7 @@ export default function DatasetClusters() {
                             disabled={isAutoClustering || !selectedLabel}
                             className={styles.btnAutoClustering}
                         >
-                            {isAutoClustering ? 'Clustering...' : '🔮 Auto-Cluster'}
+                            {isAutoClustering ? 'Clustering...' : 'Auto-Cluster'}
                         </button>
 
                         <button onClick={handleCreateCluster} className={styles.btnCreate}>
@@ -502,31 +577,34 @@ export default function DatasetClusters() {
                 {isLoading ? (
                     <div className={styles.loading}>Loading clusters...</div>
                 ) : (
-                    <>
+                    <div>
                         {filteredClusters.length === 0 && clusters.length === 0 ? (
                             <div className={styles.emptyState}>
                                 <h2>No clusters yet</h2>
                                 <p>Get started by auto-clustering your terms for the selected label</p>
                                 <button onClick={handleAutoClustering} disabled={!selectedLabel} className={styles.btnAutoClusteringLarge}>
-                                    🔮 Auto-Cluster {selectedLabel || 'Terms'}
+                                    Auto-Cluster {selectedLabel || 'Terms'}
                                 </button>
                             </div>
                         ) : (
-                            <div className={styles.clustersGrid}>
+                            <div className={styles.clustersList}> {/* Change className to clustersList */}
                                 {filteredClusters.map(cluster => (
                                     <ClusterCard
                                         key={cluster.id}
                                         cluster={cluster}
                                         onView={() => setSelectedCluster(cluster)}
                                         onRename={(title) => handleRename(cluster.id, title)}
+                                        onLabelChange={(newLabel, newColor) => handleLabelChange(cluster.id, newLabel, newColor)}
                                         onDelete={() => handleDelete(cluster.id)}
                                         onDrop={(e) => handleDrop(e, cluster.id)}
                                     />
                                 ))}
                             </div>
-                        )}
-
-                        {unclusteredTerms.length > 0 && (
+                        )}      
+                    </div>
+                )}
+                    <div>
+                      {unclusteredTerms.length > 0 && (
                             <div className={styles.unclusteredSection}>
                                 <h2>Unclustered Terms ({unclusteredTerms.length})</h2>
                                 <div
@@ -540,9 +618,7 @@ export default function DatasetClusters() {
                                 </div>
                             </div>
                         )}
-                    </>
-                )}
-
+                    </div>
                 {selectedCluster && (
                     <ClusterDetailModal
                         cluster={selectedCluster}

@@ -73,19 +73,19 @@
     padding: 4px 12px;
     border-radius: 4px;
     font-size: 13px;
-    font-weight: 600;
-    color: #ffffff;
+    font-weight: 500;
+    color: #11415e;
 }
 
-.labelBadge.label1 { background: #2281bb; }
-.labelBadge.label2 { background: #2cb27e; }
-.labelBadge.label3 { background: #e5b300; }
-.labelBadge.label4 { background: #d31c1c; }
-.labelBadge.label5 { background: #974dff; }
-.labelBadge.label6 { background: #ec4899; }
-.labelBadge.label7 { background: #029cb7; }
-.labelBadge.label8 { background: #69ae01; }
-.labelBadge.label9 { background: #ec6f16; }
+.labelBadge.label1 { background: #e5e7eb; }
+.labelBadge.label2 { background: #e5e7eb; }
+.labelBadge.label3 { background: #e5e7eb; }
+.labelBadge.label4 { background: #e5e7eb; }
+.labelBadge.label5 { background: #e5e7eb; }
+.labelBadge.label6 { background: #e5e7eb; }
+.labelBadge.label7 { background: #e5e7eb; }
+.labelBadge.label8 { background: #e5e7eb; }
+.labelBadge.label9 { background: #e5e7eb; }
 
 /* Metadata Section */
 .metadata {
