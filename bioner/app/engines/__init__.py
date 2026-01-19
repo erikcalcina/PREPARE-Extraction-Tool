@@ -1,6 +1,7 @@
 import torch
 from typing import Any
 from .gliner_engine import GlinerEngine
+from .gliner2_engine import Gliner2Engine
 from .llm_engine_huggingface import LLMEngineHuggingFace
 
 def build_engine(engine: str, 
@@ -13,6 +14,9 @@ def build_engine(engine: str,
     # Build and return the appropriate engine
     if engine == "gliner":
         return GlinerEngine(model=model, 
+                            device=device)
+    elif engine == "gliner2":
+        return Gliner2Engine(model=model, 
                             device=device)
     elif engine == "huggingface":
         return LLMEngineHuggingFace(model=model, 

@@ -7,8 +7,9 @@ from elasticsearch.helpers import bulk
 
 from app.core.elastic import es_client
 from app.core.model_registry import model_registry
-from app.models_db import SourceTerm, Concept
+from app.models_db import SourceTerm, Concept, Cluster
 
+from model2vec import StaticModel
 
 # ================================================
 # Concept indexer in elasticsearch
@@ -36,8 +37,10 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            self._model = model_registry.get_model("embedding")
+            #self._model = model_registry.get_model("embedding")
+            self._model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
         return self._model
+
 
     @property
     def embedding_dim(self):
@@ -47,8 +50,8 @@ class ConceptIndexer:
             The dimensionality of the embedding vectors.
         """
         if self._embedding_dim is None:
-            self._embedding_dim = 768
-            # self._embedding_dim = self.model.get_sentence_embedding_dimension()
+            test_emb = self._calculate_embedding("test")
+            self._embedding_dim = test_emb.shape[0]
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
@@ -99,43 +102,53 @@ class ConceptIndexer:
         Returns:
             A list containing the embedding vector(s).
         """
-        return self.model.embed(text)
+        # return self.model.embed(text)
+        return self.model.encode(text)
+
 
     def add_bulk_to_index(
-        self, vocab_id: int, concepts: List[Concept], batch_size: int = 10
+        self,
+        vocab_id: int,
+        concepts: List[Concept],
+        embed_batch_size: int = 512,
     ):
-        """Add multiple concepts to the index in batches.
-
-        Args:
-            vocab_id: The vocabulary ID for the target index.
-            concepts: List of Concept objects to add to the index.
-            batch_size: Number of concepts to process per batch. Defaults to 10.
-        """
         index_name = f"concepts_{vocab_id}"
 
-        num_batches = ceil(len(concepts) / batch_size)
-        for batch_idx in range(num_batches):
-            actions = []
+        for i in range(0, len(concepts), embed_batch_size):
+            embed_batch = concepts[i : i + embed_batch_size]
 
-            start = batch_idx * batch_size
-            batch = concepts[start : start + batch_size]
-
-            texts = [c.vocab_term_name for c in batch]
+            texts = [c.vocab_term_name for c in embed_batch]
             embeddings = self._calculate_embedding(texts)
 
-            for c, vect_embedding in zip(batch, embeddings):
-                doc = {
+            actions = []
+            for c, emb in zip(embed_batch, embeddings):
+                actions.append({
                     "_index": index_name,
                     "_id": c.id,
                     "_source": {
                         "vocab_term_id": c.vocab_term_id,
                         "vocab_term_name": c.vocab_term_name,
-                        "embedding": vect_embedding,
+                        "embedding": [float(x) for x in emb],
                     },
-                }
-                actions.append(doc)
+                })
 
-            bulk(es_client, actions)
+            success, errors = bulk(
+                es_client,
+                actions,
+                raise_on_error=False,
+                raise_on_exception=False,
+            )
+
+            if errors:
+                print(f"ES bulk failed for batch starting at {i}")
+                print(f"Failed docs: {len(errors)}")
+
+                for err in errors[:3]:
+                    print("ES error:", err)
+
+                raise RuntimeError(
+                    f"{len(errors)} document(s) failed to index into Elasticsearch"
+                )
 
     def add_concept_to_index(self, vocab_id: int, concept_db: Concept):
         """Add a single concept to the index.
@@ -172,7 +185,7 @@ class ConceptIndexer:
             print(f"Document {concept_id} not found in {index_name}, skipping deletion")
 
     def es_map_term_to_concept(
-        self, term_db: SourceTerm, vocab_ids: List[int]
+        self, cluster_db: Cluster, vocab_ids: List[int]
     ) -> List[int]:
         """Map a source term to relevant concepts using semantic search.
 
@@ -180,15 +193,15 @@ class ConceptIndexer:
         concepts across specified vocabularies for a given source term.
 
         Args:
-            term_db: The source term to map to concepts.
+            cluster_db: The cluster to map to concepts.
             vocab_ids: List of vocabulary IDs to search across.
 
         Returns:
             A list of concept IDs ordered by relevance (most relevant first).
         """
         relevant_indices = [f"concepts_{id}" for id in vocab_ids]
-        term_text = term_db.value
-        term_embedding = self._calculate_embedding(term_text)
+        cluster_text = cluster_db.title
+        cluster_embedding = self._calculate_embedding(cluster_text)
 
         query = {
             "size": 10,
@@ -198,7 +211,7 @@ class ConceptIndexer:
                         # text search: 1/3
                         {
                             "multi_match": {
-                                "query": term_text,
+                                "query": cluster_text,
                                 "fields": ["vocab_term_name"],
                             }
                         },
@@ -206,7 +219,7 @@ class ConceptIndexer:
                         {
                             "knn": {
                                 "field": "embedding",
-                                "query_vector": term_embedding,
+                                "query_vector": cluster_embedding,
                                 "k": 50,  # returns top 50 results
                                 "num_candidates": 100,  # finds 100 most similar
                             }
@@ -214,7 +227,7 @@ class ConceptIndexer:
                         {
                             "knn": {
                                 "field": "embedding",
-                                "query_vector": term_embedding,
+                                "query_vector": cluster_embedding,
                                 "k": 50,
                                 "num_candidates": 100,
                             }

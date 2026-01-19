@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import Enum
 from typing import List, Optional
 
 from sqlalchemy import Column, JSON
@@ -166,6 +167,11 @@ class Cluster(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
+class VocabularyStatus(str, Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    DONE = "DONE"
+    FAILED = "FAILED"
 
 class Vocabulary(SQLModel, table=True):
     """
@@ -179,6 +185,13 @@ class Vocabulary(SQLModel, table=True):
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     version: str
+    status: VocabularyStatus = Field(
+        default=VocabularyStatus.PENDING,
+        index=True
+    )
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    error_message: Optional[str] = None
 
     # Relationship to User (owner)
     user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
@@ -254,3 +267,4 @@ class SourceToConceptMap(SQLModel, table=True):
     )  # 'pending', 'approved', 'rejected'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
