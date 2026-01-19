@@ -6,6 +6,7 @@ from typing import Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
+from collections import defaultdict, Counter
 
 from hdbscan import HDBSCAN
 
@@ -103,7 +104,10 @@ def get_datasets(
             uploaded=dataset.uploaded,
             last_modified=dataset.last_modified,
             labels=dataset.labels,
-            record_count=len(dataset.records),
+            record_count=db.query(
+                func.count(Record.id))
+                .filter(Record.dataset_id == dataset.id)
+                .scalar(),
         )
         for dataset in datasets
     ]
@@ -132,8 +136,8 @@ async def create_dataset(
     db: Session = Depends(get_session),
 ):
     REQUIRED_COLUMNS = ["text", "patient_id"]
-    record_list = await parse_records_file(file, REQUIRED_COLUMNS)
 
+    # create a new Dataset
     label_list = [label.strip() for label in labels.split(",")]
     dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
     db.add(dataset)
@@ -142,12 +146,26 @@ async def create_dataset(
     db.refresh(dataset)
 
     dataset_id = dataset.id
-    for r in record_list:
-        r.dataset_id = dataset_id
 
-    db.add_all(record_list)
-    db.commit()
-    db.refresh(dataset)
+    BATCH_SIZE = 2000
+    batch = []
+    total = 0
+    async for record in parse_records_file(file, REQUIRED_COLUMNS):
+        record.dataset_id = dataset_id
+        batch.append(record)
+
+        if len(batch) >= BATCH_SIZE:
+            db.bulk_save_objects(batch, return_defaults=True)
+            db.commit()
+            total += len(batch)
+            batch.clear()
+            print("Rows saved:", total)
+    
+    if batch:
+        db.bulk_save_objects(batch, return_defaults=True)
+        db.commit()
+        total += len(batch)
+        print("All rows saved.")
 
     dataset_response = DatasetResponse(
         id=dataset.id,
@@ -155,7 +173,7 @@ async def create_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
-        record_count=len(dataset.records),
+        record_count=total,
     )
     return DatasetOutput(dataset=dataset_response)
 
@@ -185,7 +203,10 @@ def get_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
-        record_count=len(dataset.records),
+        record_count=db.query(
+            func.count(Record.id))
+            .filter(Record.dataset_id == dataset.id)
+            .scalar()
     )
     return DatasetOutput(dataset=dataset_response)
 
@@ -986,11 +1007,15 @@ def create_clusters_for_dataset(
     embedding_model = model_registry.get_model("embedding")
     embeddings = embedding_model.embed(texts)
 
-    clusterer = HDBSCAN(
-        min_cluster_size=2,
-        metric="euclidean",
-        cluster_selection_method="eom",
-    )
+    # Default clustering parameters (can be tuned)
+    HDBSCAN_PARAMS = {
+        "min_cluster_size": 2,
+        "min_samples": None,
+        "metric": "euclidean",
+        "cluster_selection_method": "eom",
+    }
+
+    clusterer = HDBSCAN(**HDBSCAN_PARAMS)
 
     labels_arr = clusterer.fit_predict(embeddings)
 
@@ -1009,36 +1034,46 @@ def create_clusters_for_dataset(
     # Create new clusters
     cluster_map = {}  # cluster_id (from HDBSCAN) -> Cluster DB object
 
+    cluster_terms = defaultdict(list)
+    noise_terms = []
+
     for st, cid in zip(source_terms, labels_arr):
-
         if cid == -1:
-            # HDBSCAN noise → create a one-term cluster
-            new_cluster = Cluster(
-                dataset_id=dataset_id, label=label, title=st.value  # title = first term
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
+            noise_terms.append(st)
+        else:
+            cluster_terms[cid].append(st)
 
+    for cid, terms in cluster_terms.items():
+
+        counter = Counter(st.value for st in terms)
+
+        title = counter.most_common(1)[0][0]
+
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=label,
+            title=title,
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
+
+        for st in terms:
             st.cluster_id = new_cluster.id
             db.add(st)
-            continue
 
-        # If the cluster is seen for the first time
-        if cid not in cluster_map:
-            new_cluster = Cluster(
-                dataset_id=dataset_id,
-                label=label,
-                title=st.value,  # first term becomes cluster title
-            )
-            db.add(new_cluster)
-            db.commit()
-            db.refresh(new_cluster)
+    
+    for st in noise_terms:
+        new_cluster = Cluster(
+            dataset_id=dataset_id,
+            label=label,
+            title=st.value,
+        )
+        db.add(new_cluster)
+        db.commit()
+        db.refresh(new_cluster)
 
-            cluster_map[cid] = new_cluster
-
-        # Assign term to cluster
-        st.cluster_id = cluster_map[cid].id
+        st.cluster_id = new_cluster.id
         db.add(st)
 
     db.commit()

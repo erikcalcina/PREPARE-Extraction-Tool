@@ -1,11 +1,11 @@
 import re
 from math import ceil
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator
-from app.models_db import Record, Concept, SourceTerm, Cluster
+from app.models_db import Record, Concept, SourceTerm, Cluster, VocabularyStatus
 
 
 # ================================================
@@ -267,7 +267,11 @@ class VocabularyResponse(BaseModel):
     name: str
     uploaded: datetime
     version: str
-    concept_count: int
+    concept_count: Optional[int] = None
+    status: VocabularyStatus
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    error_message: Optional[str] = None
 
 
 class VocabularyOutput(BaseModel):

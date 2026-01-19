@@ -18,7 +18,7 @@ class Entity(BaseModel):
 
 class NERRequest(BaseModel):
     medical_text: str
-    labels: list[str] | None = None
+    labels: list[str] | dict[str, str] | None = None
 
 # =====================================
 # API interface
