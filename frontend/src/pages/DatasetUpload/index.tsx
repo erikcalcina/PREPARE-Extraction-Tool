@@ -3,48 +3,28 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from 'components/Layout';
 import FileDropzone from 'components/FileDropzone';
 import Button from 'components/Button';
+import ProgressBar from 'components/ProgressBar';
 import { useDatasets } from 'hooks/useDatasets';
+import { usePageTitle } from 'hooks/usePageTitle';
 import styles from './styles.module.css';
 
-// ================================================
-// Helper functions
-// ================================================
-
-function parseCSV(text: string): string[] {
-    const lines = text.split('\n').filter(line => line.trim());
-    // Skip header row if present
-    const dataLines = lines.length > 1 && lines[0].toLowerCase().includes('text')
-        ? lines.slice(1)
-        : lines;
-    return dataLines.map(line => line.trim()).filter(Boolean);
-}
-
-function parseJSON(text: string): string[] {
-    const data = JSON.parse(text);
-    if (Array.isArray(data)) {
-        return data.map(item => {
-            if (typeof item === 'string') return item;
-            if (typeof item === 'object' && item.text) return item.text;
-            return JSON.stringify(item);
-        });
-    }
-    if (data.records && Array.isArray(data.records)) {
-        return data.records.map((r: { text: string }) => r.text);
-    }
-    throw new Error('Invalid JSON format');
-}
+// Note: File parsing is handled by the backend
 
 // ================================================
 // Component
 // ================================================
 
 const DatasetUpload = () => {
+    usePageTitle('Upload Dataset');
+
     const [file, setFile] = useState<File | null>(null);
     const [datasetName, setDatasetName] = useState('');
+    const [labels, setLabels] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
-    const { addDataset } = useDatasets();
+    const { uploadDataset } = useDatasets();
     const navigate = useNavigate();
 
     const handleFileSelect = useCallback((selectedFile: File) => {
@@ -70,30 +50,28 @@ const DatasetUpload = () => {
             return;
         }
 
+        if (!labels.trim()) {
+            setError('Please enter at least one label');
+            return;
+        }
+
         setIsUploading(true);
+        setUploadProgress(0);
         setError(null);
 
         try {
-            // Read file content
-            const text = await file.text();
-            let records: string[];
-
-            // Parse based on file type
-            if (file.name.endsWith('.json')) {
-                records = parseJSON(text);
-            } else {
-                records = parseCSV(text);
-            }
-
-            if (records.length === 0) {
-                throw new Error('No records found in file');
-            }
-
-            // Create dataset
-            await addDataset({
-                name: datasetName.trim(),
-                records: records.map(text => ({ text })),
-            });
+            // Send file directly to backend with progress tracking
+            await uploadDataset(
+                {
+                    name: datasetName.trim(),
+                    labels: labels,
+                    file: file,
+                },
+                (progress) => {
+                    console.log('Upload progress:', progress.toFixed(2) + '%');
+                    setUploadProgress(progress);
+                }
+            );
 
             // Navigate back to datasets list
             navigate('/datasets');
@@ -101,6 +79,7 @@ const DatasetUpload = () => {
             setError(err instanceof Error ? err.message : 'Failed to upload dataset');
         } finally {
             setIsUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -135,14 +114,37 @@ const DatasetUpload = () => {
                                 />
                             </div>
 
+                            <div className={styles.field}>
+                                <label htmlFor="labels" className={styles.label}>
+                                    Labels (comma-separated)
+                                </label>
+                                <input
+                                    id="labels"
+                                    type="text"
+                                    value={labels}
+                                    onChange={(e) => setLabels(e.target.value)}
+                                    className={styles.input}
+                                    placeholder="e.g., patient_id,visit_date,diagnosis"
+                                    disabled={isUploading}
+                                />
+                            </div>
+
                             <div className={styles.dropzoneWrapper}>
                                 <p className={styles.dropzoneLabel}>Upload dataset file</p>
                                 <FileDropzone
                                     onFileSelect={handleFileSelect}
-                                    accept=".csv,.json"
+                                    accept=".csv"
+                                    maxSize={2 * 1024 * 1024 * 1024}
                                     disabled={isUploading}
                                 />
                             </div>
+
+                            {isUploading && (
+                                <div className={styles.progressWrapper}>
+                                    <p className={styles.progressLabel}>Uploading...</p>
+                                    <ProgressBar progress={uploadProgress} />
+                                </div>
+                            )}
 
                             {error && (
                                 <div className={styles.error}>
@@ -153,8 +155,9 @@ const DatasetUpload = () => {
                             <div className={styles.submitWrapper}>
                                 <Button
                                     primary
+                                    type="submit"
                                     label={isUploading ? 'Uploading...' : 'Upload Dataset'}
-                                    onClick={() => {}}
+                                    disabled={isUploading}
                                 />
                             </div>
                         </form>
@@ -164,19 +167,20 @@ const DatasetUpload = () => {
                         <h2 className={styles.instructionsTitle}>Instructions</h2>
                         <div className={styles.instructionsContent}>
                             <p>
-                                Upload your dataset file in CSV or JSON format. The file should contain
-                                the text records you want to process.
+                                Upload your dataset file in CSV format. The file should contain
+                                the text records you want to process along with patient identifiers.
                             </p>
                             <p>
-                                <strong>CSV format:</strong> The file should have a header row with a
-                                "text" column, followed by your data rows.
+                                <strong>Required columns:</strong> patient_id, text
                             </p>
                             <p>
-                                <strong>JSON format:</strong> The file should contain an array of
-                                objects with a "text" field, or an array of strings.
+                                <strong>Labels field:</strong> Enter comma-separated column names that
+                                represent the data categories in your dataset (e.g., diagnosis, symptom,
+                                event, medication, etc.). These labels help organize and categorize
+                                your data.
                             </p>
                             <p>
-                                Maximum file size: 50MB. Supported formats: .csv, .json
+                                Maximum file size: 2GB. Supported format: .csv
                             </p>
                         </div>
                     </aside>

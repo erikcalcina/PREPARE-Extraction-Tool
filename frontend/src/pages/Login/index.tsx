@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'hooks/useAuth';
+import { usePageTitle } from 'hooks/usePageTitle';
 import styles from './styles.module.css';
 
 // ================================================
@@ -8,6 +9,7 @@ import styles from './styles.module.css';
 // ================================================
 
 const Login = () => {
+    usePageTitle('Login');
     const [isRegister, setIsRegister] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');

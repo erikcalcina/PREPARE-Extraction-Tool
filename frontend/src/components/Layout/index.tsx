@@ -1,4 +1,4 @@
-import NavBar from 'components/NavBar';
+import Header from 'components/Header';
 import styles from './styles.module.css';
 
 // ================================================
@@ -17,7 +17,7 @@ export interface LayoutProps {
 const Layout = ({ children, sidebar }: LayoutProps) => {
     return (
         <div className={styles.layout}>
-            <NavBar />
+            <Header />
             <div className={styles.container}>
                 {sidebar && (
                     <aside className={styles.sidebar}>

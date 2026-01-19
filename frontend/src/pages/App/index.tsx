@@ -5,7 +5,10 @@ import ProtectedRoute from 'components/ProtectedRoute';
 
 import Login from 'pages/Login';
 import Datasets from 'pages/Datasets';
+import DatasetOverview from 'pages/DatasetOverview';
 import DatasetRecords from 'pages/DatasetRecords';
+import DatasetClusters from 'pages/DatasetClusters';
+import DatasetMapping from 'pages/DatasetMapping';
 import DatasetUpload from 'pages/DatasetUpload';
 import Vocabularies from 'pages/Vocabularies';
 import VocabularyUpload from 'pages/VocabularyUpload';
@@ -41,7 +44,31 @@ function App() {
                         path="/datasets/:datasetId"
                         element={
                             <ProtectedRoute>
+                                <DatasetOverview />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/:datasetId/records"
+                        element={
+                            <ProtectedRoute>
                                 <DatasetRecords />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/:datasetId/clusters"
+                        element={
+                            <ProtectedRoute>
+                                <DatasetClusters />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/datasets/:datasetId/mapping"
+                        element={
+                            <ProtectedRoute>
+                                <DatasetMapping />
                             </ProtectedRoute>
                         }
                     />

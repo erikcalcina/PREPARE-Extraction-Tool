@@ -31,8 +31,11 @@ export function useDatasets() {
         }
     }, []);
 
-    const addDataset = useCallback(async (data: DatasetCreate) => {
-        const response = await createDataset(data);
+    const uploadDataset = useCallback(async (
+        data: DatasetCreate,
+        onProgress?: (progress: number) => void
+    ) => {
+        const response = await createDataset(data, onProgress);
         // Refresh the list
         await fetchDatasets();
         return response.dataset;
@@ -59,7 +62,7 @@ export function useDatasets() {
         isLoading,
         error,
         fetchDatasets,
-        addDataset,
+        uploadDataset,
         removeDataset,
         downloadDataset,
     };

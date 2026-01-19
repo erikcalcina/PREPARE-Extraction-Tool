@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from "vite";
 import tsconfigPaths from 'vite-tsconfig-paths';
 import react from "@vitejs/plugin-react";
+import svgr from "vite-plugin-svgr";
 import { fileURLToPath } from "node:url";
 
 // https://vite.dev/config/
@@ -16,11 +17,10 @@ export default defineConfig(({ mode }) => {
 
   // Extract port from FRONTEND_HOST (e.g., "http://localhost:5173" -> 5173)
   const frontendPort = env.FRONTEND_HOST
-    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5173
-    : 5173;
+    ? parseInt(new URL(env.FRONTEND_HOST).port) || 5173: 5173;
 
   return {
-    plugins: [react(), tsconfigPaths()],
+    plugins: [react(), svgr(), tsconfigPaths()],
     server: {
       port: frontendPort,
       proxy: {

@@ -1,14 +1,15 @@
 from math import ceil
 
-from typing import List, Union
+from typing import List, Union, Optional, Dict, Any
 
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
 
 from app.core.elastic import es_client
 from app.core.model_registry import model_registry
-from app.models_db import SourceTerm, Concept
+from app.models_db import SourceTerm, Concept, Cluster
 
+from model2vec import StaticModel
 
 # ================================================
 # Concept indexer in elasticsearch
@@ -36,8 +37,10 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            self._model = model_registry.get_model("embedding")
+            #self._model = model_registry.get_model("embedding")
+            self._model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
         return self._model
+
 
     @property
     def embedding_dim(self):
@@ -47,7 +50,8 @@ class ConceptIndexer:
             The dimensionality of the embedding vectors.
         """
         if self._embedding_dim is None:
-            self._embedding_dim = self.model.get_sentence_embedding_dimension()
+            test_emb = self._calculate_embedding("test")
+            self._embedding_dim = test_emb.shape[0]
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
@@ -98,43 +102,53 @@ class ConceptIndexer:
         Returns:
             A list containing the embedding vector(s).
         """
-        return self.model.embed(text)
+        # return self.model.embed(text)
+        return self.model.encode(text)
+
 
     def add_bulk_to_index(
-        self, vocab_id: int, concepts: List[Concept], batch_size: int = 10
+        self,
+        vocab_id: int,
+        concepts: List[Concept],
+        embed_batch_size: int = 512,
     ):
-        """Add multiple concepts to the index in batches.
-
-        Args:
-            vocab_id: The vocabulary ID for the target index.
-            concepts: List of Concept objects to add to the index.
-            batch_size: Number of concepts to process per batch. Defaults to 10.
-        """
         index_name = f"concepts_{vocab_id}"
 
-        num_batches = ceil(len(concepts) / batch_size)
-        for batch_idx in range(num_batches):
-            actions = []
+        for i in range(0, len(concepts), embed_batch_size):
+            embed_batch = concepts[i : i + embed_batch_size]
 
-            start = batch_idx * batch_size
-            batch = concepts[start : start + batch_size]
-
-            texts = [c.vocab_term_name for c in batch]
+            texts = [c.vocab_term_name for c in embed_batch]
             embeddings = self._calculate_embedding(texts)
 
-            for c, vect_embedding in zip(batch, embeddings):
-                doc = {
+            actions = []
+            for c, emb in zip(embed_batch, embeddings):
+                actions.append({
                     "_index": index_name,
                     "_id": c.id,
                     "_source": {
                         "vocab_term_id": c.vocab_term_id,
                         "vocab_term_name": c.vocab_term_name,
-                        "embedding": vect_embedding,
+                        "embedding": [float(x) for x in emb],
                     },
-                }
-                actions.append(doc)
+                })
 
-            bulk(es_client, actions)
+            success, errors = bulk(
+                es_client,
+                actions,
+                raise_on_error=False,
+                raise_on_exception=False,
+            )
+
+            if errors:
+                print(f"ES bulk failed for batch starting at {i}")
+                print(f"Failed docs: {len(errors)}")
+
+                for err in errors[:3]:
+                    print("ES error:", err)
+
+                raise RuntimeError(
+                    f"{len(errors)} document(s) failed to index into Elasticsearch"
+                )
 
     def add_concept_to_index(self, vocab_id: int, concept_db: Concept):
         """Add a single concept to the index.
@@ -171,7 +185,7 @@ class ConceptIndexer:
             print(f"Document {concept_id} not found in {index_name}, skipping deletion")
 
     def es_map_term_to_concept(
-        self, term_db: SourceTerm, vocab_ids: List[int]
+        self, cluster_db: Cluster, vocab_ids: List[int]
     ) -> List[int]:
         """Map a source term to relevant concepts using semantic search.
 
@@ -179,15 +193,15 @@ class ConceptIndexer:
         concepts across specified vocabularies for a given source term.
 
         Args:
-            term_db: The source term to map to concepts.
+            cluster_db: The cluster to map to concepts.
             vocab_ids: List of vocabulary IDs to search across.
 
         Returns:
             A list of concept IDs ordered by relevance (most relevant first).
         """
         relevant_indices = [f"concepts_{id}" for id in vocab_ids]
-        term_text = term_db.value
-        term_embedding = self._calculate_embedding(term_text)
+        cluster_text = cluster_db.title
+        cluster_embedding = self._calculate_embedding(cluster_text)
 
         query = {
             "size": 10,
@@ -197,32 +211,32 @@ class ConceptIndexer:
                         # text search: 1/3
                         {
                             "multi_match": {
-                                "query": term_text,
-                                "fields": ["vocab_term_name"]
+                                "query": cluster_text,
+                                "fields": ["vocab_term_name"],
                             }
                         },
                         # vector search: 2/3
                         {
                             "knn": {
                                 "field": "embedding",
-                                "query_vector": term_embedding,
-                                "k": 50,    # returns top 50 results
-                                "num_candidates": 100   # finds 100 most similar
+                                "query_vector": cluster_embedding,
+                                "k": 50,  # returns top 50 results
+                                "num_candidates": 100,  # finds 100 most similar
                             }
                         },
                         {
                             "knn": {
                                 "field": "embedding",
-                                "query_vector": term_embedding,
+                                "query_vector": cluster_embedding,
                                 "k": 50,
-                                "num_candidates": 100
+                                "num_candidates": 100,
                             }
-                        }
+                        },
                     ],
-                    "rank_constant": 60,    # 1 / (rank_constant + rank)
-                    "window_size": 100  # how many to consider from each category
+                    "rank_constant": 60,  # 1 / (rank_constant + rank)
+                    "window_size": 100,  # how many to consider from each category
                 }
-            }
+            },
         }
         response = es_client.search(index=relevant_indices, body=query)
         concept_ids = [int(hit["_id"]) for hit in response["hits"]["hits"]]
@@ -230,6 +244,105 @@ class ConceptIndexer:
         # TODO: implement reranking
 
         return concept_ids
+
+    def search_concepts(
+        self,
+        query_text: str,
+        vocab_ids: List[int],
+        limit: int = 10,
+        domain_id: Optional[str] = None,
+        concept_class_id: Optional[str] = None,
+        standard_concept: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search for concepts across multiple vocabularies with filters.
+
+        Performs hybrid search (text + semantic) and returns results with scores.
+        Results are from Elasticsearch only - database filtering happens in the route.
+
+        Args:
+            query_text: The search query text.
+            vocab_ids: List of vocabulary IDs to search across.
+            limit: Maximum number of results to return.
+            domain_id: Optional domain filter (applied in DB layer).
+            concept_class_id: Optional concept class filter (applied in DB layer).
+            standard_concept: Optional standard concept filter (applied in DB layer).
+
+        Returns:
+            A list of dictionaries with 'concept_id', 'score', and 'vocab_id'.
+        """
+        if not vocab_ids:
+            return []
+
+        relevant_indices = [f"concepts_{id}" for id in vocab_ids]
+
+        # Check if any indices exist
+        existing_indices = []
+        for idx in relevant_indices:
+            if es_client.indices.exists(index=idx):
+                existing_indices.append(idx)
+
+        if not existing_indices:
+            return []
+
+        query_embedding = self._calculate_embedding(query_text)
+
+        # Use RRF (Reciprocal Rank Fusion) for hybrid search
+        query = {
+            "size": limit * 2,  # Get more to account for DB filtering
+            "query": {
+                "rrf": {
+                    "queries": [
+                        # Text search
+                        {
+                            "multi_match": {
+                                "query": query_text,
+                                "fields": ["vocab_term_name^2", "vocab_term_id"],
+                                "type": "best_fields",
+                            }
+                        },
+                        # Vector search (weighted more heavily)
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": query_embedding,
+                                "k": 50,
+                                "num_candidates": 100,
+                            }
+                        },
+                        {
+                            "knn": {
+                                "field": "embedding",
+                                "query_vector": query_embedding,
+                                "k": 50,
+                                "num_candidates": 100,
+                            }
+                        },
+                    ],
+                    "rank_constant": 60,
+                    "window_size": 100,
+                }
+            },
+        }
+
+        try:
+            response = es_client.search(index=existing_indices, body=query)
+
+            results = []
+            for hit in response["hits"]["hits"]:
+                # Extract vocab_id from index name (e.g., "concepts_1" -> 1)
+                vocab_id = int(hit["_index"].split("_")[1])
+                results.append(
+                    {
+                        "concept_id": int(hit["_id"]),
+                        "score": float(hit["_score"]),
+                        "vocab_id": vocab_id,
+                    }
+                )
+
+            return results
+        except Exception as e:
+            print(f"Error searching concepts: {e}")
+            return []
 
 
 # ================================================

@@ -3,6 +3,7 @@ import Layout from 'components/Layout';
 import Table from 'components/Table';
 import Button from 'components/Button';
 import { useVocabularies } from 'hooks/useVocabularies';
+import { usePageTitle } from 'hooks/usePageTitle';
 import type { Vocabulary } from 'types';
 import styles from './styles.module.css';
 
@@ -11,6 +12,7 @@ import styles from './styles.module.css';
 // ================================================
 
 const Vocabularies = () => {
+    usePageTitle('Vocabularies');
     const { vocabularies, isLoading, error, removeVocabulary, downloadVocabulary } = useVocabularies();
 
     const formatDate = (dateString: string): string => {
