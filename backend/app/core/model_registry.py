@@ -1,5 +1,5 @@
 from app.core.models.embedding_base import BaseModel
-from app.core.models.embedding_sentence import SentenceEmbeddingModel
+from app.core.models.embedding_sentence import Model2VecEmbeddingModel
 
 from app.core.settings import settings
 
@@ -63,7 +63,7 @@ def register_models():
     # Register the embedding model
     if settings.EMBEDDING_MODEL is not None:
         model_registry.add_model(
-            "embedding", SentenceEmbeddingModel(settings.EMBEDDING_MODEL)
+            "embedding", Model2VecEmbeddingModel(settings.EMBEDDING_MODEL)
         )
 
     # TODO: Register the other models

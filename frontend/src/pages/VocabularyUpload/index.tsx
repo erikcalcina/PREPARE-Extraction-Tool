@@ -3,72 +3,25 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from 'components/Layout';
 import FileDropzone from 'components/FileDropzone';
 import Button from 'components/Button';
+import ProgressBar from 'components/ProgressBar';
 import { useVocabularies } from 'hooks/useVocabularies';
-import type { ConceptCreate } from 'types';
+import { usePageTitle } from 'hooks/usePageTitle';
 import styles from './styles.module.css';
 
-// ================================================
-// Helper functions
-// ================================================
-
-function parseCSV(text: string): ConceptCreate[] {
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-        throw new Error('CSV file must have a header and at least one data row');
-    }
-
-    // Parse header to find column indices
-    const header = lines[0].toLowerCase();
-    const hasIdColumn = header.includes('vocab_term_id') || header.includes('id');
-    const hasNameColumn = header.includes('vocab_term_name') || header.includes('name');
-
-    if (!hasIdColumn || !hasNameColumn) {
-        throw new Error('CSV must have vocab_term_id and vocab_term_name columns');
-    }
-
-    // Parse data rows
-    const dataLines = lines.slice(1);
-    return dataLines.map((line, index) => {
-        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
-        if (parts.length < 2) {
-            throw new Error(`Invalid row at line ${index + 2}`);
-        }
-        return {
-            vocab_term_id: parts[0],
-            vocab_term_name: parts[1],
-        };
-    }).filter(c => c.vocab_term_id && c.vocab_term_name);
-}
-
-function parseJSON(text: string): ConceptCreate[] {
-    const data = JSON.parse(text);
-
-    if (Array.isArray(data)) {
-        return data.map(item => ({
-            vocab_term_id: item.vocab_term_id || item.id || String(item),
-            vocab_term_name: item.vocab_term_name || item.name || String(item),
-        }));
-    }
-
-    if (data.concepts && Array.isArray(data.concepts)) {
-        return data.concepts.map((c: { vocab_term_id?: string; id?: string; vocab_term_name?: string; name?: string }) => ({
-            vocab_term_id: c.vocab_term_id || c.id || '',
-            vocab_term_name: c.vocab_term_name || c.name || '',
-        }));
-    }
-
-    throw new Error('Invalid JSON format');
-}
+// Note: File parsing is handled by the backend
 
 // ================================================
 // Component
 // ================================================
 
 const VocabularyUpload = () => {
+    usePageTitle('Upload Vocabulary');
+
     const [file, setFile] = useState<File | null>(null);
     const [vocabularyName, setVocabularyName] = useState('');
     const [version, setVersion] = useState('1.0');
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
     const { addVocabulary } = useVocabularies();
@@ -103,30 +56,22 @@ const VocabularyUpload = () => {
         }
 
         setIsUploading(true);
+        setUploadProgress(0);
         setError(null);
 
         try {
-            // Read file content
-            const text = await file.text();
-            let concepts: ConceptCreate[];
-
-            // Parse based on file type
-            if (file.name.endsWith('.json')) {
-                concepts = parseJSON(text);
-            } else {
-                concepts = parseCSV(text);
-            }
-
-            if (concepts.length === 0) {
-                throw new Error('No concepts found in file');
-            }
-
-            // Create vocabulary
-            await addVocabulary({
-                name: vocabularyName.trim(),
-                version: version.trim(),
-                concepts,
-            });
+            // Send file directly to backend with progress tracking
+            await addVocabulary(
+                {
+                    name: vocabularyName.trim(),
+                    version: version.trim(),
+                    file: file,
+                },
+                (progress) => {
+                    console.log('Upload progress:', progress.toFixed(2) + '%');
+                    setUploadProgress(progress);
+                }
+            );
 
             // Navigate back to vocabularies list
             navigate('/vocabularies');
@@ -134,6 +79,7 @@ const VocabularyUpload = () => {
             setError(err instanceof Error ? err.message : 'Failed to upload vocabulary');
         } finally {
             setIsUploading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -189,10 +135,18 @@ const VocabularyUpload = () => {
                                 <p className={styles.dropzoneLabel}>Upload vocabulary file</p>
                                 <FileDropzone
                                     onFileSelect={handleFileSelect}
-                                    accept=".csv,.json"
+                                    accept=".csv"
+                                    maxSize={2 * 1024 * 1024 * 1024}
                                     disabled={isUploading}
                                 />
                             </div>
+
+                            {isUploading && (
+                                <div className={styles.progressWrapper}>
+                                    <p className={styles.progressLabel}>Uploading...</p>
+                                    <ProgressBar progress={uploadProgress} />
+                                </div>
+                            )}
 
                             {error && (
                                 <div className={styles.error}>
@@ -203,8 +157,9 @@ const VocabularyUpload = () => {
                             <div className={styles.submitWrapper}>
                                 <Button
                                     primary
+                                    type="submit"
                                     label={isUploading ? 'Uploading...' : 'Upload Vocabulary'}
-                                    onClick={() => {}}
+                                    disabled={isUploading}
                                 />
                             </div>
                         </form>
@@ -214,20 +169,21 @@ const VocabularyUpload = () => {
                         <h2 className={styles.instructionsTitle}>Instructions</h2>
                         <div className={styles.instructionsContent}>
                             <p>
-                                Upload your vocabulary file in CSV or JSON format. The file should contain
-                                the concepts with their IDs and names.
+                                Upload your vocabulary file as a tab-delimited CSV file. The file should contain
+                                the concepts with all required OMOP CDM vocabulary fields.
                             </p>
                             <p>
-                                <strong>CSV format:</strong> The file should have a header row with
-                                "vocab_term_id" and "vocab_term_name" columns.
+                                <strong>Required columns:</strong> concept_id, concept_name, domain_id,
+                                concept_class_id, standard_concept, concept_code, valid_start_date,
+                                valid_end_date, invalid_reason
                             </p>
                             <p>
-                                <strong>JSON format:</strong> The file should contain an array of
-                                objects with "vocab_term_id" and "vocab_term_name" fields.
+                                <strong>Date format:</strong> Dates must be in YYYYMMDD format
+                                (e.g., 20240101 for January 1, 2024).
                             </p>
                             <p>
                                 The vocabulary will be indexed for semantic search after upload.
-                                Maximum file size: 50MB.
+                                Maximum file size: 2GB. Supported format: .csv (tab-delimited)
                             </p>
                         </div>
                     </aside>
