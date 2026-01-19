@@ -31,6 +31,10 @@ export interface AnnotationSidebarProps {
     onCreateAnnotation: (term: SourceTermCreate) => void;
     onDeleteAnnotation: (termId: number) => void;
     onClose: () => void;
+    onPreviousRecord?: () => void;
+    onNextRecord?: () => void;
+    onMarkReviewed?: () => void;
+    isReviewed?: boolean;
 }
 
 // ================================================
@@ -49,6 +53,10 @@ const AnnotationSidebar = ({
     onCreateAnnotation,
     onDeleteAnnotation,
     onClose,
+    onPreviousRecord,
+    onNextRecord,
+    onMarkReviewed,
+    isReviewed = false,
 }: AnnotationSidebarProps) => {
     // Keyboard shortcuts for label selection (1-9)
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -69,7 +77,26 @@ const AnnotationSidebar = ({
             onDeleteAnnotation(selectedAnnotation);
             onSelectAnnotation(null);
         }
-    }, [labels, onSelectLabel, selectedAnnotation, onDeleteAnnotation, onSelectAnnotation]);
+
+        // Arrow Left - Previous record
+        if (e.key === 'ArrowLeft' && onPreviousRecord) {
+            e.preventDefault();
+            onPreviousRecord();
+        }
+
+        // Arrow Right - Next record
+        if (e.key === 'ArrowRight' && onNextRecord) {
+            e.preventDefault();
+            onNextRecord();
+        }
+
+        // Enter - Toggle reviewed status
+        if (e.key === 'Enter' && onMarkReviewed) {
+            e.preventDefault();
+            onMarkReviewed();
+        }
+        
+    }, [labels, onSelectLabel, selectedAnnotation, onDeleteAnnotation, onSelectAnnotation, onPreviousRecord, onNextRecord, onMarkReviewed]);
 
     useEffect(() => {
         if (isOpen) {
@@ -112,34 +139,74 @@ const AnnotationSidebar = ({
                 </div>
 
                 {/* Right side - Controls */}
+                
                 <div className={styles.annotationControlsPanel}>
-                    {/* Instructions */}
-                    <div className={styles.annotationInstructions}>
-                        <p>Select a label, then highlight text to create annotations.</p>
-                        <p>Click an annotation to select it, then press <kbd>Delete</kbd> to remove.</p>
+                    {/* Navigation and review buttons */}
+                    <div className={styles.recordNavigation}>
+                        <div className={styles.navigationButtons}>
+                            <button
+                                className={styles.navButton}
+                                onClick={onPreviousRecord}
+                                disabled={!onPreviousRecord}
+                                title="Previous record"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            Previous
+                        </button>
+                        <button
+                            className={styles.navButton}
+                            onClick={onNextRecord}
+                            disabled={!onNextRecord}
+                            title="Next record"
+                        >
+                            Next
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
+                    <button
+                        className={`${styles.reviewButton} ${isReviewed ? styles.reviewed : ''}`}
+                        onClick={onMarkReviewed}
+                        disabled={!onMarkReviewed}
+                        title={isReviewed ? "Marked as reviewed" : "Mark as reviewed"}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.5 4L6 11.5L2.5 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        {isReviewed ? 'Reviewed' : 'Mark Reviewed'}
+                    </button>
+                </div> 
 
-                    {/* Label selector */}
-                    <div className={styles.labelSection}>
-                        <h3 className={styles.sectionTitle}>Labels</h3>
-                        <div className={styles.labelButtons}>
-                            {labels.map((label, index) => (
-                                <button
-                                    key={label}
-                                    className={`${styles.labelButton} ${styles[`label${index + 1}`]} ${selectedLabel === label ? styles.active : ''}`}
-                                    onClick={() => onSelectLabel(label)}
-                                >
-                                    <span className={styles.labelShortcut}>{index + 1}</span>
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                        {labels.length === 0 && (
-                            <p className={styles.noLabels}>
-                                No labels defined for this dataset.
-                            </p>
-                        )}
+                {/* Instructions */}
+                <div className={styles.annotationInstructions}>
+                    <p>Select a label, then highlight text to create annotations.</p>
+                    <p>Click an annotation to select it, then press <kbd>Delete</kbd> to remove.</p>
+                </div>
+
+                {/* Label selector */}
+                <div className={styles.labelSection}>
+                    <h3 className={styles.sectionTitle}>Labels</h3>
+                    <div className={styles.labelButtons}>
+                        {labels.map((label, index) => (
+                            <button
+                                key={label}
+                                className={`${styles.labelButton} ${styles[`label${index + 1}`]} ${selectedLabel === label ? styles.active : ''}`}
+                                onClick={() => onSelectLabel(label)}
+                            >
+                                <span className={styles.labelShortcut}>{index + 1}</span>
+                                {label}
+                            </button>
+                        ))}
                     </div>
+                    {labels.length === 0 && (
+                        <p className={styles.noLabels}>
+                            No labels defined for this dataset.
+                        </p>
+                    )}
+                </div>
 
                     {/* Current annotations */}
                     <div className={styles.annotationSection}>

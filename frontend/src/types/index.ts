@@ -244,14 +244,14 @@ export interface ClusteredTerm {
 }
 
 export interface ClusterData {
-    id: number;
-    dataset_id: number;
-    label: string;
-    title: string;
-    total_terms: number;
-    total_occurrences: number;
-    unique_records: number;
-    terms: ClusteredTerm[];
+  id: number;
+  title: string;
+  label: string;
+  terms: ClusteredTerm[];
+  total_terms: number;
+  total_occurrences: number;
+  unique_records: number;
+  label_color?: string;
 }
 
 export interface ClustersOutput {

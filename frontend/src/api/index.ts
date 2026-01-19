@@ -322,6 +322,26 @@ export async function markRecordReviewed(
 }
 
 // ================================================
+// Clustering API
+//
+
+export async function updateClusterLabel(
+    clusterId: number, 
+    label: string, 
+    color?: string
+): Promise<void> {
+    const response = await fetch(`/api/clusters/${clusterId}/label`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, color })
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to update cluster label');
+    }
+}
+
+// ================================================
 // Source Terms API
 // ================================================
 

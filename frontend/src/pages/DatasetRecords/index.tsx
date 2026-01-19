@@ -121,19 +121,21 @@ function HighlightedText({ text, terms, labels, focusedTermId }: HighlightedText
 interface StatCardProps {
     label: string;
     value: number;
+    suffix?: string;
     variant?: 'default' | 'processed' | 'pending' | 'terms';
 }
 
-function StatCard({ label, value, variant = 'default' }: StatCardProps) {
+function StatCard({ label, value, suffix = '', variant = 'default' }: StatCardProps) {
     return (
         <div className={styles.statCard}>
             <div className={`${styles.statValue} ${variant !== 'default' ? styles[variant] : ''}`}>
-                {value.toLocaleString()}
+                {value.toLocaleString()}{suffix}
             </div>
             <div className={styles.statLabel}>{label}</div>
         </div>
     );
 }
+
 
 // ================================================
 // Record Item Component
@@ -193,6 +195,9 @@ const DatasetRecords = () => {
     const [patientIdQuery, setPatientIdQuery] = useState('');
     const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'reviewed' | 'not_reviewed'>('all');
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const [displayMode, setDisplayMode] =
+        useState<'percentage' | 'ratio'>('percentage');
+
 
     // Annotation state
     const [isAnnotating, setIsAnnotating] = useState(false);
@@ -202,6 +207,8 @@ const DatasetRecords = () => {
     // Focused term state (for scrolling to terms)
     const [focusedTermId, setFocusedTermId] = useState<number | null>(null);
 
+    const [navigationRecordsSnapshot, setNavigationRecordsSnapshot] = useState<RecordType[]>([]);
+    
     const parsedDatasetId = datasetId ? parseInt(datasetId, 10) : 0;
 
     const {
@@ -298,6 +305,7 @@ const DatasetRecords = () => {
         if (!selectedRecord) return;
         try {
             await markRecordReviewed(selectedRecord.id, !selectedRecord.reviewed);
+            // REMOVE THIS LINE: await fetchRecords(1, 20);
         } catch (err) {
             console.error('Failed to update review status:', err);
         }
@@ -337,7 +345,38 @@ const DatasetRecords = () => {
         }
     }, [removeSourceTerm, selectedAnnotation]);
 
+    // Navigation handlers for annotation sidebar
+    const handlePreviousRecord = useCallback(() => {
+        if (!selectedRecord || records.length === 0) return;
+    
+        const currentIndex = records.findIndex(r => r.id === selectedRecord.id);
+    
+        if (currentIndex > 0) {
+            selectRecord(records[currentIndex - 1]);
+        }
+    }, [selectedRecord, records, selectRecord]);
+
+    const handleNextRecord = useCallback(() => {
+        if (!selectedRecord || records.length === 0) return;
+    
+        const currentIndex = records.findIndex(r => r.id === selectedRecord.id);
+    
+        if (currentIndex < records.length - 1) {
+            selectRecord(records[currentIndex + 1]);
+        }
+    }, [selectedRecord, records, selectRecord]);
+
+    const handleMarkReviewedInSidebar = useCallback(async () => {
+        if (!selectedRecord) return;
+        try {
+            await markRecordReviewed(selectedRecord.id, !selectedRecord.reviewed);
+            // Don't call fetchRecords here!
+        } catch (err) {
+            console.error('Failed to update review status:', err);
+        }
+    }, [selectedRecord, markRecordReviewed]);
     // Reset annotation selection when changing records
+
     useEffect(() => {
         setSelectedAnnotation(null);
         setFocusedTermId(null);
@@ -394,6 +433,24 @@ const DatasetRecords = () => {
         );
     }
 
+    const totalRecords = stats?.total_records ?? 0;
+    const reviewedRecords = records.filter(r => r.reviewed).length;   
+
+    const reviewedPercentage =
+        totalRecords > 0
+            ? `${((reviewedRecords / totalRecords) * 100).toFixed(1)}`
+            : '0.0%';
+
+    const reviewedValue =
+        displayMode === 'percentage'
+            ? reviewedPercentage
+            : reviewedRecords;
+
+    const reviewedSuffix =
+        displayMode === 'percentage'
+            ? '%'
+            : ` / ${totalRecords}`;
+
     return (
         <Layout>
             <div className={styles.page}>
@@ -435,21 +492,22 @@ const DatasetRecords = () => {
                             value={stats?.total_records ?? 0}
                         />
                         <StatCard
-                            label="Processed"
-                            value={stats?.processed_count ?? 0}
-                            variant="processed"
-                        />
-                        <StatCard
                             label="Terms"
                             value={stats?.extracted_terms_count ?? 0}
                             variant="terms"
                         />
-                        <StatCard
-                            label="Pending"
-                            value={stats?.pending_review_count ?? 0}
-                            variant="pending"
-                        />
+                    <div className={styles.statCard}>            
+                        <div className={`${styles.statValue} ${styles.processed}`}>                
+                            {reviewedValue}{displayMode === 'percentage' ? '%' : ''}{' '}                
+                            {displayMode === 'percentage' && (
+                                <span className={styles.ratioSuffix}>                    
+                                    ({reviewedRecords}/{totalRecords})                
+                                </span>
+                            )}            
+                        </div>            
+                        <div className={styles.statLabel}>Reviewed</div>        
                     </div>
+                </div>
                     <div className={styles.pageActions}>
                         <button
                             className={`${styles.actionButton} ${styles.extract}`}
@@ -693,6 +751,10 @@ const DatasetRecords = () => {
                     onCreateAnnotation={handleCreateAnnotation}
                     onDeleteAnnotation={handleDeleteAnnotation}
                     onClose={handleCloseAnnotation}
+                    onPreviousRecord={handlePreviousRecord}
+                    onNextRecord={handleNextRecord}
+                    onMarkReviewed={handleMarkReviewedInSidebar}
+                    isReviewed={selectedRecord?.reviewed ?? false}
                 />
             </div>
         </Layout>
