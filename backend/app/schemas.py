@@ -19,6 +19,26 @@ class MessageOutput(BaseModel):
     message: str
 
 
+class ExtractionJobStartResponse(BaseModel):
+    """Response when a dataset extraction job is queued."""
+
+    job_id: int
+    dataset_id: int
+    total: int
+    status: str
+
+
+class ExtractionJobStatusResponse(BaseModel):
+    """Progress snapshot for a dataset extraction job."""
+
+    job_id: int
+    dataset_id: int
+    total: int
+    completed: int
+    status: str
+    error_message: Optional[str] = None
+
+
 # ================================================
 # Pagination models
 # ================================================
