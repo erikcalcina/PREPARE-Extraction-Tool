@@ -194,6 +194,28 @@ class ClusterMergeSuggestion(SQLModel, table=True):
     reviewed_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
+class ExtractionJob(SQLModel, table=True):
+    """
+    Tracks progress for dataset-wide extraction runs.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    dataset_id: int = Field(
+        foreign_key="dataset.id", ondelete="CASCADE", nullable=False, index=True
+    )
+
+    total: int = Field(default=0)
+    completed: int = Field(default=0)
+    status: str = Field(
+        default="pending", index=True
+    )  # pending|running|completed|failed
+    error_message: Optional[str] = Field(default=None)
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class VocabularyStatus(str, Enum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"

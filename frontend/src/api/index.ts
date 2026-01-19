@@ -29,6 +29,8 @@ import type {
     AutoMapAllRequest,
     AutoMapAllResponse,
     ConceptSearchParams,
+    ExtractionJobStartResponse,
+    ExtractionJobStatusResponse,
 } from 'types';
 
 // ================================================
@@ -229,6 +231,14 @@ export async function deleteDataset(id: number): Promise<MessageOutput> {
     });
 }
 
+export async function deleteDatasetExtractedTerms(
+    datasetId: number
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(`/datasets/${datasetId}/source-terms`, {
+        method: 'DELETE',
+    });
+}
+
 export async function downloadDataset(id: number): Promise<void> {
     const token = getToken();
     const headers: HeadersInit = {};
@@ -395,13 +405,32 @@ export async function extractRecordTerms(
 export async function extractDatasetTerms(
     datasetId: number,
     labels: string[]
-): Promise<MessageOutput> {
-    return apiRequest<MessageOutput>(
+): Promise<ExtractionJobStartResponse> {
+    return apiRequest<ExtractionJobStartResponse>(
         `/bioner/${datasetId}/records/extract`,
         {
             method: 'POST',
             body: JSON.stringify({ labels }),
         }
+    );
+}
+
+export async function getDatasetExtractionStatus(
+    datasetId: number,
+    jobId: string
+): Promise<ExtractionJobStatusResponse> {
+    return apiRequest<ExtractionJobStatusResponse>(
+        `/bioner/${datasetId}/records/extract/${jobId}/status`
+    );
+}
+
+export async function cancelDatasetExtraction(
+    datasetId: number,
+    jobId: string
+): Promise<MessageOutput> {
+    return apiRequest<MessageOutput>(
+        `/bioner/${datasetId}/records/extract/${jobId}/cancel`,
+        { method: 'POST' }
     );
 }
 
