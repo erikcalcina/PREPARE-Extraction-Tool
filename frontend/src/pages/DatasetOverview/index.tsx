@@ -5,6 +5,9 @@ import { usePageTitle } from 'hooks/usePageTitle';
 import type { DatasetOverviewOutput } from 'types';
 import * as api from 'api';
 import styles from './styles.module.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPenToSquare, faObjectGroup, faMapLocationDot, faFilePen } from '@fortawesome/free-solid-svg-icons';
+import { faMap } from '@fortawesome/free-solid-svg-icons/faMap';
 
 // ================================================
 // Helper functions
@@ -51,7 +54,7 @@ function StatCard({ label, value, variant = 'default' }: StatCardProps) {
 interface WorkflowCardProps {
     title: string;
     description: string;
-    icon: string;
+    icon?: any;  
     stats: Array<{ label: string; value: string | number }>;
     progress?: { current: number; total: number };
     actions: Array<{ label: string; onClick: () => void; variant?: 'primary' | 'secondary' }>;
@@ -63,11 +66,16 @@ function WorkflowCard({ title, description, icon, stats, progress, actions }: Wo
     return (
         <div className={styles.workflowCard}>
             <div className={styles.workflowHeader}>
-                <span className={styles.workflowIcon}>{icon}</span>
                 <div>
                     <h3 className={styles.workflowTitle}>{title}</h3>
                     <p className={styles.workflowDescription}>{description}</p>
                 </div>
+                {icon && (                    
+                    <FontAwesomeIcon
+                        icon={icon}
+                        className={styles.workflowIcon}
+                    />
+                )}
             </div>
 
             <div className={styles.workflowStats}>
@@ -271,12 +279,6 @@ const DatasetOverview = () => {
                             {formatDate(overview.dataset.last_modified)}
                         </span>
                     </div>
-                    <div className={styles.metadataItem}>
-                        <span className={styles.metadataLabel}>Total Records:</span>
-                        <span className={styles.metadataValue}>
-                            {overview.dataset.record_count.toLocaleString()}
-                        </span>
-                    </div>
                 </div>
 
                 {/* Statistics Cards */}
@@ -310,7 +312,7 @@ const DatasetOverview = () => {
                         <WorkflowCard
                             title="Term Extraction"
                             description="Extract medical entities from clinical text"
-                            icon="📝"
+                            icon={faFilePen}
                             stats={[
                                 { label: 'Total Records', value: overview.stats.total_records },
                                 { label: 'Terms Extracted', value: overview.stats.extracted_terms_count },
@@ -337,7 +339,7 @@ const DatasetOverview = () => {
                         <WorkflowCard
                             title="Term Clustering"
                             description="Group similar terms for standardization"
-                            icon="🔮"
+                            icon={faObjectGroup}
                             stats={[
                                 { label: 'Clusters Created', value: overview.clustering_stats.total_clusters },
                                 { label: 'Clustered Terms', value: overview.clustering_stats.clustered_terms },
@@ -361,7 +363,7 @@ const DatasetOverview = () => {
                         <WorkflowCard
                             title="Concept Mapping"
                             description="Map clusters to standard vocabulary concepts"
-                            icon="🗺️"
+                            icon={faMapLocationDot}
                             stats={[
                                 { label: 'Total Clusters', value: overview.mapping_stats.total_clusters },
                                 { label: 'Mapped Clusters', value: overview.mapping_stats.mapped_clusters },

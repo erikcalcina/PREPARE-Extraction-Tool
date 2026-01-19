@@ -212,10 +212,10 @@
    Cluster Grid
    ================================================ */
 
-.clustersGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 20px;
+.clustersList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     margin-bottom: 24px;
 }
 
@@ -226,6 +226,8 @@
     padding: 20px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    display: flex; 
+    gap: 20px;
 }
 
 .clusterCard:hover {
@@ -239,11 +241,32 @@
     box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
-.clusterHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .clusterCard {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .clusterHeader {
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+        padding-right: 0;
+        padding-bottom: 16px;
+        min-width: auto;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .titleStatsRow {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .clusterStats {
+        align-self: flex-start;
+    }
 }
 
 .clusterBadge {
@@ -253,6 +276,13 @@
     border-radius: 6px;
     font-size: 12px;
     font-weight: 600;
+    align-self: flex-start;
+}
+
+.clusterContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .labelBadge {
@@ -261,6 +291,8 @@
     font-size: 12px;
     font-weight: 600;
     text-transform: capitalize;
+    display: inline-block;
+    align-self: flex-start;
 }
 
 .labelBadge.condition {
@@ -293,8 +325,15 @@
     color: #6b7280;
 }
 
-.clusterTitle {
+.titleStatsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 12px;
+}
+
+.clusterTitle {
+    flex: 1;
 }
 
 .clusterTitle h3 {
@@ -323,23 +362,46 @@
 
 .clusterStats {
     display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 16px;
     font-size: 13px;
     color: #6b7280;
+    background: #f9fafb;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
 }
 
 .clusterStats span {
     display: flex;
     align-items: center;
     gap: 4px;
+    white-space: nowrap;
 }
 
 /* ================================================
    Terms List
    ================================================ */
 
+@media (max-width: 768px) {
+    .termsList {
+        flex-direction: column;
+    }
+    
+    .termItem {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .clusterStats {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
 .termsList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 12px;
 }
 
@@ -347,13 +409,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
+    padding: 8px 12px;
     background: #f9fafb;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    margin-bottom: 6px;
     cursor: move;
     transition: all 0.2s ease;
+    min-width: 180px;
 }
 
 .termItem:hover {
@@ -414,12 +476,13 @@
 .clusterActions {
     display: flex;
     gap: 8px;
+    margin-top: auto;
+    justify-content: flex-end;
 }
 
 .btnView,
 .btnDelete {
-    flex: 1;
-    padding: 8px 12px;
+    padding: 8px 16px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     cursor: pointer;
@@ -897,3 +960,103 @@
     opacity: 0.6;
 }
 
+/* ================================================
+   Labels
+   ================================================ */
+   
+/* Custom label styles */
+.labelBadge.custom-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.labelBadge.custom-label:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.editLabelIcon {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-left: 4px;
+}
+
+/* Label editor */
+.labelEditor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.labelInput {
+    padding: 2px 6px;
+    background: #ffffff;
+    color: #374151;
+    border: 2px solid #4CAF50;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.labelInput:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.colorPicker {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.colorPicker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.colorPicker::-webkit-color-swatch {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.saveLabelBtn,
+.cancelLabelBtn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.saveLabelBtn {
+    background: #4CAF50;
+    color: white;
+}
+
+.saveLabelBtn:hover {
+    background: #45a049;
+}
+
+.cancelLabelBtn {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.cancelLabelBtn:hover {
+    background: #e5e7eb;
+}

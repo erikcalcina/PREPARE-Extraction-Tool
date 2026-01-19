@@ -29,7 +29,7 @@
 
 .navButton:hover {
     background: #f3f4f6;
-    color: #1e3a5f;
+    color: #11415e;
     border-color: #d1d5db;
 }
 
@@ -44,7 +44,7 @@
     margin: 0;
     font-size: 24px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .datasetLink {
@@ -60,7 +60,7 @@
 }
 
 .datasetLink:hover {
-    color: #1e3a5f;
+    color: #11415e;
     text-decoration: underline;
 }
 
@@ -87,7 +87,7 @@
 
 .statCard {
     background: #ffffff;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 10px 16px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e7eb;
@@ -105,11 +105,18 @@
 .statValue {
     font-size: 18px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
+}
+
+.statValue .ratioSuffix {    
+    font-size: 14px;    
+    font-weight: 500;    
+    color: #2cb27e;    
+    margin-left: 4px;
 }
 
 .statValue.processed {
-    color: #059669;
+    color: #2cb27e;
 }
 
 .statValue.pending {
@@ -117,8 +124,9 @@
 }
 
 .statValue.terms {
-    color: #7c3aed;
+    color: #327dae;
 }
+
 
 /* Main Content Area */
 .content {
@@ -148,7 +156,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .searchInput {
@@ -194,11 +202,11 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
-    accent-color: #4CAF50;
+    accent-color: #2cb27e;
 }
 
 .filterGroup label:hover span {
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .recordsList {
@@ -222,7 +230,7 @@
 
 .recordItem.selected {
     background: #ecfdf5;
-    border-color: #059669;
+    border-color: #2cb27e;
 }
 
 .recordItemHeader {
@@ -235,7 +243,7 @@
 .recordId {
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .recordTime {
@@ -273,7 +281,7 @@
 
 .statusBadge.processed {
     background: #dcfce7;
-    color: #166534;
+    color: #16593f;
 }
 
 .statusBadge.pending {
@@ -283,7 +291,7 @@
 
 .statusBadge.reviewed {
     background: #dbeafe;
-    color: #1e40af;
+    color: #11415e;
 }
 
 .termCount {
@@ -340,7 +348,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .detailActions {
@@ -360,40 +368,49 @@
 }
 
 .actionButton.primary {
-    background: #059669;
+    background: #269b6f;
     color: #ffffff;
 }
 
 .actionButton.primary:hover {
-    background: #047857;
+    background: #20855f;
 }
 
 .actionButton.secondary {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #e5e7eb;
+    background: #11415e;
+    color: #ffffff;
 }
 
 .actionButton.secondary:hover {
-    background: #e5e7eb;
+    background: #11415e;
 }
 
 .actionButton.cluster {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
     color: #ffffff;
 }
 
 .actionButton.cluster:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+    background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
 }
 
 .actionButton.extract {
-    background: #7c3aed;
-    color: #ffffff;
+    background: #ffffff;
+    color: #11415e;
+    border: 1px solid #e5e7eb;
 }
 
 .actionButton.extract:hover {
-    background: #6d28d9;
+    background: #e5e7eb;
+}
+
+.actionButton.danger {
+    background: #dc2626;
+    color: #ffffff;
+    border: 1px solid #b91c1c;
+}
+.actionButton.danger:hover {
+    background: #b91c1c;
 }
 
 .actionButton:disabled {
@@ -418,7 +435,7 @@
     margin: 0;
     padding: 16px;
     background: #f9fafb;
-    border-radius: 8px;
+    border-radius: 4px;
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -427,7 +444,7 @@
 /* Extracted Terms Panel */
 .termsPanel {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     border: 1px solid #e5e7eb;
     display: flex;
@@ -447,7 +464,7 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .termsPanelContent {
@@ -473,35 +490,35 @@
 }
 
 .highlightedTerm.label2 {
-    background: #86efac;
-    color: #14532d;
+    background: #c3f5e2;
+    color: #16593f;
 }
 .highlightedTerm.label2:hover {
-    background: #4ade80;
+    background: #9befcf;
 }
 
 .highlightedTerm.label3 {
-    background: #93c5fd;
-    color: #1e3a8a;
+    background: #d4e6f2;
+    color: #13425e;
 }
 .highlightedTerm.label3:hover {
-    background: #60a5fa;
+    background: #93c1de;
 }
 
 .highlightedTerm.label4 {
-    background: #fde047;
+    background: #fcffa7;
     color: #713f12;
 }
 .highlightedTerm.label4:hover {
-    background: #facc15;
+    background: #f5fc28;
 }
 
 .highlightedTerm.label5 {
-    background: #f0abfc;
-    color: #701a75;
+    background: #ffd8ef;
+    color: #61103f;
 }
 .highlightedTerm.label5:hover {
-    background: #e879f9;
+    background: #ff96d3;
 }
 
 .highlightedTerm.label6 {
@@ -545,11 +562,11 @@
 
 @keyframes focusPulse {
     0% {
-        outline-color: #3b82f6;
+        outline-color: #11415e;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
     }
     50% {
-        outline-color: #3b82f6;
+        outline-color: #11415e;
         box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.2);
     }
     100% {
@@ -571,7 +588,7 @@
     gap: 8px;
     padding: 10px 12px;
     background: #f9fafb;
-    border-radius: 6px;
+    border-radius: 4px;
     border: 1px solid #e5e7eb;
 }
 
@@ -584,7 +601,7 @@
 .termValue {
     font-size: 13px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
     display: flex;
     align-items: center;
 }
@@ -617,7 +634,7 @@
     padding: 4px 10px;
     font-size: 12px;
     font-weight: 500;
-    color: #059669;
+    color: #11415e;
     background: none;
     border: none;
     cursor: pointer;
@@ -763,7 +780,7 @@
 .annotationInstructions p {
     margin: 0;
     font-size: 13px;
-    color: #0369a1;
+    color: #11415e;
     line-height: 1.5;
 }
 
@@ -782,6 +799,93 @@
     color: #374151;
 }
 
+/* ================================================
+   Record Navigation Buttons (for Annotation Sidebar)
+   ================================================ */
+
+.recordNavigation {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.navigationButtons {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.navButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.navButton:hover:not(:disabled) {
+    background-color: #edf2f7;
+    border-color: #a0aec0;
+}
+
+.navButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.navButton svg {
+    width: 16px;
+    height: 16px;
+}
+
+.reviewButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #48bb78;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.reviewButton:hover:not(:disabled) {
+    background-color: #38a169;
+}
+
+.reviewButton.reviewed {
+    background-color: #4299e1;
+}
+
+.reviewButton.reviewed:hover {
+    background-color: #3182ce;
+}
+
+.reviewButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reviewButton svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* Label Section */
 .labelSection {
     flex-shrink: 0;
@@ -791,7 +895,7 @@
     margin: 0 0 12px;
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
     flex-shrink: 0;
 }
 
@@ -829,7 +933,7 @@
 
 /* Label colors - 9 distinct colors */
 .labelButton.label1, .termLabel.label1, .annotationLabel.label1 {
-    background: #fecaca;
+    background: #fca5a5;
     color: #7f1d1d;
 }
 .labelButton.label1:hover, .labelButton.label1.active {
@@ -838,74 +942,74 @@
 }
 
 .labelButton.label2, .termLabel.label2, .annotationLabel.label2 {
-    background: #bbf7d0;
-    color: #14532d;
+    background: #c3f5e2;
+    color: #16593f;
 }
 .labelButton.label2:hover, .labelButton.label2.active {
-    background: #86efac;
+    background: #9befcf;
     border-color: #4ade80;
 }
 
 .labelButton.label3, .termLabel.label3, .annotationLabel.label3 {
-    background: #bfdbfe;
-    color: #1e3a8a;
+    background: #d4e6f2;
+    color: #13425e;
 }
 .labelButton.label3:hover, .labelButton.label3.active {
-    background: #93c5fd;
+    background: #93c1de;
     border-color: #60a5fa;
 }
 
 .labelButton.label4, .termLabel.label4, .annotationLabel.label4 {
-    background: #fef08a;
+    background: #fcffa7;
     color: #713f12;
 }
 .labelButton.label4:hover, .labelButton.label4.active {
-    background: #fde047;
+    background: #f5fc28;
     border-color: #facc15;
 }
 
 .labelButton.label5, .termLabel.label5, .annotationLabel.label5 {
-    background: #f5d0fe;
-    color: #701a75;
+    background: #ffd8ef;
+    color: #61103f;
 }
 .labelButton.label5:hover, .labelButton.label5.active {
-    background: #f0abfc;
+    background: #ff96d3;
     border-color: #e879f9;
 }
 
 .labelButton.label6, .termLabel.label6, .annotationLabel.label6 {
-    background: #99f6e4;
+    background: #5eead4;
     color: #134e4a;
 }
 .labelButton.label6:hover, .labelButton.label6.active {
-    background: #5eead4;
+    background: #2dd4bf;
     border-color: #2dd4bf;
 }
 
 .labelButton.label7, .termLabel.label7, .annotationLabel.label7 {
-    background: #fed7aa;
+    background: #fdba74;
     color: #7c2d12;
 }
 .labelButton.label7:hover, .labelButton.label7.active {
-    background: #fdba74;
+    background: #fb923c;
     border-color: #fb923c;
 }
 
 .labelButton.label8, .termLabel.label8, .annotationLabel.label8 {
-    background: #ddd6fe;
+    background: #c4b5fd;
     color: #4c1d95;
 }
 .labelButton.label8:hover, .labelButton.label8.active {
-    background: #c4b5fd;
+    background: #a78bfa;
     border-color: #c084fc;
 }
 
 .labelButton.label9, .termLabel.label9, .annotationLabel.label9 {
-    background: #cbd5e1;
+    background: #94a3b8;
     color: #1e293b;
 }
 .labelButton.label9:hover, .labelButton.label9.active {
-    background: #94a3b8;
+    background: #64748b;
     border-color: #64748b;
 }
 
@@ -940,7 +1044,7 @@
     padding: 10px 12px;
     background: #f9fafb;
     border: 2px solid transparent;
-    border-radius: 8px;
+    border-radius: 0px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -951,7 +1055,7 @@
 
 .annotationItem.selected {
     background: #eff6ff;
-    border-color: #3b82f6;
+    border-color: #11415e;
 }
 
 .annotationContent {
@@ -965,7 +1069,7 @@
 .annotationValue {
     font-size: 13px;
     font-weight: 500;
-    color: #1e3a5f;
+    color: #11415e;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -976,7 +1080,7 @@
     padding: 2px 8px;
     font-size: 11px;
     font-weight: 500;
-    border-radius: 4px;
+    border-radius: 2px;
     width: fit-content;
 }
 
@@ -988,7 +1092,7 @@
     height: 28px;
     background: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: 0px;
     cursor: pointer;
     color: #9ca3af;
     transition: all 0.2s ease;
@@ -1019,7 +1123,7 @@
     margin: 0;
     padding: 16px;
     background: #f9fafb;
-    border-radius: 8px;
+    border-radius: 0px;
     white-space: pre-wrap;
     position: relative;
 }
@@ -1036,9 +1140,9 @@
 
 /* Selected annotation highlight */
 .highlightedTerm.selectedAnnotation {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid #11415e;
     outline-offset: 1px;
-    border-radius: 2px;
+    border-radius: 0px;
 }
 
 /* Annotation hint */
@@ -1051,7 +1155,7 @@
     background: rgba(30, 58, 95, 0.9);
     color: #ffffff;
     font-size: 12px;
-    border-radius: 6px;
+    border-radius: 0px;
     white-space: nowrap;
 }
 

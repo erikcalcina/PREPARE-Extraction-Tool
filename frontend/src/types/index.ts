@@ -146,6 +146,26 @@ export interface MappingStats {
     unmapped_clusters: number;
 }
 
+// ================================================
+// Extraction job types
+// ================================================
+
+export interface ExtractionJobStartResponse {
+    job_id: string;
+    dataset_id: number;
+    total: number;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+}
+
+export interface ExtractionJobStatusResponse {
+    job_id: string;
+    dataset_id: number;
+    total: number;
+    completed: number;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    error_message?: string | null;
+}
+
 export interface DatasetOverview {
     dataset: Dataset;
     stats: DatasetStats;
@@ -244,14 +264,14 @@ export interface ClusteredTerm {
 }
 
 export interface ClusterData {
-    id: number;
-    dataset_id: number;
-    label: string;
-    title: string;
-    total_terms: number;
-    total_occurrences: number;
-    unique_records: number;
-    terms: ClusteredTerm[];
+  id: number;
+  title: string;
+  label: string;
+  terms: ClusteredTerm[];
+  total_terms: number;
+  total_occurrences: number;
+  unique_records: number;
+  label_color?: string;
 }
 
 export interface ClustersOutput {
@@ -361,5 +381,21 @@ export interface ConceptSearchParams {
     concept_class_id?: string;
     standard_concept?: string;
     limit?: number;
+}
+
+// ================================================
+// Extraction Job types
+// ================================================
+
+export interface ExtractionJobStartResponse {
+    job_id: string;
+}
+
+export interface ExtractionJobStatusResponse {
+    job_id: string;
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    processed: number;
+    total: number;
+    message?: string;
 }
 

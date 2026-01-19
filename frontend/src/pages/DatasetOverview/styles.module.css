@@ -33,18 +33,18 @@
 
 .backButton:hover {
     background: #f3f4f6;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .title {
     margin: 0;
-    font-size: 28px;
+    font-size:24px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .subtitle {
-    margin: 4px 0 0;
+    margin: 2px 0 0;
     font-size: 14px;
     color: #6b7280;
 }
@@ -71,21 +71,21 @@
 
 .labelBadge {
     padding: 4px 12px;
-    border-radius: 16px;
+    border-radius: 4px;
     font-size: 13px;
-    font-weight: 600;
-    color: #ffffff;
+    font-weight: 500;
+    color: #11415e;
 }
 
-.labelBadge.label1 { background: #3b82f6; }
-.labelBadge.label2 { background: #10b981; }
-.labelBadge.label3 { background: #f59e0b; }
-.labelBadge.label4 { background: #ef4444; }
-.labelBadge.label5 { background: #8b5cf6; }
-.labelBadge.label6 { background: #ec4899; }
-.labelBadge.label7 { background: #06b6d4; }
-.labelBadge.label8 { background: #84cc16; }
-.labelBadge.label9 { background: #f97316; }
+.labelBadge.label1 { background: #e5e7eb; }
+.labelBadge.label2 { background: #e5e7eb; }
+.labelBadge.label3 { background: #e5e7eb; }
+.labelBadge.label4 { background: #e5e7eb; }
+.labelBadge.label5 { background: #e5e7eb; }
+.labelBadge.label6 { background: #e5e7eb; }
+.labelBadge.label7 { background: #e5e7eb; }
+.labelBadge.label8 { background: #e5e7eb; }
+.labelBadge.label9 { background: #e5e7eb; }
 
 /* Metadata Section */
 .metadata {
@@ -94,18 +94,18 @@
     margin-bottom: 24px;
     padding: 16px;
     background: #f9fafb;
-    border-radius: 8px;
+    border-radius: 4px;
     border: 1px solid #e5e7eb;
 }
 
 .metadataItem {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .metadataLabel {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #6b7280;
 }
@@ -113,44 +113,43 @@
 .metadataValue {
     font-size: 14px;
     font-weight: 500;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 /* Statistics Cards */
 .statsGrid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
+    display: flex;
+    gap: 12px;
+    flex: 1;
 }
 
 .statCard {
     background: #ffffff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    padding: 10px 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e7eb;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 8px;
 }
 
 .statLabel {
-    font-size: 13px;
+    font-size: 12px;
     color: #6b7280;
-    font-weight: 600;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .statValue {
-    font-size: 32px;
+    font-size: 18px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .statValue.processed {
-    color: #059669;
+    color: #2cb27e;
 }
 
 .statValue.pending {
@@ -158,7 +157,7 @@
 }
 
 .statValue.terms {
-    color: #7c3aed;
+    color: #185a83;
 }
 
 /* Workflow Section */
@@ -169,7 +168,7 @@
 .sectionTitle {
     font-size: 20px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
     margin: 0 0 20px 0;
 }
 
@@ -182,7 +181,7 @@
 /* Workflow Card */
 .workflowCard {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 4px;
     padding: 24px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     border: 1px solid #e5e7eb;
@@ -192,27 +191,26 @@
     transition: all 0.2s ease;
 }
 
-.workflowCard:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-}
-
 .workflowHeader {
     display: flex;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 12px;
 }
 
-.workflowIcon {
-    font-size: 32px;
-    line-height: 1;
+.workflowIcon { 
+    font-size: 28px;
+    line-height: 0.5;    
+    flex-shrink: 0;    
+    color: #94a3b8;     
+    opacity: 1.0;
 }
 
 .workflowTitle {
     margin: 0 0 4px 0;
     font-size: 18px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .workflowDescription {
@@ -250,7 +248,7 @@
 .workflowStatValue {
     font-size: 16px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 /* Progress Section */
@@ -277,7 +275,7 @@
 .progressText {
     font-size: 13px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .progressBar {
@@ -289,9 +287,9 @@
 
 .progressFill {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
+    background: linear-gradient(90deg, #2e9d72 0%, #2e9d72 100%);
     transition: width 0.3s ease;
-    border-radius: 4px;
+    border-radius: 0px;
 }
 
 /* Workflow Actions */
@@ -304,7 +302,7 @@
 .workflowButton {
     flex: 1;
     padding: 10px 16px;
-    border-radius: 8px;
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -313,20 +311,20 @@
 }
 
 .workflowButton.primary {
-    background: #4CAF50;
+    background: #11415e;
     color: #ffffff;
-    border-color: #4CAF50;
+    border-color: #11415e;
 }
 
 .workflowButton.primary:hover {
-    background: #45a049;
-    border-color: #45a049;
+    background: #11415e;
+    border-color: #11415e;
 }
 
 .workflowButton.secondary {
     background: #ffffff;
-    color: #4CAF50;
-    border-color: #4CAF50;
+    color: #11415e;
+    border-color: #11415e;
 }
 
 .workflowButton.secondary:hover {
