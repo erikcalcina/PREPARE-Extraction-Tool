@@ -382,8 +382,6 @@ class ClusteredTerm(BaseModel):
 
 
 class ClusterResponse(BaseModel):
-    """Rich cluster data for frontend display"""
-
     id: int
     dataset_id: int
     label: str
@@ -395,12 +393,35 @@ class ClusterResponse(BaseModel):
 
 
 class ClustersStatisticsOutput(BaseModel):
-    """Complete clustering state for a dataset/label"""
-
     clusters: List[ClusterResponse]
     unclustered_terms: List[ClusteredTerm]
     total_number_terms: int
     labels: List[str]
+
+
+class ClusterShort(BaseModel):
+    id: int
+    title: str
+    label: str
+    dataset_id: int
+
+
+class MergeSuggestionResponse(BaseModel):
+    id: int
+    dataset_id: int
+    label: str
+    method: str
+    score: float
+    status: str
+    created_at: datetime
+
+    cluster_a: ClusterShort
+    cluster_b: ClusterShort
+
+
+class MergeSuggestionsOutput(BaseModel):
+    suggestions: List[MergeSuggestionResponse]
+
 
 
 # ================================================

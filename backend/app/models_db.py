@@ -167,11 +167,39 @@ class Cluster(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
+
+class ClusterMergeSuggestion(SQLModel, table=True):
+    """
+    Suggestion for merging two clusters.
+    """
+
+    __tablename__ = "cluster_merge_suggestion"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
+    label: str = Field(index=True)
+
+    cluster_a_id: int = Field(foreign_key="cluster.id", nullable=False, index=True)
+    cluster_b_id: int = Field(foreign_key="cluster.id", nullable=False, index=True)
+
+    score: float = Field(default=0.0)  # similarity score (e.g. cosine)
+    method: str = Field(default="centroid")  # "centroid" or "spelling"
+
+    status: str = Field(default="pending", index=True)  # pending/accepted/rejected
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reviewed_at: Optional[datetime] = Field(default=None)
+
+    reviewed_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
 class VocabularyStatus(str, Enum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     DONE = "DONE"
     FAILED = "FAILED"
+
 
 class Vocabulary(SQLModel, table=True):
     """
@@ -185,10 +213,7 @@ class Vocabulary(SQLModel, table=True):
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     version: str
-    status: VocabularyStatus = Field(
-        default=VocabularyStatus.PENDING,
-        index=True
-    )
+    status: VocabularyStatus = Field(default=VocabularyStatus.PENDING, index=True)
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     error_message: Optional[str] = None
@@ -267,4 +292,3 @@ class SourceToConceptMap(SQLModel, table=True):
     )  # 'pending', 'approved', 'rejected'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
