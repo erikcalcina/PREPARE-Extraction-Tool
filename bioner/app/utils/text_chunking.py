@@ -1,36 +1,31 @@
 import re
 from typing import List
 
-whitespace_pattern = re.compile(r'\w+(?:[-_]\w+)*|\S')
+whitespace_pattern = re.compile(r"\w+(?:[-_]\w+)*|\S")
+
 
 def trim_medical_text(medical_text: str, max_words: int = 384) -> List[str]:
-    """
-    Split text into sentence-based chunks that do not exceed max_tokens,
-    counting tokens with GLiNER's whitespace regex.
-    """
-    # TODO: check if it performs well if the text contains empty sentences
-    # Split into sentences retaining the period
-    sentences = re.findall(r'[^\n\.\?\!]+(?:[\.\?\!\n]|$)', medical_text)
-    if not sentences:
-        sentences = [medical_text]
+    """Split text into max_words chunks without altering the original string."""
+
+    if medical_text == "":
+        return [medical_text]
 
     chunks: List[str] = []
-    current_chunk = ""
+    current_start = 0
+    tokens_in_chunk = 0
 
-    def token_len(text: str) -> int:
-        # Count tokens using GLiNER-like whitespace splitting
-        return len(whitespace_pattern.findall(text))
+    for match in whitespace_pattern.finditer(medical_text):
+        tokens_in_chunk += 1
+        if tokens_in_chunk > max_words:
+            split_at = match.start()
+            if split_at > current_start:
+                chunks.append(medical_text[current_start:split_at])
+            current_start = split_at
+            tokens_in_chunk = 1
 
-    # TODO: handle cases where a single sentence exceeds max_tokens
-    for sentence in sentences:
-        # If adding this sentence exceeds the token limit → new chunk
-        if current_chunk and token_len(current_chunk + sentence) > max_words:
-            chunks.append(current_chunk)
-            current_chunk = sentence
-        else:
-            current_chunk += sentence
-
-    if current_chunk:
-        chunks.append(current_chunk)
+    if current_start < len(medical_text):
+        chunks.append(medical_text[current_start:])
+    elif not chunks:
+        chunks.append("")
 
     return chunks
