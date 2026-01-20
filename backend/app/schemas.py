@@ -353,6 +353,12 @@ class SourceTermCreate(BaseModel):
     end_position: Optional[int] = None
 
 
+class SourceTermUpdate(BaseModel):
+    """Model for updating a source term."""
+
+    label: Optional[str] = None
+
+
 class SourceTermOutput(BaseModel):
     """Wrapper for single source term response."""
 

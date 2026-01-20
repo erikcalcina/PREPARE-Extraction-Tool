@@ -1218,7 +1218,7 @@ def create_clusters_for_dataset(
     if len(texts) == 0:
         return MessageOutput(message="No terms to cluster")
 
-    embedding_model = model_registry.get_model("embedding")
+    embedding_model = model_registry.get_model("embedding_model2vec")
     embeddings = embedding_model.embed(texts)
 
     # Default clustering parameters (can be tuned)
@@ -1397,15 +1397,24 @@ def merge_clusters_endpoint(
     db.commit()
     db.refresh(merged_cluster)
 
-    # Move all terms from old clusters to new cluster
-    total_terms_moved = 0
-    for old_cluster in clusters_to_merge:
-        for term in old_cluster.source_terms:
-            term.cluster_id = merged_cluster.id
-            db.add(term)
-            total_terms_moved += 1
+    # Collect all term IDs first to avoid issues with ondelete="SET NULL"
+    # when deleting old clusters
+    cluster_ids_to_merge = [c.id for c in clusters_to_merge]
+    terms_to_move = db.exec(
+        select(SourceTerm).where(SourceTerm.cluster_id.in_(cluster_ids_to_merge))
+    ).all()
 
-        # Delete old cluster
+    # Update all terms to point to the new merged cluster
+    total_terms_moved = len(terms_to_move)
+    for term in terms_to_move:
+        term.cluster_id = merged_cluster.id
+        db.add(term)
+
+    # Commit the term updates first
+    db.commit()
+
+    # Now delete old clusters (terms already moved, so ondelete won't affect them)
+    for old_cluster in clusters_to_merge:
         db.delete(old_cluster)
 
     db.commit()
@@ -1445,4 +1454,6 @@ def delete_extracted_source_terms(
         db.delete(term)
 
     db.commit()
-    return MessageOutput(message=f"Deleted {len(terms)} automatically extracted source terms")
+    return MessageOutput(
+        message=f"Deleted {len(terms)} automatically extracted source terms"
+    )

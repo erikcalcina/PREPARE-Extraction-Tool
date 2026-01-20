@@ -37,10 +37,11 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            #self._model = model_registry.get_model("embedding")
-            self._model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
+            self._model = model_registry.get_model("embedding_model2vec")
+            # self._model = StaticModel.from_pretrained(
+            #     "minishlab/potion-multilingual-128M"
+            # )
         return self._model
-
 
     @property
     def embedding_dim(self):
@@ -105,7 +106,6 @@ class ConceptIndexer:
         # return self.model.embed(text)
         return self.model.encode(text)
 
-
     def add_bulk_to_index(
         self,
         vocab_id: int,
@@ -122,15 +122,17 @@ class ConceptIndexer:
 
             actions = []
             for c, emb in zip(embed_batch, embeddings):
-                actions.append({
-                    "_index": index_name,
-                    "_id": c.id,
-                    "_source": {
-                        "vocab_term_id": c.vocab_term_id,
-                        "vocab_term_name": c.vocab_term_name,
-                        "embedding": [float(x) for x in emb],
-                    },
-                })
+                actions.append(
+                    {
+                        "_index": index_name,
+                        "_id": c.id,
+                        "_source": {
+                            "vocab_term_id": c.vocab_term_id,
+                            "vocab_term_name": c.vocab_term_name,
+                            "embedding": [float(x) for x in emb],
+                        },
+                    }
+                )
 
             success, errors = bulk(
                 es_client,
