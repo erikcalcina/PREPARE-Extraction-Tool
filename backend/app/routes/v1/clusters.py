@@ -19,7 +19,8 @@ from app.schemas import (
     ClusterOutput,
 )
 
-#helpers ?
+# helpers ?
+
 
 def _cosine_sim(a: List[float], b: List[float]) -> float:
     dot = 0.0
@@ -68,6 +69,7 @@ def verify_dataset_ownership(dataset: Dataset, user_id: int):
 # ================================================
 # Clusters routes
 # ================================================
+
 
 @router.post(
     "/datasets/{dataset_id}/clusters/merge-suggestions/generate",
@@ -128,7 +130,7 @@ def generate_merge_suggestions(
     if not all_texts:
         return MessageOutput(message="No source terms to embed")
 
-    embedding_model = model_registry.get_model("embedding")
+    embedding_model = model_registry.get_model("embedding_model2vec")
     if hasattr(embedding_model, "embed"):
         emb = embedding_model.embed(all_texts)
     else:
@@ -146,7 +148,7 @@ def generate_merge_suggestions(
         if vecs:
             centroids[cid] = _mean_vector(vecs)
 
-    # 6) avoid duplicates 
+    # 6) avoid duplicates
     existing = db.exec(
         select(ClusterMergeSuggestion)
         .where(ClusterMergeSuggestion.dataset_id == dataset_id)
@@ -189,8 +191,10 @@ def generate_merge_suggestions(
     return MessageOutput(message=f"Generated {created} merge suggestions")
 
 
-@router.get("/datasets/{dataset_id}/clusters/merge-suggestions", response_model=MergeSuggestionsOutput)
-
+@router.get(
+    "/datasets/{dataset_id}/clusters/merge-suggestions",
+    response_model=MergeSuggestionsOutput,
+)
 def list_merge_suggestions(
     dataset_id: int,
     label: str,
@@ -250,7 +254,10 @@ def list_merge_suggestions(
     return MergeSuggestionsOutput(suggestions=result)
 
 
-@router.post("/datasets/{dataset_id}/clusters/merge-suggestions/{suggestion_id}/reject", response_model=MessageOutput)
+@router.post(
+    "/datasets/{dataset_id}/clusters/merge-suggestions/{suggestion_id}/reject",
+    response_model=MessageOutput,
+)
 def reject_merge_suggestion(
     dataset_id: int,
     suggestion_id: int,
@@ -273,7 +280,11 @@ def reject_merge_suggestion(
 
     return MessageOutput(message="Suggestion rejected")
 
-@router.post("/datasets/{dataset_id}/clusters/merge-suggestions/{suggestion_id}/accept", response_model=MessageOutput)
+
+@router.post(
+    "/datasets/{dataset_id}/clusters/merge-suggestions/{suggestion_id}/accept",
+    response_model=MessageOutput,
+)
 def accept_merge_suggestion(
     dataset_id: int,
     suggestion_id: int,
@@ -293,7 +304,9 @@ def accept_merge_suggestion(
         raise HTTPException(status_code=404, detail="Cluster not found")
 
     # 1) Move all terms from B to A
-    terms_b = db.exec(select(SourceTerm).where(SourceTerm.cluster_id == cluster_b.id)).all()
+    terms_b = db.exec(
+        select(SourceTerm).where(SourceTerm.cluster_id == cluster_b.id)
+    ).all()
     for t in terms_b:
         t.cluster_id = cluster_a.id
         db.add(t)
@@ -374,7 +387,7 @@ def delete_cluster(
 
     verify_dataset_ownership(cluster.dataset, current_user.id)
 
-    #remove cluster assignment from terms
+    # remove cluster assignment from terms
     for term in cluster.source_terms:
         term.cluster_id = None
         db.add(term)
@@ -383,6 +396,3 @@ def delete_cluster(
     db.commit()
 
     return MessageOutput(message="Cluster deleted")
-
-
-
