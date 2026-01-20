@@ -3,26 +3,26 @@
 // ================================================
 
 export interface User {
-    id: number;
-    username: string;
-    disabled: boolean;
-    created_at: string;
-    last_login: string | null;
+  id: number;
+  username: string;
+  disabled: boolean;
+  created_at: string;
+  last_login: string | null;
 }
 
 export interface UserRegister {
-    username: string;
-    password: string;
+  username: string;
+  password: string;
 }
 
 export interface Token {
-    access_token: string;
-    token_type: string;
+  access_token: string;
+  token_type: string;
 }
 
 export interface UserStats {
-    dataset_count: number;
-    vocabulary_count: number;
+  dataset_count: number;
+  vocabulary_count: number;
 }
 
 // ================================================
@@ -30,11 +30,11 @@ export interface UserStats {
 // ================================================
 
 export interface PaginationMetadata {
-    total: number;
-    limit: number;
-    offset: number;
-    page: number;
-    total_pages: number;
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
+  total_pages: number;
 }
 
 // ================================================
@@ -42,27 +42,27 @@ export interface PaginationMetadata {
 // ================================================
 
 export interface Dataset {
-    id: number;
-    name: string;
-    uploaded: string;
-    last_modified: string;
-    labels: string[];
-    record_count: number;
+  id: number;
+  name: string;
+  uploaded: string;
+  last_modified: string;
+  labels: string[];
+  record_count: number;
 }
 
 export interface DatasetCreate {
-    name: string;
-    labels: string;
-    file: File;
+  name: string;
+  labels: string;
+  file: File;
 }
 
 export interface DatasetOutput {
-    dataset: Dataset;
+  dataset: Dataset;
 }
 
 export interface DatasetsOutput {
-    datasets: Dataset[];
-    pagination: PaginationMetadata;
+  datasets: Dataset[];
+  pagination: PaginationMetadata;
 }
 
 // ================================================
@@ -70,28 +70,28 @@ export interface DatasetsOutput {
 // ================================================
 
 export interface Record {
-    id: number;
-    patient_id: string;
-    seq_number: string | null;
-    date: string | null;
-    text: string;
-    uploaded: string;
-    dataset_id: number;
-    reviewed: boolean;
-    source_term_count: number;
+  id: number;
+  patient_id: string;
+  seq_number: string | null;
+  date: string | null;
+  text: string;
+  uploaded: string;
+  dataset_id: number;
+  reviewed: boolean;
+  source_term_count: number;
 }
 
 export interface RecordCreate {
-    text: string;
+  text: string;
 }
 
 export interface RecordOutput {
-    record: Record;
+  record: Record;
 }
 
 export interface RecordsOutput {
-    records: Record[];
-    pagination: PaginationMetadata;
+  records: Record[];
+  pagination: PaginationMetadata;
 }
 
 // ================================================
@@ -99,28 +99,32 @@ export interface RecordsOutput {
 // ================================================
 
 export interface SourceTerm {
-    id: number;
-    value: string;
-    label: string;
-    start_position: number | null;
-    end_position: number | null;
-    record_id: number;
+  id: number;
+  value: string;
+  label: string;
+  start_position: number | null;
+  end_position: number | null;
+  record_id: number;
 }
 
 export interface SourceTermCreate {
-    value: string;
-    label: string;
-    start_position?: number;
-    end_position?: number;
+  value: string;
+  label: string;
+  start_position?: number;
+  end_position?: number;
+}
+
+export interface SourceTermUpdate {
+  label?: string;
 }
 
 export interface SourceTermOutput {
-    source_term: SourceTerm;
+  source_term: SourceTerm;
 }
 
 export interface SourceTermsOutput {
-    source_terms: SourceTerm[];
-    pagination: PaginationMetadata;
+  source_terms: SourceTerm[];
+  pagination: PaginationMetadata;
 }
 
 // ================================================
@@ -128,22 +132,22 @@ export interface SourceTermsOutput {
 // ================================================
 
 export interface DatasetStats {
-    total_records: number;
-    processed_count: number;
-    pending_review_count: number;
-    extracted_terms_count: number;
+  total_records: number;
+  processed_count: number;
+  pending_review_count: number;
+  extracted_terms_count: number;
 }
 
 export interface ClusteringStats {
-    total_clusters: number;
-    clustered_terms: number;
-    unclustered_terms: number;
+  total_clusters: number;
+  clustered_terms: number;
+  unclustered_terms: number;
 }
 
 export interface MappingStats {
-    total_clusters: number;
-    mapped_clusters: number;
-    unmapped_clusters: number;
+  total_clusters: number;
+  mapped_clusters: number;
+  unmapped_clusters: number;
 }
 
 // ================================================
@@ -151,33 +155,33 @@ export interface MappingStats {
 // ================================================
 
 export interface ExtractionJobStartResponse {
-    job_id: string;
-    dataset_id: number;
-    total: number;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  job_id: string;
+  dataset_id: number;
+  total: number;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
 }
 
 export interface ExtractionJobStatusResponse {
-    job_id: string;
-    dataset_id: number;
-    total: number;
-    completed: number;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    error_message?: string | null;
+  job_id: string;
+  dataset_id: number;
+  total: number;
+  completed: number;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  error_message?: string | null;
 }
 
 export interface DatasetOverview {
-    dataset: Dataset;
-    stats: DatasetStats;
-    clustering_stats: ClusteringStats;
-    mapping_stats: MappingStats;
+  dataset: Dataset;
+  stats: DatasetStats;
+  clustering_stats: ClusteringStats;
+  mapping_stats: MappingStats;
 }
 
 export interface DatasetOverviewOutput {
-    dataset: Dataset;
-    stats: DatasetStats;
-    clustering_stats: ClusteringStats;
-    mapping_stats: MappingStats;
+  dataset: Dataset;
+  stats: DatasetStats;
+  clustering_stats: ClusteringStats;
+  mapping_stats: MappingStats;
 }
 
 // ================================================
@@ -185,26 +189,26 @@ export interface DatasetOverviewOutput {
 // ================================================
 
 export interface Vocabulary {
-    id: number;
-    name: string;
-    uploaded: string;
-    version: string;
-    concept_count: number;
+  id: number;
+  name: string;
+  uploaded: string;
+  version: string;
+  concept_count: number;
 }
 
 export interface VocabularyCreate {
-    name: string;
-    version: string;
-    file: File;
+  name: string;
+  version: string;
+  file: File;
 }
 
 export interface VocabularyOutput {
-    vocabulary: Vocabulary;
+  vocabulary: Vocabulary;
 }
 
 export interface VocabulariesOutput {
-    vocabularies: Vocabulary[];
-    pagination: PaginationMetadata;
+  vocabularies: Vocabulary[];
+  pagination: PaginationMetadata;
 }
 
 // ================================================
@@ -212,31 +216,31 @@ export interface VocabulariesOutput {
 // ================================================
 
 export interface Concept {
-    id: number;
-    vocab_term_id: string;
-    vocab_term_name: string;
-    vocabulary_id: number;
+  id: number;
+  vocab_term_id: string;
+  vocab_term_name: string;
+  vocabulary_id: number;
 }
 
 export interface ConceptCreate {
-    vocab_term_id: string;
-    vocab_term_name: string;
-    domain_id: string;
-    concept_class_id: string;
-    standard_concept?: string;
-    concept_code?: string;
-    valid_start_date: string;  // YYYYMMDD format
-    valid_end_date: string;    // YYYYMMDD format
-    invalid_reason?: string;
+  vocab_term_id: string;
+  vocab_term_name: string;
+  domain_id: string;
+  concept_class_id: string;
+  standard_concept?: string;
+  concept_code?: string;
+  valid_start_date: string; // YYYYMMDD format
+  valid_end_date: string; // YYYYMMDD format
+  invalid_reason?: string;
 }
 
 export interface ConceptOutput {
-    concept: Concept;
+  concept: Concept;
 }
 
 export interface ConceptsOutput {
-    concepts: Concept[];
-    pagination: PaginationMetadata;
+  concepts: Concept[];
+  pagination: PaginationMetadata;
 }
 
 // ================================================
@@ -244,11 +248,11 @@ export interface ConceptsOutput {
 // ================================================
 
 export interface MessageOutput {
-    message: string;
+  message: string;
 }
 
 export interface ApiError {
-    detail: string;
+  detail: string;
 }
 
 // ================================================
@@ -256,15 +260,16 @@ export interface ApiError {
 // ================================================
 
 export interface ClusteredTerm {
-    term_id: number;
-    text: string;
-    frequency: number;
-    n_records: number;
-    record_ids: number[];
+  term_id: number;
+  text: string;
+  frequency: number;
+  n_records: number;
+  record_ids: number[];
 }
 
 export interface ClusterData {
   id: number;
+  dataset_id: number;
   title: string;
   label: string;
   terms: ClusteredTerm[];
@@ -275,20 +280,20 @@ export interface ClusterData {
 }
 
 export interface ClustersOutput {
-    clusters: ClusterData[];
-    unclustered_terms: ClusteredTerm[];
-    total_terms: number;
-    labels: string[];
+  clusters: ClusterData[];
+  unclustered_terms: ClusteredTerm[];
+  total_terms: number;
+  labels: string[];
 }
 
 export interface ClusterCreateRequest {
-    label: string;
-    title: string;
+  label: string;
+  title: string;
 }
 
 export interface ClusterMergeRequest {
-    cluster_ids: number[];
-    new_title: string;
+  cluster_ids: number[];
+  new_title: string;
 }
 
 // ================================================
@@ -296,91 +301,91 @@ export interface ClusterMergeRequest {
 // ================================================
 
 export interface ClusterMapping {
-    cluster_id: number;
-    cluster_title: string;
-    cluster_label: string;
-    cluster_term_count: number;
-    cluster_total_occurrences: number;
-    concept_id: number | null;
-    concept_name: string | null;
-    concept_code: string | null;
-    concept_domain: string | null;
-    concept_class: string | null;
-    vocabulary_id: number | null;
-    vocabulary_name: string | null;
-    status: 'unmapped' | 'pending' | 'approved' | 'rejected';
-    created_at: string | null;
-    updated_at: string | null;
+  cluster_id: number;
+  cluster_title: string;
+  cluster_label: string;
+  cluster_term_count: number;
+  cluster_total_occurrences: number;
+  concept_id: number | null;
+  concept_name: string | null;
+  concept_code: string | null;
+  concept_domain: string | null;
+  concept_class: string | null;
+  vocabulary_id: number | null;
+  vocabulary_name: string | null;
+  status: "unmapped" | "pending" | "approved" | "rejected";
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface ClusterMappingsOutput {
-    mappings: ClusterMapping[];
-    total_clusters: number;
-    mapped_count: number;
-    unmapped_count: number;
-    approved_count: number;
+  mappings: ClusterMapping[];
+  total_clusters: number;
+  mapped_count: number;
+  unmapped_count: number;
+  approved_count: number;
 }
 
 export interface ConceptDetail extends Concept {
-    domain_id: string;
-    concept_class_id: string;
-    standard_concept: string | null;
-    concept_code: string | null;
-    valid_start_date: string;
-    valid_end_date: string;
-    invalid_reason: string | null;
+  domain_id: string;
+  concept_class_id: string;
+  standard_concept: string | null;
+  concept_code: string | null;
+  valid_start_date: string;
+  valid_end_date: string;
+  invalid_reason: string | null;
 }
 
 export interface ConceptSearchResult {
-    concept: ConceptDetail;
-    score: number;
-    vocabulary_name: string;
+  concept: ConceptDetail;
+  score: number;
+  vocabulary_name: string;
 }
 
 export interface ConceptSearchResults {
-    results: ConceptSearchResult[];
-    total: number;
+  results: ConceptSearchResult[];
+  total: number;
 }
 
 export interface ConceptHierarchy {
-    concept: ConceptDetail;
-    parents: ConceptDetail[];
-    children: ConceptDetail[];
-    related_concepts: ConceptDetail[];
+  concept: ConceptDetail;
+  parents: ConceptDetail[];
+  children: ConceptDetail[];
+  related_concepts: ConceptDetail[];
 }
 
 export interface AutoMapRequest {
-    vocabulary_ids: number[];
-    use_cluster_terms?: boolean;
-    domain_id?: string;
-    concept_class_id?: string;
-    standard_concept?: string;
+  vocabulary_ids: number[];
+  use_cluster_terms?: boolean;
+  domain_id?: string;
+  concept_class_id?: string;
+  standard_concept?: string;
 }
 
 export interface MapClusterRequest {
-    concept_id: number;
-    status?: 'pending' | 'approved' | 'rejected';
+  concept_id: number;
+  status?: "pending" | "approved" | "rejected";
 }
 
 export interface AutoMapAllRequest {
-    vocabulary_ids: number[];
-    label?: string;
-    use_cluster_terms?: boolean;
+  vocabulary_ids: number[];
+  label?: string;
+  use_cluster_terms?: boolean;
 }
 
 export interface AutoMapAllResponse {
-    mapped_count: number;
-    failed_count: number;
-    total_clusters: number;
+  mapped_count: number;
+  failed_count: number;
+  total_clusters: number;
 }
 
 export interface ConceptSearchParams {
-    query: string;
-    vocabulary_ids: number[];
-    domain_id?: string;
-    concept_class_id?: string;
-    standard_concept?: string;
-    limit?: number;
+  query: string;
+  vocabulary_ids: number[];
+  domain_id?: string;
+  concept_class_id?: string;
+  standard_concept?: string;
+  limit?: number;
 }
 
 // ================================================
@@ -388,14 +393,13 @@ export interface ConceptSearchParams {
 // ================================================
 
 export interface ExtractionJobStartResponse {
-    job_id: string;
+  job_id: string;
 }
 
 export interface ExtractionJobStatusResponse {
-    job_id: string;
-    status: 'queued' | 'running' | 'completed' | 'failed';
-    processed: number;
-    total: number;
-    message?: string;
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  processed: number;
+  total: number;
+  message?: string;
 }
-
