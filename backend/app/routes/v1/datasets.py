@@ -1,4 +1,7 @@
-from collections import defaultdict
+import re
+from typing import List
+import math
+
 from datetime import datetime, timezone
 
 from typing import Optional, Union
@@ -104,10 +107,9 @@ def get_datasets(
             uploaded=dataset.uploaded,
             last_modified=dataset.last_modified,
             labels=dataset.labels,
-            record_count=db.query(
-                func.count(Record.id))
-                .filter(Record.dataset_id == dataset.id)
-                .scalar(),
+            record_count=db.query(func.count(Record.id))
+            .filter(Record.dataset_id == dataset.id)
+            .scalar(),
         )
         for dataset in datasets
     ]
@@ -160,7 +162,7 @@ async def create_dataset(
             total += len(batch)
             batch.clear()
             print("Rows saved:", total)
-    
+
     if batch:
         db.bulk_save_objects(batch, return_defaults=True)
         db.commit()
@@ -203,10 +205,9 @@ def get_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
-        record_count=db.query(
-            func.count(Record.id))
-            .filter(Record.dataset_id == dataset.id)
-            .scalar()
+        record_count=db.query(func.count(Record.id))
+        .filter(Record.dataset_id == dataset.id)
+        .scalar(),
     )
     return DatasetOutput(dataset=dataset_response)
 
@@ -737,6 +738,17 @@ def review_record(
         )
 
     db_record.reviewed = reviewed
+
+    # When a record is reviewed, clear automatically extracted flags on its terms
+    if reviewed:
+        auto_terms = db.exec(
+            select(SourceTerm)
+            .where(SourceTerm.record_id == record_id)
+            .where(SourceTerm.automatically_extracted == True)
+        ).all()
+        for term in auto_terms:
+            term.automatically_extracted = False
+
     db.commit()
 
     return MessageOutput(
@@ -973,6 +985,208 @@ def get_clusters_of_dataset(
     )
 
 
+def _normalize_term(text: str) -> str:
+    """Normalize term text: lowercase, unify separators, remove punctuation, collapse spaces."""
+    s = (text or "").lower().strip()
+    s = s.replace("-", " ")
+    s = re.sub(r"[^\w\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _levenshtein(a: str, b: str, max_dist: int = 1) -> int:
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > max_dist:
+        return max_dist + 1
+    if len(a) > len(b):
+        a, b = b, a
+
+    prev = list(range(len(a) + 1))
+    for i, cb in enumerate(b, start=1):
+        cur = [i]
+        # early-stop lower bound in the row
+        row_min = cur[0]
+        for j, ca in enumerate(a, start=1):
+            cost = 0 if ca == cb else 1
+            cur_val = min(
+                prev[j] + 1,  # deletion
+                cur[j - 1] + 1,  # insertion
+                prev[j - 1] + cost,  # substitution
+            )
+            cur.append(cur_val)
+            row_min = min(row_min, cur_val)
+
+        if row_min > max_dist:
+            return max_dist + 1
+        prev = cur
+    return prev[-1]
+
+
+def _merge_labels_by_spelling(
+    labels_arr: List[int], texts: List[str], max_typos: int = 1
+) -> List[int]:
+    # Build: cluster_id -> list of normalized base forms of its members
+    cluster_to_terms = defaultdict(list)
+    for text, cid in zip(texts, labels_arr):
+        if cid == -1:
+            continue
+        norm = _normalize_term(text)
+        cluster_to_terms[int(cid)].append(norm)
+
+    if len(cluster_to_terms) <= 1:
+        return (
+            labels_arr.tolist() if hasattr(labels_arr, "tolist") else list(labels_arr)
+        )
+
+    # Pick a representative base key for each cluster (most frequent base form)
+    rep = {}
+    for cid, bases in cluster_to_terms.items():
+        rep[cid] = max(set(bases), key=bases.count)
+
+    # Merge clusters if their representative keys are very close
+    ids = list(rep.keys())
+    parent = {cid: cid for cid in ids}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            a, b = ids[i], ids[j]
+            da = rep[a]
+            db = rep[b]
+
+            # Quick merge if same base
+            if da == db:
+                union(a, b)
+                continue
+
+            # Allow up to `max_typos` typos
+            if _levenshtein(da, db, max_dist=max_typos) <= max_typos:
+                union(a, b)
+
+    # remap labels to merged roots
+    remap = {cid: find(cid) for cid in ids}
+    merged = []
+    for cid in labels_arr:
+        if cid == -1:
+            merged.append(-1)
+        else:
+            merged.append(remap[int(cid)])
+    return merged
+
+
+def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    """Compute cosine similarity for two vectors"""
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    denom = math.sqrt(na) * math.sqrt(nb)
+    if denom == 0.0:
+        return 0.0
+    return dot / denom
+
+
+def _to_list_matrix(embeddings) -> List[List[float]]:
+    """
+    Convert embeddings to list of listd regardless of whether they come as:
+    1. list of lists
+    2. numpy array
+    3. something with .tolist()
+    or one option?
+    """
+    if hasattr(embeddings, "tolist"):
+        return embeddings.tolist()
+    return embeddings
+
+
+def _compute_centroid(vecs: List[List[float]]) -> List[float]:
+    """Compute mean vector (centroid) for a list of vectors."""
+    if not vecs:
+        return []
+    dim = len(vecs[0])
+    acc = [0.0] * dim
+    for v in vecs:
+        for i in range(dim):
+            acc[i] += float(v[i])
+    n = float(len(vecs))
+    return [x / n for x in acc]
+
+
+def _merge_labels_by_centroid_similarity(
+    labels_arr: List[int],
+    embeddings,
+    threshold: float = 0.8,
+) -> List[int]:
+    """
+    Merge clusters if cosine similarity between their centroids >= threshold.
+    Noise (-1) is ignored.
+    Should we use numpy insted?
+    """
+    labels = labels_arr.tolist() if hasattr(labels_arr, "tolist") else list(labels_arr)
+    E = _to_list_matrix(embeddings)
+
+    # cluster_id -> list of vectors (members)
+    cluster_vecs = defaultdict(list)
+    for idx, cid in enumerate(labels):
+        if cid == -1:
+            continue
+        cluster_vecs[int(cid)].append(E[idx])
+
+    cluster_ids = list(cluster_vecs.keys())
+    if len(cluster_ids) <= 1:
+        return labels
+
+    # compute centroid for each cluster
+    centroids = {cid: _compute_centroid(cluster_vecs[cid]) for cid in cluster_ids}
+
+    # union-find for merging cluster IDs
+    parent = {cid: cid for cid in cluster_ids}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    # compare all pairs (ok for typical number of clusters per label)
+    for i in range(len(cluster_ids)):
+        for j in range(i + 1, len(cluster_ids)):
+            a = cluster_ids[i]
+            b = cluster_ids[j]
+            sim = _cosine_similarity(centroids[a], centroids[b])
+            if sim >= threshold:
+                union(a, b)
+
+    # remap label ids to merged roots
+    remap = {cid: find(cid) for cid in cluster_ids}
+    merged = []
+    for cid in labels:
+        if cid == -1:
+            merged.append(-1)
+        else:
+            merged.append(remap[int(cid)])
+    return merged
+
+
 @router.post("/{dataset_id}/clusters/create", response_model=MessageOutput)
 def create_clusters_for_dataset(
     dataset_id: int,
@@ -1004,7 +1218,7 @@ def create_clusters_for_dataset(
     if len(texts) == 0:
         return MessageOutput(message="No terms to cluster")
 
-    embedding_model = model_registry.get_model("embedding")
+    embedding_model = model_registry.get_model("embedding_model2vec")
     embeddings = embedding_model.embed(texts)
 
     # Default clustering parameters (can be tuned)
@@ -1018,6 +1232,18 @@ def create_clusters_for_dataset(
     clusterer = HDBSCAN(**HDBSCAN_PARAMS)
 
     labels_arr = clusterer.fit_predict(embeddings)
+
+    # Post-processing: merge clusters with very similar names (formatting / small typos) 2
+    labels_arr = _merge_labels_by_spelling(
+        labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
+        texts,
+        max_typos=1,
+    )
+
+    labels_arr = _merge_labels_by_centroid_similarity(
+        labels_arr, embeddings, threshold=0.8
+    )
+    labels_arr = [int(x) for x in labels_arr]
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
@@ -1062,7 +1288,6 @@ def create_clusters_for_dataset(
             st.cluster_id = new_cluster.id
             db.add(st)
 
-    
     for st in noise_terms:
         new_cluster = Cluster(
             dataset_id=dataset_id,
@@ -1172,19 +1397,63 @@ def merge_clusters_endpoint(
     db.commit()
     db.refresh(merged_cluster)
 
-    # Move all terms from old clusters to new cluster
-    total_terms_moved = 0
-    for old_cluster in clusters_to_merge:
-        for term in old_cluster.source_terms:
-            term.cluster_id = merged_cluster.id
-            db.add(term)
-            total_terms_moved += 1
+    # Collect all term IDs first to avoid issues with ondelete="SET NULL"
+    # when deleting old clusters
+    cluster_ids_to_merge = [c.id for c in clusters_to_merge]
+    terms_to_move = db.exec(
+        select(SourceTerm).where(SourceTerm.cluster_id.in_(cluster_ids_to_merge))
+    ).all()
 
-        # Delete old cluster
+    # Update all terms to point to the new merged cluster
+    total_terms_moved = len(terms_to_move)
+    for term in terms_to_move:
+        term.cluster_id = merged_cluster.id
+        db.add(term)
+
+    # Commit the term updates first
+    db.commit()
+
+    # Now delete old clusters (terms already moved, so ondelete won't affect them)
+    for old_cluster in clusters_to_merge:
         db.delete(old_cluster)
 
     db.commit()
 
     return MessageOutput(
         message=f"Merged {len(data.cluster_ids)} clusters into '{data.new_title}' (moved {total_terms_moved} terms)"
+    )
+
+
+@router.delete(
+    "/{dataset_id}/source-terms",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Delete extracted source terms in a dataset",
+    description="Removes all automatically extracted source terms for the dataset so extraction can be rerun cleanly",
+)
+def delete_extracted_source_terms(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    # Verify dataset ownership
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # Delete only automatically extracted terms for records in this dataset
+    terms = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.automatically_extracted == True)  # noqa: E712
+    ).all()
+
+    for term in terms:
+        db.delete(term)
+
+    db.commit()
+    return MessageOutput(
+        message=f"Deleted {len(terms)} automatically extracted source terms"
     )

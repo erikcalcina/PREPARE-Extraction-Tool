@@ -19,6 +19,26 @@ class MessageOutput(BaseModel):
     message: str
 
 
+class ExtractionJobStartResponse(BaseModel):
+    """Response when a dataset extraction job is queued."""
+
+    job_id: int
+    dataset_id: int
+    total: int
+    status: str
+
+
+class ExtractionJobStatusResponse(BaseModel):
+    """Progress snapshot for a dataset extraction job."""
+
+    job_id: int
+    dataset_id: int
+    total: int
+    completed: int
+    status: str
+    error_message: Optional[str] = None
+
+
 # ================================================
 # Pagination models
 # ================================================
@@ -338,6 +358,12 @@ class SourceTermCreate(BaseModel):
     end_position: Optional[int] = None
 
 
+class SourceTermUpdate(BaseModel):
+    """Model for updating a source term."""
+
+    label: Optional[str] = None
+
+
 class SourceTermOutput(BaseModel):
     """Wrapper for single source term response."""
 
@@ -387,8 +413,6 @@ class ClusteredTerm(BaseModel):
 
 
 class ClusterResponse(BaseModel):
-    """Rich cluster data for frontend display"""
-
     id: int
     dataset_id: int
     label: str
@@ -400,12 +424,35 @@ class ClusterResponse(BaseModel):
 
 
 class ClustersStatisticsOutput(BaseModel):
-    """Complete clustering state for a dataset/label"""
-
     clusters: List[ClusterResponse]
     unclustered_terms: List[ClusteredTerm]
     total_number_terms: int
     labels: List[str]
+
+
+class ClusterShort(BaseModel):
+    id: int
+    title: str
+    label: str
+    dataset_id: int
+
+
+class MergeSuggestionResponse(BaseModel):
+    id: int
+    dataset_id: int
+    label: str
+    method: str
+    score: float
+    status: str
+    created_at: datetime
+
+    cluster_a: ClusterShort
+    cluster_b: ClusterShort
+
+
+class MergeSuggestionsOutput(BaseModel):
+    suggestions: List[MergeSuggestionResponse]
+
 
 
 # ================================================

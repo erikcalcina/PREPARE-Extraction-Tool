@@ -38,10 +38,11 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            #self._model = model_registry.get_model("embedding")
-            self._model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
+            self._model = model_registry.get_model("embedding_model2vec")
+            # self._model = StaticModel.from_pretrained(
+            #     "minishlab/potion-multilingual-128M"
+            # )
         return self._model
-
 
     @property
     def embedding_dim(self):
