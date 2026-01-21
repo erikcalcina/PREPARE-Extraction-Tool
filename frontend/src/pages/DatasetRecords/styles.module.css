@@ -842,8 +842,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    background-color: #48bb78;
+    padding: 8px 10px;
+    background-color: #269b6f;
     border: none;
     border-radius: 6px;
     font-size: 14px;
@@ -856,15 +856,15 @@
 }
 
 .reviewButton:hover:not(:disabled) {
-    background-color: #38a169;
+    background-color: #269b6f;
 }
 
 .reviewButton.reviewed {
-    background-color: #4299e1;
+    background-color: #269b6f;
 }
 
 .reviewButton.reviewed:hover {
-    background-color: #3182ce;
+    background-color: #20855f;
 }
 
 .reviewButton:disabled {
