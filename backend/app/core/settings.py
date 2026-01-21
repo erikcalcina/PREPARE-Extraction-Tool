@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     EXTRACT_HOST: str = "http://0.0.0.0:5600"
 
     # Model settings
-    EMBEDDING_MODEL: Union[str, None] = None
+    EMBEDDING_MODEL_SENTENCE: Union[str, None] = None
+    EMBEDDING_MODEL_MODEL2VEC: Union[str, None] = None
 
     @field_validator("DATABASE_URL")
     @classmethod

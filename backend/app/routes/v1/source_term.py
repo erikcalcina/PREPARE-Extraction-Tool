@@ -8,11 +8,13 @@ from app.core.database import (
     Dataset,
     SourceTerm,
     Cluster,
+    Record,
 )
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,
     SourceTermOutput,
+    SourceTermUpdate,
     BatchTermToClusterMapping,
 )
 
@@ -79,7 +81,7 @@ def auto_map_source_term_to_cluster(
         )
 
     # --- 3. Use embedding model instead of TF-IDF ---
-    embedding_model = model_registry.get_model("embedding")
+    embedding_model = model_registry.get_model("embedding_model2vec")
 
     # Cluster representatives = cluster titles
     cluster_titles = [c.title for c in clusters]
@@ -200,6 +202,40 @@ def get_source_term(
     return SourceTermOutput(source_term=source_term)
 
 
+@router.patch(
+    "/{term_id}",
+    response_model=SourceTermOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Update a source term",
+    description="Updates a source term's label",
+    response_description="The updated source term",
+)
+def update_source_term(
+    term_id: int,
+    update_data: SourceTermUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    source_term = db.get(SourceTerm, term_id)
+    if source_term is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source term not found"
+        )
+
+    # Verify ownership through source term -> record -> dataset -> user
+    verify_dataset_ownership(source_term.record.dataset, current_user.id)
+
+    # Update fields if provided
+    if update_data.label is not None:
+        source_term.label = update_data.label
+
+    db.add(source_term)
+    db.commit()
+    db.refresh(source_term)
+
+    return SourceTermOutput(source_term=source_term)
+
+
 @router.delete(
     "/{term_id}",
     response_model=MessageOutput,
@@ -242,8 +278,11 @@ def map_source_term_to_cluster(
 ):
     """
     Manually assign a SourceTerm to a cluster.
-    """
 
+    This endpoint moves ALL SourceTerms with the same value (text) and label
+    from the source location (cluster or unclustered) to the target cluster.
+    This ensures consistency between frontend aggregated view and backend data.
+    """
     source_term = db.get(SourceTerm, term_id)
     cluster = db.get(Cluster, cluster_id)
 
@@ -263,12 +302,44 @@ def map_source_term_to_cluster(
     # Verify ownership through cluster -> dataset -> user
     verify_dataset_ownership(cluster.dataset, current_user.id)
 
-    source_term.cluster_id = cluster.id
-    db.add(source_term)
+    # Get dataset_id from the source term's record
+    dataset_id = source_term.record.dataset_id
+    source_cluster_id = source_term.cluster_id
+
+    # Find ALL terms with the same value and label in the same dataset
+    # that are in the same source location (same cluster or unclustered)
+    terms_to_move = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.value == source_term.value)
+        .where(SourceTerm.label == source_term.label)
+        .where(SourceTerm.cluster_id == source_cluster_id)
+    ).all()
+
+    # Move all matching terms to the target cluster
+    moved_count = 0
+    for term in terms_to_move:
+        term.cluster_id = cluster.id
+        db.add(term)
+        moved_count += 1
+
+    # Check if source cluster is now empty and delete it
+    if source_cluster_id is not None:
+        source_cluster = db.get(Cluster, source_cluster_id)
+        if source_cluster:
+            # Refresh to get updated source_terms after the move
+            db.flush()
+            remaining_terms = db.exec(
+                select(SourceTerm).where(SourceTerm.cluster_id == source_cluster_id)
+            ).all()
+            if len(remaining_terms) == 0:
+                db.delete(source_cluster)
+
     db.commit()
 
     return MessageOutput(
-        message=f"Source term {term_id} mapped to cluster {cluster_id}"
+        message=f"Moved {moved_count} term(s) with value '{source_term.value}' to cluster {cluster_id}"
     )
 
 
@@ -280,8 +351,11 @@ def unmap_source_term_from_cluster(
 ):
     """
     Remove source term from its cluster.
-    """
 
+    This endpoint removes ALL SourceTerms with the same value (text) and label
+    from the cluster. If the cluster becomes empty after removal, it is deleted.
+    This ensures consistency between frontend aggregated view and backend data.
+    """
     source_term = db.get(SourceTerm, term_id)
     if not source_term:
         raise HTTPException(
@@ -291,8 +365,43 @@ def unmap_source_term_from_cluster(
     # Verify ownership through source term -> record -> dataset -> user
     verify_dataset_ownership(source_term.record.dataset, current_user.id)
 
-    source_term.cluster_id = None
-    db.add(source_term)
+    source_cluster_id = source_term.cluster_id
+    if source_cluster_id is None:
+        return MessageOutput(message="Source term is not in any cluster")
+
+    # Get dataset_id from the source term's record
+    dataset_id = source_term.record.dataset_id
+
+    # Find ALL terms with the same value and label in this cluster
+    terms_to_unmap = db.exec(
+        select(SourceTerm)
+        .join(Record)
+        .where(Record.dataset_id == dataset_id)
+        .where(SourceTerm.value == source_term.value)
+        .where(SourceTerm.label == source_term.label)
+        .where(SourceTerm.cluster_id == source_cluster_id)
+    ).all()
+
+    # Unmap all matching terms
+    unmapped_count = 0
+    for term in terms_to_unmap:
+        term.cluster_id = None
+        db.add(term)
+        unmapped_count += 1
+
+    # Check if cluster is now empty and delete it
+    source_cluster = db.get(Cluster, source_cluster_id)
+    if source_cluster:
+        # Flush to see updated state
+        db.flush()
+        remaining_terms = db.exec(
+            select(SourceTerm).where(SourceTerm.cluster_id == source_cluster_id)
+        ).all()
+        if len(remaining_terms) == 0:
+            db.delete(source_cluster)
+
     db.commit()
 
-    return MessageOutput(message=f"Source term {term_id} unmapped from cluster")
+    return MessageOutput(
+        message=f"Unmapped {unmapped_count} term(s) with value '{source_term.value}' from cluster"
+    )
