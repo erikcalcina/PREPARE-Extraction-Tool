@@ -131,7 +131,7 @@ async def parse_csv(
 
 # Will be running in the background
 def parse_concepts_file(
-    file_path: str, required_columns: list
+    file_path: str, required_columns: list, unwanted_ids: list
 ):
     """Streaming parser – yields Concept objects one by one."""
 
@@ -154,8 +154,9 @@ def parse_concepts_file(
                 )
 
             for row_number, row in enumerate(reader, start=2):
+                vocabulary_name = row.get("vocabulary_id")
                 value = row.get("concept_name")
-                if not value or not value.strip():
+                if not value or not value.strip() or vocabulary_name in unwanted_ids or not vocabulary_name:
                     continue
                 
                 try:
@@ -173,6 +174,7 @@ def parse_concepts_file(
                             row["valid_end_date"], "%Y%m%d"
                         ),
                         invalid_reason=row.get("invalid_reason"),
+                        vocabulary_name=vocabulary_name
                     )
 
                 except Exception as row_error:

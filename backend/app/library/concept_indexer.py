@@ -1,6 +1,7 @@
 from math import ceil
 
 from typing import List, Union, Optional, Dict, Any
+from collections import defaultdict
 
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
@@ -106,49 +107,57 @@ class ConceptIndexer:
         return self.model.encode(text)
 
 
+    def _group_concepts_by_vocab(self, concepts: List[Concept]) -> defaultdict[int, List[Concept]]:
+        grouped = defaultdict(list)
+        for c in concepts:
+            grouped[c.vocabulary_id].append(c)
+        return grouped
+
     def add_bulk_to_index(
         self,
-        vocab_id: int,
         concepts: List[Concept],
-        embed_batch_size: int = 512,
+        embed_batch_size: int = 512
     ):
-        index_name = f"concepts_{vocab_id}"
+        grouped_concepts = self._group_concepts_by_vocab(concepts)
 
-        for i in range(0, len(concepts), embed_batch_size):
-            embed_batch = concepts[i : i + embed_batch_size]
+        for vocab_id, concepts in grouped_concepts.items():
+            index_name = f"concepts_{vocab_id}"
 
-            texts = [c.vocab_term_name for c in embed_batch]
-            embeddings = self._calculate_embedding(texts)
+            for i in range(0, len(concepts), embed_batch_size):
+                embed_batch = concepts[i : i + embed_batch_size]
 
-            actions = []
-            for c, emb in zip(embed_batch, embeddings):
-                actions.append({
-                    "_index": index_name,
-                    "_id": c.id,
-                    "_source": {
-                        "vocab_term_id": c.vocab_term_id,
-                        "vocab_term_name": c.vocab_term_name,
-                        "embedding": [float(x) for x in emb],
-                    },
-                })
+                texts = [c.vocab_term_name for c in embed_batch]
+                embeddings = self._calculate_embedding(texts)
 
-            success, errors = bulk(
-                es_client,
-                actions,
-                raise_on_error=False,
-                raise_on_exception=False,
-            )
+                actions = []
+                for c, emb in zip(embed_batch, embeddings):
+                    actions.append({
+                        "_index": index_name,
+                        "_id": c.id,
+                        "_source": {
+                            "vocab_term_id": c.vocab_term_id,
+                            "vocab_term_name": c.vocab_term_name,
+                            "embedding": [float(x) for x in emb],
+                        },
+                    })
 
-            if errors:
-                print(f"ES bulk failed for batch starting at {i}")
-                print(f"Failed docs: {len(errors)}")
-
-                for err in errors[:3]:
-                    print("ES error:", err)
-
-                raise RuntimeError(
-                    f"{len(errors)} document(s) failed to index into Elasticsearch"
+                success, errors = bulk(
+                    es_client,
+                    actions,
+                    raise_on_error=False,
+                    raise_on_exception=False,
                 )
+
+                if errors:
+                    print(f"ES bulk failed for batch starting at {i}")
+                    print(f"Failed docs: {len(errors)}")
+
+                    for err in errors[:3]:
+                        print("ES error:", err)
+
+                    raise RuntimeError(
+                        f"{len(errors)} document(s) failed to index into Elasticsearch"
+                    )
 
     def add_concept_to_index(self, vocab_id: int, concept_db: Concept):
         """Add a single concept to the index.

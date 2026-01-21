@@ -259,18 +259,18 @@ class VocabularyCreate(BaseModel):
     version: str
     concepts: List["ConceptCreate"] = Field(default_factory=list)
 
-
+class VocabularyUploadResponse(BaseModel):
+    status: VocabularyStatus
+    message: str
+    
 class VocabularyResponse(BaseModel):
     """Model for vocabulary API responses with metadata."""
 
     id: int
     name: str
     uploaded: datetime
-    version: str
     concept_count: Optional[int] = None
     status: VocabularyStatus
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
     error_message: Optional[str] = None
 
 
@@ -279,6 +279,11 @@ class VocabularyOutput(BaseModel):
 
     vocabulary: VocabularyResponse
 
+class ProcessingVocabularyStats(BaseModel):
+    """Model for tracking vocabulary progress during processing."""
+
+    processing_vocabularies: int
+    total_concepts: int
 
 class VocabulariesOutput(BaseModel):
     """Wrapper for paginated list of vocabularies."""

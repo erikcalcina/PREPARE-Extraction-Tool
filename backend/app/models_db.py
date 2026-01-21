@@ -184,13 +184,10 @@ class Vocabulary(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    version: str
     status: VocabularyStatus = Field(
-        default=VocabularyStatus.PENDING,
+        default=VocabularyStatus.PROCESSING,
         index=True
     )
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
@@ -222,6 +219,12 @@ class Concept(SQLModel, table=True):
     valid_start_date: datetime
     valid_end_date: datetime
     invalid_reason: Optional[str]
+
+    # not stored in the table
+    vocabulary_name: Optional[str] = Field(
+        default=None,
+        exclude=True
+    )
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(
