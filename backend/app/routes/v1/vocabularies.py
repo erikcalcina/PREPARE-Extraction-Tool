@@ -86,10 +86,10 @@ def get_vocabularies(
             id=vocabulary.id,
             name=vocabulary.name,
             uploaded=vocabulary.uploaded,
-            concept_count=db.query(
-                func.count(Concept.id))
-                .filter(Concept.vocabulary_id == vocabulary.id)
-                .scalar(),
+            concept_count=db.exec(
+                select(func.count(Concept.id))
+                .where(Concept.vocabulary_id == vocabulary.id)
+            ).one(),
             status=vocabulary.status,
             error_message=vocabulary.error_message
         )
@@ -311,10 +311,10 @@ def get_vocabulary(
         id=vocabulary.id,
         name=vocabulary.name,
         uploaded=vocabulary.uploaded,
-        concept_count=db.query(
-            func.count(Concept.id))
-            .filter(Concept.vocabulary_id == vocabulary.id)
-            .scalar(),
+        concept_count=db.exec(
+            select(func.count(Concept.id))
+            .where(Concept.vocabulary_id == vocabulary.id)
+        ).one(),
         status=vocabulary.status,
         error_message=vocabulary.error_message
     )
