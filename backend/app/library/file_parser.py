@@ -2,7 +2,6 @@ import io
 import csv
 import codecs
 import json
-from typing import List
 
 from dateutil import parser
 from datetime import datetime
@@ -18,17 +17,17 @@ from app.models_db import Record, Concept
 # ================================================
 
 
-async def parse_records_file(file: UploadFile, required_columns: list) -> List[Record]:
-    """Parse a file into a list of records."""
+def parse_records_file(file: UploadFile, required_columns: list):
+    """Parse a file and yield Record objects one by one."""
     filename = file.filename.lower()
 
     if filename.endswith(".csv"):
-        return parse_csv(file, required_columns)
+        for record in parse_csv(file, required_columns):
+            yield record
 
     elif filename.endswith(".json"):
-        raw = await file.read()
-        text = raw.decode("utf-8")
-        return parse_json(text, required_columns)
+        for record in parse_json(file, required_columns):
+            yield record
 
     else:
         raise HTTPException(
@@ -36,17 +35,11 @@ async def parse_records_file(file: UploadFile, required_columns: list) -> List[R
             detail="Unsupported file type.",
         )
 
-async def parse_json(
+def parse_json(
     file: UploadFile,
     required_columns: list,
 ):
     """Streaming JSON parser – yields Record objects one by one."""
-
-    if not file.filename.lower().endswith(".json"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
     
     items = ijson.items(file.file, "item")
 
@@ -80,17 +73,11 @@ async def parse_json(
             text=obj["text"],
         )
 
-async def parse_csv(
+def parse_csv(
     file: UploadFile,
     required_columns: list,
 ):
     """Streaming parser – yields Record objects one by one."""
-
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
 
     text_stream = codecs.getreader("utf-8")(file.file)
 
