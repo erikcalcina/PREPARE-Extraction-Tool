@@ -221,6 +221,7 @@ class VocabularyStatus(str, Enum):
     PROCESSING = "PROCESSING"
     DONE = "DONE"
     FAILED = "FAILED"
+    DELETED = "DELETED"
 
 
 class Vocabulary(SQLModel, table=True):
@@ -269,12 +270,6 @@ class Concept(SQLModel, table=True):
     valid_start_date: datetime
     valid_end_date: datetime
     invalid_reason: Optional[str]
-
-    # not stored in the table
-    vocabulary_name: Optional[str] = Field(
-        default=None,
-        exclude=True
-    )
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(

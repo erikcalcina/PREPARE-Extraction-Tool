@@ -160,7 +160,7 @@ def parse_concepts_file(
                     continue
                 
                 try:
-                    yield Concept(
+                    concept =  Concept(
                         vocab_term_id=row["concept_id"],
                         vocab_term_name=value.strip(),
                         domain_id=row["domain_id"],
@@ -173,9 +173,9 @@ def parse_concepts_file(
                         valid_end_date=datetime.strptime(
                             row["valid_end_date"], "%Y%m%d"
                         ),
-                        invalid_reason=row.get("invalid_reason"),
-                        vocabulary_name=vocabulary_name
+                        invalid_reason=row.get("invalid_reason")
                     )
+                    yield (concept, vocabulary_name)
 
                 except Exception as row_error:
                     raise HTTPException(

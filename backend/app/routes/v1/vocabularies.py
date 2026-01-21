@@ -106,7 +106,7 @@ def get_vocabularies(
 @router.post(
     "/",
     response_model=VocabularyUploadResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Create a new vocabulary",
     description="Creates a new vocabulary with its concepts and indexes them in Elasticsearch for semantic search",
     response_description="Confirmation message that the vocabulary was created successfully",
@@ -170,19 +170,16 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
             'SOPT', 'Meas Type', 'US Census', 'Language', 'Note Type', 'Condition Status', 
             'Procedure Type', 'Vocabulary', 'Obs Period Type', 'Type Concept', 'Plan Stop Reason', 
             'UCUM', 'CDM', 'Metadata', 'OSM', 'Plan', 'UB04 Point of Origin', 'Cost', 'UB04 Typ bill', 
-            'Episode', 'Death Type', 'Condition Type', 'Device Type', 'Drug Type', 'Visit', 'Domain']
+            'Episode', 'Death Type', 'Condition Type', 'Device Type', 'Drug Type', 'Visit', 'Domain', "None"]
 
+    vocabularies = {}
     try:
 
         # start ingesting
         BATCH_SIZE = 2000
         batch = []
         total = 0
-        vocabularies = {}
-
-        for concept in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
-
-            vocab_name = concept.vocabulary_name
+        for concept, vocab_name in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
             if vocab_name in vocabularies.keys():
                 concept.vocabulary_id = vocabularies[vocab_name]
             else:
@@ -224,29 +221,32 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
         db.commit()
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         # failure cleanup
         db.rollback()
 
         vocab_ids = list(vocabularies.values())
         error_msg = str(e)
 
-        # mark all vocabularies as FAILED
-        db.exec(
-            update(Vocabulary)
-            .where(Vocabulary.id.in_(vocab_ids))
-            .values(
-                status=VocabularyStatus.FAILED,
-                error_message=error_msg
+        if vocab_ids:
+            # mark all vocabularies as FAILED
+            db.exec(
+                update(Vocabulary)
+                .where(Vocabulary.id.in_(vocab_ids))
+                .values(
+                    status=VocabularyStatus.FAILED,
+                    error_message=error_msg
+                )
             )
-        )
-        db.commit()
+            db.commit()
 
-        # delete ES indices
-        for vocab_id in vocab_ids:
-            try:
-                indexer.delete_index(vocab_id)
-            except Exception as es_err:
-                print(f"Failed to delete ES index for vocab {vocab_id}: {es_err}")
+            # delete ES indices
+            for vocab_id in vocab_ids:
+                try:
+                    indexer.delete_index(vocab_id)
+                except Exception as es_err:
+                    print(f"Failed to delete ES index for vocab {vocab_id}: {es_err}")
 
     finally:
         db.close()
@@ -324,12 +324,13 @@ def get_vocabulary(
 @router.delete(
     "/{vocabulary_id}",
     response_model=MessageOutput,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Delete a vocabulary",
     description="Deletes a vocabulary, its concepts, and removes it from the Elasticsearch index",
-    response_description="Confirmation message that the vocabulary was deleted successfully",
+    response_description="Confirmation message that the vocabulary deletion started",
 )
 def delete_vocabulary(
+    background_tasks: BackgroundTasks,
     vocabulary_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -339,14 +340,41 @@ def delete_vocabulary(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    
     verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    db.delete(vocabulary)
+    vocabulary.status = VocabularyStatus.DELETED
     db.commit()
 
-    indexer.delete_index(vocabulary_id)
+    # start background ingestion
+    background_tasks.add_task(
+        delete_vocabulary_background,
+        vocabulary_id
+    )
 
-    return MessageOutput(message="Vocabulary deleted successfully")
+    return MessageOutput(message="Vocabulary deletion started in the background")
+
+def delete_vocabulary_background(vocabulary_id: int):
+    db = Session(engine)
+    try:
+        vocabulary = db.get(Vocabulary, vocabulary_id)
+        if vocabulary is None:
+            print(f"Vocabulary {vocabulary_id} not found during background deletion")
+            return 
+
+        # delete from database
+        db.delete(vocabulary)
+        db.commit()
+
+        # delete from Elasticsearch
+        indexer.delete_index(vocabulary_id)
+        
+        print(f"Successfully deleted vocabulary {vocabulary_id}")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Failed to delete vocabulary {vocabulary_id}: {e}")
+    finally:
+        db.close()
 
 
 # ================================================

@@ -10,8 +10,6 @@ from app.core.elastic import es_client
 from app.core.model_registry import model_registry
 from app.models_db import SourceTerm, Concept, Cluster
 
-from model2vec import StaticModel
-
 # ================================================
 # Concept indexer in elasticsearch
 # ================================================
@@ -39,9 +37,6 @@ class ConceptIndexer:
         """
         if self._model is None:
             self._model = model_registry.get_model("embedding_model2vec")
-            # self._model = StaticModel.from_pretrained(
-            #     "minishlab/potion-multilingual-128M"
-            # )
         return self._model
 
     @property
@@ -53,7 +48,7 @@ class ConceptIndexer:
         """
         if self._embedding_dim is None:
             test_emb = self._calculate_embedding("test")
-            self._embedding_dim = test_emb.shape[0]
+            self._embedding_dim = len(test_emb)
         return self._embedding_dim
 
     def create_concept_index(self, vocab_id: int):
@@ -104,8 +99,7 @@ class ConceptIndexer:
         Returns:
             A list containing the embedding vector(s).
         """
-        # return self.model.embed(text)
-        return self.model.encode(text)
+        return self.model.embed(text)
 
 
     def _group_concepts_by_vocab(self, concepts: List[Concept]) -> defaultdict[int, List[Concept]]:
