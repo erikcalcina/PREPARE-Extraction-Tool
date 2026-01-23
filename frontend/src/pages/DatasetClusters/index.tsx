@@ -596,7 +596,7 @@ export default function DatasetClusters() {
     // Remove from source (or delete source cluster if it becomes empty)
     if (sourceClusterId === null) {
       setUnclusteredTerms((prev) => prev.filter((t) => t.term_id !== termId));
-     } else if (sourceClusterWillBeEmpty) {
+    } else if (sourceClusterWillBeEmpty) {
       // Remove the entire cluster if it becomes empty
       setClusters((prev) => prev.filter((c) => c.id !== sourceClusterId));
     } else {
