@@ -17,17 +17,17 @@ from app.models_db import Record, Concept
 # ================================================
 
 
-async def parse_records_file(file: UploadFile, required_columns: list):
+def parse_records_file(file: UploadFile, required_columns: list):
     """Yield Record objects from the uploaded file lazily."""
     filename = file.filename.lower()
 
     if filename.endswith(".csv"):
-        async for record in parse_csv(file, required_columns):
+        for record in parse_csv(file, required_columns):
             yield record
         return
 
     if filename.endswith(".json"):
-        async for record in parse_json(file, required_columns):
+        for record in parse_json(file, required_columns):
             yield record
         return
 
