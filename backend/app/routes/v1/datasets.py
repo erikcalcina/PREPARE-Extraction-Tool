@@ -130,7 +130,7 @@ def get_datasets(
     description="Creates a new dataset with its associated records",
     response_description="The created dataset with its metadata",
 )
-async def create_dataset(
+def create_dataset(
     name: str = Form(...),
     labels: str = Form(...),
     file: UploadFile = File(...),
@@ -152,7 +152,7 @@ async def create_dataset(
     BATCH_SIZE = 2000
     batch = []
     total = 0
-    async for record in parse_records_file(file, REQUIRED_COLUMNS):
+    for record in parse_records_file(file, REQUIRED_COLUMNS):
         record.dataset_id = dataset_id
         batch.append(record)
 

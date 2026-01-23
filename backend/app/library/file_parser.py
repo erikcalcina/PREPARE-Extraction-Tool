@@ -2,7 +2,6 @@ import io
 import csv
 import codecs
 import json
-from typing import List
 
 from dateutil import parser
 from datetime import datetime
@@ -37,18 +36,13 @@ async def parse_records_file(file: UploadFile, required_columns: list):
         detail="Unsupported file type.",
     )
 
-async def parse_json(
+
+def parse_json(
     file: UploadFile,
     required_columns: list,
 ):
     """Streaming JSON parser – yields Record objects one by one."""
 
-    if not file.filename.lower().endswith(".json"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
-    
     items = ijson.items(file.file, "item")
 
     for i, obj in enumerate(items):
@@ -81,17 +75,12 @@ async def parse_json(
             text=obj["text"],
         )
 
-async def parse_csv(
+
+def parse_csv(
     file: UploadFile,
     required_columns: list,
 ):
     """Streaming parser – yields Record objects one by one."""
-
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
 
     text_stream = codecs.getreader("utf-8")(file.file)
 
@@ -130,10 +119,9 @@ async def parse_csv(
             text=row["text"],
         )
 
+
 # Will be running in the background
-def parse_concepts_file(
-    file_path: str, required_columns: list
-):
+def parse_concepts_file(file_path: str, required_columns: list, unwanted_ids: list):
     """Streaming parser – yields Concept objects one by one."""
 
     try:
@@ -155,12 +143,18 @@ def parse_concepts_file(
                 )
 
             for row_number, row in enumerate(reader, start=2):
+                vocabulary_name = row.get("vocabulary_id")
                 value = row.get("concept_name")
-                if not value or not value.strip():
+                if (
+                    not value
+                    or not value.strip()
+                    or vocabulary_name in unwanted_ids
+                    or not vocabulary_name
+                ):
                     continue
-                
+
                 try:
-                    yield Concept(
+                    concept = Concept(
                         vocab_term_id=row["concept_id"],
                         vocab_term_name=value.strip(),
                         domain_id=row["domain_id"],
@@ -175,13 +169,14 @@ def parse_concepts_file(
                         ),
                         invalid_reason=row.get("invalid_reason"),
                     )
+                    yield (concept, vocabulary_name)
 
                 except Exception as row_error:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Invalid data at CSV row {row_number}: {row_error}",
                     )
-                
+
     except HTTPException:
         raise
     except Exception as e:
@@ -208,9 +203,7 @@ def download_annotated_dataset(records, format):
             for term in record.source_terms:
                 entity_type = term.label
                 entity_name = (
-                    term.cluster.title
-                    if term.cluster is not None
-                    else term.value
+                    term.cluster.title if term.cluster is not None else term.value
                 )
                 writer.writerow(
                     [
@@ -230,9 +223,7 @@ def download_annotated_dataset(records, format):
             for term in record.source_terms:
                 entity_type = term.label
                 entity_name = (
-                    term.cluster.title
-                    if term.cluster is not None
-                    else term.value
+                    term.cluster.title if term.cluster is not None else term.value
                 )
                 data.append(
                     {
