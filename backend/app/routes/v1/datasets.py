@@ -1214,7 +1214,8 @@ def create_clusters_for_dataset(
             status_code=400, detail="No source terms for this label in dataset"
         )
 
-    texts = [st.value for st in source_terms]
+    raw_texts = [st.value for st in source_terms]
+    texts = [_normalize_term(t) for t in raw_texts] 
     if len(texts) == 0:
         return MessageOutput(message="No terms to cluster")
 
@@ -1236,7 +1237,7 @@ def create_clusters_for_dataset(
     # Post-processing: merge clusters with very similar names (formatting / small typos) 2
     labels_arr = _merge_labels_by_spelling(
         labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
-        texts,
+        texts,                
         max_typos=1,
     )
 
@@ -1269,37 +1270,48 @@ def create_clusters_for_dataset(
         else:
             cluster_terms[cid].append(st)
 
+    created_by_title_norm = {} 
+
     for cid, terms in cluster_terms.items():
-
         counter = Counter(st.value for st in terms)
-
         title = counter.most_common(1)[0][0]
+        title_norm = _normalize_term(title)
 
-        new_cluster = Cluster(
-            dataset_id=dataset_id,
-            label=label,
-            title=title,
-        )
-        db.add(new_cluster)
-        db.commit()
-        db.refresh(new_cluster)
+        if title_norm in created_by_title_norm:
+            cluster_obj = created_by_title_norm[title_norm]
+        else:
+            cluster_obj = Cluster(dataset_id=dataset_id, label=label, title=title)
+            db.add(cluster_obj)
+            db.commit()
+            db.refresh(cluster_obj)
+            created_by_title_norm[title_norm] = cluster_obj
 
         for st in terms:
-            st.cluster_id = new_cluster.id
+            st.cluster_id = cluster_obj.id
             db.add(st)
 
+    noise_groups = defaultdict(list)
     for st in noise_terms:
-        new_cluster = Cluster(
-            dataset_id=dataset_id,
-            label=label,
-            title=st.value,
-        )
-        db.add(new_cluster)
-        db.commit()
-        db.refresh(new_cluster)
+        noise_groups[_normalize_term(st.value)].append(st)
 
-        st.cluster_id = new_cluster.id
-        db.add(st)
+    for norm_key, terms in noise_groups.items():
+        counter = Counter(st.value for st in terms)
+        title = counter.most_common(1)[0][0]
+        title_norm = _normalize_term(title)
+
+        if title_norm in created_by_title_norm:
+            cluster_obj = created_by_title_norm[title_norm]
+        else:
+            cluster_obj = Cluster(dataset_id=dataset_id, label=label, title=title)
+            db.add(cluster_obj)
+            db.commit()
+            db.refresh(cluster_obj)
+            created_by_title_norm[title_norm] = cluster_obj
+
+        for st in terms:
+            st.cluster_id = cluster_obj.id
+            db.add(st)
+
 
     db.commit()
 
