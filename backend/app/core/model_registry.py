@@ -72,5 +72,6 @@ def register_models():
             "embedding_model2vec",
             Model2VecEmbeddingModel(settings.EMBEDDING_MODEL_MODEL2VEC),
         )
+    
 
     # TODO: Register the other models

@@ -221,6 +221,7 @@ class VocabularyStatus(str, Enum):
     PROCESSING = "PROCESSING"
     DONE = "DONE"
     FAILED = "FAILED"
+    DELETED = "DELETED"
 
 
 class Vocabulary(SQLModel, table=True):
@@ -234,10 +235,10 @@ class Vocabulary(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    version: str
-    status: VocabularyStatus = Field(default=VocabularyStatus.PENDING, index=True)
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    status: VocabularyStatus = Field(
+        default=VocabularyStatus.PROCESSING,
+        index=True
+    )
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
