@@ -407,7 +407,6 @@
 }
 
 .actionButton.danger {
-  
   background: #dc2626;
   color: #ffffff;
   border: 1px solid #b91c1c;
@@ -967,6 +966,11 @@
 /* Label Section */
 .labelSection {
   flex-shrink: 0;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
 
 .sectionTitle {
@@ -979,7 +983,7 @@
 
 .labelButtons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 6px;

@@ -144,33 +144,52 @@ const AnnotationSidebar = ({
     <Sidebar isOpen={isOpen} onClose={onClose} title="Annotation Panel" width="75vw">
       <div className={styles.annotationSidebarLayout}>
         {/* Left side - Text to annotate */}
-        <div className={styles.annotationTextPanel}>
-          <div className={styles.annotationTextHeader}>
-            <h3 className={styles.sectionTitle}>Medical Record</h3>
-            <span className={styles.annotationHelpText}>
-              {selectedLabel ? (
-                <>
-                  Highlight text to annotate as{" "}
-                  <span className={`${styles.inlineLabelBadge} ${styles[getLabelColorClass(selectedLabel, labels)]}`}>
-                    {selectedLabel}
-                  </span>
-                </>
-              ) : (
-                "Select a label first, then highlight text"
-              )}
-            </span>
+        <div>
+          {/* Label selector */}
+          <div className={styles.labelSection}>
+            <h3 className={styles.sectionTitle}>Labels</h3>
+            <div className={styles.labelButtons}>
+              {labels.map((label, index) => (
+                <button
+                  key={label}
+                  className={`${styles.labelButton} ${styles[`label${index + 1}`]} ${selectedLabel === label ? styles.active : ""}`}
+                  onClick={() => handleLabelSelection(label)}
+                >
+                  <span className={styles.labelShortcut}>{index + 1}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {labels.length === 0 && <p className={styles.noLabels}>No labels defined for this dataset.</p>}
           </div>
-          <div className={styles.annotationTextContent}>
-            <AnnotatableText
-              text={text}
-              labels={labels}
-              annotations={annotations}
-              selectedLabel={selectedLabel}
-              selectedAnnotation={selectedAnnotation}
-              onCreateAnnotation={onCreateAnnotation}
-              onSelectAnnotation={onSelectAnnotation}
-              isAnnotating={true}
-            />
+          <div className={styles.annotationTextPanel}>
+            <div className={styles.annotationTextHeader}>
+              <h3 className={styles.sectionTitle}>Medical Record</h3>
+              <span className={styles.annotationHelpText}>
+                {selectedLabel ? (
+                  <>
+                    Highlight text to annotate as{" "}
+                    <span className={`${styles.inlineLabelBadge} ${styles[getLabelColorClass(selectedLabel, labels)]}`}>
+                      {selectedLabel}
+                    </span>
+                  </>
+                ) : (
+                  "Select a label first, then highlight text"
+                )}
+              </span>
+            </div>
+            <div className={styles.annotationTextContent}>
+              <AnnotatableText
+                text={text}
+                labels={labels}
+                annotations={annotations}
+                selectedLabel={selectedLabel}
+                selectedAnnotation={selectedAnnotation}
+                onCreateAnnotation={onCreateAnnotation}
+                onSelectAnnotation={onSelectAnnotation}
+                isAnnotating={true}
+              />
+            </div>
           </div>
         </div>
 
@@ -241,24 +260,6 @@ const AnnotationSidebar = ({
                 <kbd>Enter</kbd> Mark as reviewed
               </li>
             </ul>
-          </div>
-
-          {/* Label selector */}
-          <div className={styles.labelSection}>
-            <h3 className={styles.sectionTitle}>Labels</h3>
-            <div className={styles.labelButtons}>
-              {labels.map((label, index) => (
-                <button
-                  key={label}
-                  className={`${styles.labelButton} ${styles[`label${index + 1}`]} ${selectedLabel === label ? styles.active : ""}`}
-                  onClick={() => handleLabelSelection(label)}
-                >
-                  <span className={styles.labelShortcut}>{index + 1}</span>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {labels.length === 0 && <p className={styles.noLabels}>No labels defined for this dataset.</p>}
           </div>
 
           {/* Current annotations */}
