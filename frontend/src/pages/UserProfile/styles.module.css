@@ -7,7 +7,7 @@
     margin: 0 0 24px;
     font-size: 28px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .error {
@@ -57,7 +57,7 @@
     margin: 0;
     font-size: 22px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .badge {
@@ -127,7 +127,7 @@
 .statValue {
     font-size: 36px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
     line-height: 1;
     margin-bottom: 8px;
 }
