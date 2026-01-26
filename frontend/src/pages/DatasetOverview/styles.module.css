@@ -305,7 +305,7 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #2e9d72 0%, #2e9d72 100%);
+  background: linear-gradient(90deg, #269b6f 0%, #269b6f 100%);
   transition: width 0.3s ease;
   border-radius: 0px;
 }
