@@ -25,6 +25,7 @@ import type {
   ClusterMappingsOutput,
   ConceptSearchResults,
   ConceptHierarchy,
+  ConceptsOutput,
   AutoMapRequest,
   MapClusterRequest,
   AutoMapAllRequest,
@@ -507,6 +508,10 @@ export async function downloadVocabulary(id: number): Promise<void> {
   a.click();
   document.body.removeChild(a);
   window.URL.revokeObjectURL(url);
+}
+
+export async function getVocabularyConcepts(vocabularyId: number, page = 1, limit = 50): Promise<ConceptsOutput> {
+  return apiRequest<ConceptsOutput>(`/vocabularies/${vocabularyId}/concepts?page=${page}&limit=${limit}`);
 }
 
 // ================================================

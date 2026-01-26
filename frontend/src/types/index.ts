@@ -192,7 +192,7 @@ export interface Vocabulary {
   id: number;
   name: string;
   uploaded: string;
-  version: string;
+  version?: string;
   concept_count: number;
 }
 
@@ -220,6 +220,13 @@ export interface Concept {
   vocab_term_id: string;
   vocab_term_name: string;
   vocabulary_id: number;
+  domain_id: string;
+  concept_class_id: string;
+  standard_concept: string | null;
+  concept_code: string | null;
+  valid_start_date: string;
+  valid_end_date: string;
+  invalid_reason: string | null;
 }
 
 export interface ConceptCreate {

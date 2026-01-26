@@ -12,6 +12,7 @@ const DatasetClusters = lazy(() => import("pages/DatasetClusters"));
 const DatasetMapping = lazy(() => import("pages/DatasetMapping"));
 const DatasetUpload = lazy(() => import("pages/DatasetUpload"));
 const Vocabularies = lazy(() => import("pages/Vocabularies"));
+const VocabularyDetail = lazy(() => import("pages/VocabularyDetail"));
 const VocabularyUpload = lazy(() => import("pages/VocabularyUpload"));
 const Monitor = lazy(() => import("pages/Monitor"));
 const UserProfile = lazy(() => import("pages/UserProfile"));
@@ -87,6 +88,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <VocabularyUpload />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vocabularies/:vocabularyId"
+              element={
+                <ProtectedRoute>
+                  <VocabularyDetail />
                 </ProtectedRoute>
               }
             />
