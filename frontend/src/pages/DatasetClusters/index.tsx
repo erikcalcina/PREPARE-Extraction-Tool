@@ -80,7 +80,10 @@ function DraggableTerm({ term, clusterId, onRemove }: DraggableTermProps) {
   };
 
   return (
-    <div ref={setNodeRef} className={`${styles.termItem} ${isDragging ? styles.termItemDragging : ""}`}>
+    <div
+      ref={setNodeRef}
+      className={`${styles.termItem} ${isDragging ? styles.termItemDragging : ""} ${onRemove ? "" : styles.termItemNoRemoveBtn}`}
+    >
       <div className={styles.termDragHandle} {...listeners} {...attributes}>
         <FontAwesomeIcon icon={faGripVertical} />
       </div>
@@ -113,7 +116,7 @@ interface TermOverlayProps {
 
 function TermOverlay({ term }: TermOverlayProps) {
   return (
-    <div className={`${styles.termItem} ${styles.termItemOverlay}`}>
+    <div className={`${styles.termItem} ${styles.termItemOverlay} ${styles.termItemNoRemoveBtn}`}>
       <div className={styles.termDragHandle}>
         <FontAwesomeIcon icon={faGripVertical} />
       </div>
@@ -296,6 +299,13 @@ function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingClus
           )}
         </div>
 
+        {/* Stats */}
+        <div className={styles.clusterStats}>
+          <span title="Total terms">{cluster.total_terms} terms</span>
+          <span title="Total occurrences">{cluster.total_occurrences} occurrences</span>
+          <span title="Unique records">{cluster.unique_records} unique records</span>
+        </div>
+
         {/* Label badge */}
         <span
           className={`${styles.labelBadge} ${styles[getLabelColorClass(cluster.label, cluster.label_color)]}`}
@@ -303,13 +313,6 @@ function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingClus
         >
           {cluster.label}
         </span>
-
-        {/* Stats */}
-        <div className={styles.clusterStats}>
-          <span title="Total terms">{cluster.total_terms} terms</span>
-          <span title="Total occurrences">{cluster.total_occurrences} occurrences</span>
-          <span title="Unique records">{cluster.unique_records} unique records</span>
-        </div>
 
         {/* Action buttons */}
         <div className={styles.headerActions}>
