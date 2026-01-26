@@ -778,8 +778,6 @@
   border-radius: 12px;
   padding: 10px;
   min-height: 50px;
-  max-height: 100px;
-  overflow-y: auto;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

@@ -398,20 +398,20 @@ export default function DatasetMapping() {
                         {/* Stats Cards on Left */}
                         <div className={styles.statsContainer}>
                             <div className={styles.statCard}>
-                                <div className={styles.statValue}>{stats.total}</div>
+                                <div className={`${styles.statValue} ${styles.terms}`}>{stats.total}</div>
                                 <div className={styles.statLabel}>Total Clusters</div>
                             </div>
                             <div className={styles.statCard}>
-                                <div className={styles.statValue}>{stats.mapped} ({stats.mappedPercentage}%)</div>
+                                <div className={`${styles.statValue} ${styles.mapped}`}>{stats.mapped} ({stats.mappedPercentage}%)</div>
                                 <div className={styles.statLabel}>Mapped</div>
                             </div>
                             <div className={styles.statCard}>
-                                <div className={styles.statValue}>{stats.unmapped}</div>
-                                <div className={styles.statLabel}>Unmapped</div>
+                                <div className={`${styles.statValue} ${styles.approved}`}>{stats.approved}</div>
+                                <div className={styles.statLabel}>Approved</div>
                             </div>
                             <div className={styles.statCard}>
-                                <div className={styles.statValue}>{stats.approved}</div>
-                                <div className={styles.statLabel}>Approved</div>
+                                <div className={`${styles.statValue} ${styles.unmapped}`}>{stats.unmapped}</div>
+                                <div className={styles.statLabel}>Unmapped</div>
                             </div>
                         </div>
 

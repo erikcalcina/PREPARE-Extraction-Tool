@@ -214,7 +214,7 @@
     padding: 10px 20px;
     background: #ffffff;
     color: #11415e;
-    border: 1px solid #cbd5e0 ;
+    border: 1px solid #e5e7eb ;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
@@ -225,25 +225,23 @@
 }
 
 .btnImport:hover {
-    background: #4b5563;
+    background: #f3f4f6;
+    border-color: #d1d5db;
 }
 
 /* ================================================
    Stats Cards
    ================================================ */
-
+ 
 .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
     gap: 12px;
-    margin-top: 0px;
 }
 
 .statsContainer {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    flex: 1;
 }
 
 .statCard {
@@ -254,25 +252,36 @@
     border: 1px solid #e5e7eb;
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: fit-content;
-}
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+.statLabel {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+    flex: 0 0 auto;
+    margin: 0;
+    margin-left: 2px;
+  }
 
 .statValue {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-  color: #11415e;
+  color: #2b9c71;
+  line-height: 1.1;
+  flex: 0 0 auto;
+    margin: 0;
 }
-
+ 
 .ratioSuffix {
     font-size: 12px;
     font-weight: 500;
     color: #6b7280;
-    white-space: nowrap;
   }
-  
+
   .statValue.mapped{
-    color: #2b9c71;
+    color: #327dae;
   }
   
   .statValue.unmapped {
@@ -280,15 +289,9 @@
   }
   
   .statValue.terms {
-    color: #327dae;
-  } 
+    color: #11415e;
+  }
 
-.statLabel {
-  font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
 
 /* ================================================
    Main Content Layout - Usagi Style
@@ -762,9 +765,9 @@
 
 .btnApprove {
     padding: 6px 24px;
-    background: #4CAF50;
+    background: #269b6f;
     color: white;
-    border: 1px solid #45a049;
+    border: 1px solid #20855f;
     border-radius: 3px;
     cursor: pointer;
     font-weight: 600;
@@ -773,7 +776,7 @@
 }
 
 .btnApprove:hover:not(:disabled) {
-    background: #45a049;
+    background: #20855f;
 }
 
 .btnApprove:disabled {
@@ -827,12 +830,12 @@
 }
 
 .btnApprove {
-    background: #4CAF50;
+    background: #269b6f;
     color: white;
 }
 
 .btnApprove:hover {
-    background: #45a049;
+    background: #20855f;
 }
 
 .btnReject {
@@ -890,13 +893,13 @@
     cursor: not-allowed;
 }
 
-.unmapped {
+.unmappedState {
     padding: 20px;
     text-align: center;
     color: #6b7280;
 }
 
-.unmapped p {
+.unmappedState p {
     margin-bottom: 16px;
 }
 

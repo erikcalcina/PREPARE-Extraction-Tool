@@ -127,7 +127,7 @@
 }
 
 .switchButton:hover:not(:disabled) {
-    color: #439f46;
+    color: #144d70;
     text-decoration: underline;
 }
 
