@@ -687,9 +687,9 @@ export default function DatasetClusters() {
     }
 
     // Delete source cluster if it became empty
-    if (sourceClusterWillBeEmpty && sourceClusterId !== null) {
-      apiCalls.push(api.deleteCluster(sourceClusterId));
-    }
+    // if (sourceClusterWillBeEmpty && sourceClusterId !== null) {
+    //   apiCalls.push(api.deleteCluster(sourceClusterId));
+    // }
 
     Promise.all(apiCalls).catch((err) => {
       // Rollback on error

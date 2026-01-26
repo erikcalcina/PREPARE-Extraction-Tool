@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
@@ -15,7 +15,9 @@ from app.schemas import (
     MessageOutput,
     VocabularyResponse,
     VocabulariesOutput,
+    VocabularyUploadResponse,
     VocabularyOutput,
+    ProcessingVocabularyStats,
     ConceptCreate,
     ConceptsOutput,
     ConceptOutput,
@@ -84,14 +86,11 @@ def get_vocabularies(
             id=vocabulary.id,
             name=vocabulary.name,
             uploaded=vocabulary.uploaded,
-            version=vocabulary.version,
-            concept_count=db.query(
-                func.count(Concept.id))
-                .filter(Concept.vocabulary_id == vocabulary.id)
-                .scalar(),
+            concept_count=db.exec(
+                select(func.count(Concept.id))
+                .where(Concept.vocabulary_id == vocabulary.id)
+            ).one(),
             status=vocabulary.status,
-            started_at=vocabulary.started_at,
-            finished_at=vocabulary.finished_at,
             error_message=vocabulary.error_message
         )
         for vocabulary in vocabularies
@@ -106,16 +105,14 @@ def get_vocabularies(
 
 @router.post(
     "/",
-    response_model=VocabularyOutput,
-    status_code=status.HTTP_201_CREATED,
+    response_model=VocabularyUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Create a new vocabulary",
     description="Creates a new vocabulary with its concepts and indexes them in Elasticsearch for semantic search",
     response_description="Confirmation message that the vocabulary was created successfully",
 )
 async def create_vocabulary(
     background_tasks: BackgroundTasks,
-    name: str = Form(...),
-    version: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -125,13 +122,6 @@ async def create_vocabulary(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file type.",
         )
-    
-    # create a new Vocabulary
-    vocabulary = Vocabulary(name=name, version=version, user_id=current_user.id)
-    db.add(vocabulary)
-    db.commit()
-    db.refresh(vocabulary)
-    vocabulary_id = vocabulary.id
 
     # save file to disk
     file_path = await save_upload_to_disk(file)
@@ -139,18 +129,15 @@ async def create_vocabulary(
     # start background ingestion
     background_tasks.add_task(
         ingest_vocabulary_background,
-        vocabulary_id,
         file_path,
+        current_user.id
     )
     
-    vocabulary_response = VocabularyResponse(
-        id=vocabulary.id,
-        name=vocabulary.name,
-        uploaded=vocabulary.uploaded,
-        version=vocabulary.version,
-        status=vocabulary.status
+    vocabulary_response = VocabularyUploadResponse(
+        status=VocabularyStatus.PENDING,
+        message="Concept upload successfully started background task"
     )
-    return VocabularyOutput(vocabulary=vocabulary_response)
+    return vocabulary_response
 
 async def save_upload_to_disk(file: UploadFile) -> str:
     path = f"/tmp/{uuid4()}.csv"
@@ -162,13 +149,14 @@ async def save_upload_to_disk(file: UploadFile) -> str:
 
     return path
 
-def ingest_vocabulary_background(vocabulary_id: int, file_path: str):
+def ingest_vocabulary_background(file_path: str, user_id: int):
     db = Session(engine)
 
     REQUIRED_COLUMNS = [
         "concept_id",
         "concept_name",
         "domain_id",
+        "vocabulary_id",
         "concept_class_id",
         "standard_concept",
         "concept_code",
@@ -177,32 +165,42 @@ def ingest_vocabulary_background(vocabulary_id: int, file_path: str):
         "invalid_reason",
     ]
 
-    try: 
-        # change Vocabulary status
-        vocab_db = db.get(Vocabulary, vocabulary_id)
-        if not vocab_db:
-            return
-        vocab_db.status = VocabularyStatus.PROCESSING
-        vocab_db.started_at = datetime.now(timezone.utc)
-        db.commit()
+    UNWANTED_IDS = ['Korean Revenue Code', 'Cost Type', 'UB04 Pt dis status', 'Observation Type', 
+            'Concept Class', 'UB04 Pri Typ of Adm', 'Visit Type', 'Sponsor', 'Relationship', 
+            'SOPT', 'Meas Type', 'US Census', 'Language', 'Note Type', 'Condition Status', 
+            'Procedure Type', 'Vocabulary', 'Obs Period Type', 'Type Concept', 'Plan Stop Reason', 
+            'UCUM', 'CDM', 'Metadata', 'OSM', 'Plan', 'UB04 Point of Origin', 'Cost', 'UB04 Typ bill', 
+            'Episode', 'Death Type', 'Condition Type', 'Device Type', 'Drug Type', 'Visit', 'Domain', "None"]
 
-        # create new ES index also
-        indexer.create_concept_index(vocabulary_id)
+    vocabularies = {}
+    try:
 
         # start ingesting
         BATCH_SIZE = 2000
         batch = []
         total = 0
+        for concept, vocab_name in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
+            if vocab_name in vocabularies.keys():
+                concept.vocabulary_id = vocabularies[vocab_name]
+            else:
+                # create a new Vocabulary
+                vocabulary = Vocabulary(name=vocab_name, user_id=user_id)
+                db.add(vocabulary)
+                db.commit()
+                db.refresh(vocabulary)
+                vocab_id = vocabulary.id
+                concept.vocabulary_id = vocab_id
+                # create new ES index also
+                indexer.create_concept_index(vocab_id)
+                vocabularies[vocab_name] = vocab_id
 
-        for concept in parse_concepts_file(file_path, REQUIRED_COLUMNS):
-            concept.vocabulary_id = vocabulary_id
             batch.append(concept)
 
             if len(batch) >= BATCH_SIZE:
                 db.bulk_save_objects(batch, return_defaults=True)
                 db.commit()
                 total += len(batch)
-                indexer.add_bulk_to_index(vocabulary_id, batch)
+                indexer.add_bulk_to_index(batch)
                 batch.clear()
                 print("Rows saved:", total)
 
@@ -210,29 +208,83 @@ def ingest_vocabulary_background(vocabulary_id: int, file_path: str):
             db.bulk_save_objects(batch, return_defaults=True)
             db.commit()
             total += len(batch)
-            indexer.add_bulk_to_index(vocabulary_id, batch)
+            indexer.add_bulk_to_index(batch)
             print("Rows saved:", total, "-> ALL")
 
         # success
-        vocab_db.status = VocabularyStatus.DONE
-        vocab_db.finished_at = datetime.now(timezone.utc)
+        vocab_ids = list(vocabularies.values())
+        db.exec(
+            update(Vocabulary)
+            .where(Vocabulary.id.in_(vocab_ids))
+            .values(status=VocabularyStatus.DONE)
+        )
         db.commit()
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         # failure cleanup
         db.rollback()
-        
-        vocab_db = db.get(Vocabulary, vocabulary_id)
-        vocab_db.status = VocabularyStatus.FAILED
-        vocab_db.finished_at = datetime.now(timezone.utc)
-        vocab_db.error_message = str(e)
-        db.commit()
 
-        # delete ES index
-        indexer.delete_index(vocabulary_id)
+        vocab_ids = list(vocabularies.values())
+        error_msg = str(e)
+
+        if vocab_ids:
+            # mark all vocabularies as FAILED
+            db.exec(
+                update(Vocabulary)
+                .where(Vocabulary.id.in_(vocab_ids))
+                .values(
+                    status=VocabularyStatus.FAILED,
+                    error_message=error_msg
+                )
+            )
+            db.commit()
+
+            # delete ES indices
+            for vocab_id in vocab_ids:
+                try:
+                    indexer.delete_index(vocab_id)
+                except Exception as es_err:
+                    print(f"Failed to delete ES index for vocab {vocab_id}: {es_err}")
 
     finally:
         db.close()
+
+@router.get(
+    "/processing/stats",
+    response_model=ProcessingVocabularyStats,
+    status_code=status.HTTP_200_OK,
+    summary="Get processing vocabulary stats",
+    description="Returns the number of vocabularies in PROCESSING state and the total number of uploaded concepts",
+)
+def get_processing_vocabulary_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    # count vocabularies in PROCESSING
+    vocab_count = db.exec(
+        select(func.count(Vocabulary.id))
+        .where(
+            Vocabulary.user_id == current_user.id,
+            Vocabulary.status == VocabularyStatus.PROCESSING,
+        )
+    ).one()
+
+    # sum concepts across those vocabularies
+    concept_count = db.exec(
+        select(func.count(Concept.id))
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(
+            Vocabulary.user_id == current_user.id,
+            Vocabulary.status == "PROCESSING",
+        )
+    ).one()
+
+    return ProcessingVocabularyStats(
+        processing_vocabularies=vocab_count or 0,
+        total_concepts=concept_count or 0,
+    )
 
 
 @router.get(
@@ -259,14 +311,11 @@ def get_vocabulary(
         id=vocabulary.id,
         name=vocabulary.name,
         uploaded=vocabulary.uploaded,
-        version=vocabulary.version,
-        concept_count=db.query(
-            func.count(Concept.id))
-            .filter(Concept.vocabulary_id == vocabulary.id)
-            .scalar(),
+        concept_count=db.exec(
+            select(func.count(Concept.id))
+            .where(Concept.vocabulary_id == vocabulary.id)
+        ).one(),
         status=vocabulary.status,
-        started_at=vocabulary.started_at,
-        finished_at=vocabulary.finished_at,
         error_message=vocabulary.error_message
     )
     return VocabularyOutput(vocabulary=vocabulary_response)
@@ -275,12 +324,13 @@ def get_vocabulary(
 @router.delete(
     "/{vocabulary_id}",
     response_model=MessageOutput,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Delete a vocabulary",
     description="Deletes a vocabulary, its concepts, and removes it from the Elasticsearch index",
-    response_description="Confirmation message that the vocabulary was deleted successfully",
+    response_description="Confirmation message that the vocabulary deletion started",
 )
 def delete_vocabulary(
+    background_tasks: BackgroundTasks,
     vocabulary_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -290,14 +340,41 @@ def delete_vocabulary(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
+    
     verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    db.delete(vocabulary)
+    vocabulary.status = VocabularyStatus.DELETED
     db.commit()
 
-    indexer.delete_index(vocabulary_id)
+    # start background ingestion
+    background_tasks.add_task(
+        delete_vocabulary_background,
+        vocabulary_id
+    )
 
-    return MessageOutput(message="Vocabulary deleted successfully")
+    return MessageOutput(message="Vocabulary deletion started in the background")
+
+def delete_vocabulary_background(vocabulary_id: int):
+    db = Session(engine)
+    try:
+        vocabulary = db.get(Vocabulary, vocabulary_id)
+        if vocabulary is None:
+            print(f"Vocabulary {vocabulary_id} not found during background deletion")
+            return 
+
+        # delete from database
+        db.delete(vocabulary)
+        db.commit()
+
+        # delete from Elasticsearch
+        indexer.delete_index(vocabulary_id)
+        
+        print(f"Successfully deleted vocabulary {vocabulary_id}")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Failed to delete vocabulary {vocabulary_id}: {e}")
+    finally:
+        db.close()
 
 
 # ================================================
