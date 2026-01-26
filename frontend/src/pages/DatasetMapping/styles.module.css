@@ -12,7 +12,7 @@
     grid-template-columns: auto 1fr auto;
     gap: 24px;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     padding-bottom: 20px;
     border-bottom: 1px solid #e5e7eb;
 }
@@ -33,7 +33,7 @@
 
 .navButton:hover {
     background: #f3f4f6;
-    color: #1e3a5f;
+    color: #11415e;
     border-color: #d1d5db;
 }
 
@@ -48,7 +48,7 @@
     margin: 0;
     font-size: 24px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .datasetLink {
@@ -64,7 +64,7 @@
 }
 
 .datasetLink:hover {
-    color: #1e3a5f;
+    color: #11415e;
     text-decoration: underline;
 }
 
@@ -74,14 +74,35 @@
 
 .toolbarSection {
     margin-bottom: 24px;
+    width: 100%;
 }
 
 .toolbar {
     display: flex;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 20px;
     align-items: center;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.toolbarFilters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.filterSection {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-bottom: 20px;
 }
 
 .labelFilter,
@@ -92,23 +113,24 @@
     background: #ffffff;
     color: #374151;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: 4px;
+    font-size: 12px;
     transition: all 0.2s ease;
     font-family: inherit;
 }
 
 .labelFilter {
-    min-width: 150px;
+    flex: 1;
+    min-width: 300px;
 }
 
 .vocabularyFilter {
-    min-width: 200px;
-    max-height: 42px;
+    min-width: 250px;
+    max-height: 38px;
 }
 
 .filterInput {
-    min-width: 150px;
+    min-width: 250px;
 }
 
 .searchInput {
@@ -122,9 +144,9 @@
 .filterInput:focus,
 .searchInput:focus {
     outline: none;
-    border-color: #4CAF50;
+    border-color: #11415e;
     background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
 }
 
 .checkboxLabel {
@@ -134,9 +156,9 @@
     padding: 10px 14px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     transition: all 0.2s ease;
     user-select: none;
 }
@@ -149,24 +171,30 @@
     background: #f9fafb;
 }
 
+.toolbarButtons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .btnAutoMapAll,
-.btnExport,
-.btnImport {
+.btnExport {
     padding: 10px 20px;
-    background: #4CAF50;
+    background: #269b6f;
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 500;
+    font-size: 12px;
     transition: all 0.2s ease;
     font-family: inherit;
     white-space: nowrap;
 }
 
 .btnAutoMapAll:hover:not(:disabled) {
-    background: #45a049;
+    background: #20855f;
 }
 
 .btnAutoMapAll:disabled {
@@ -175,7 +203,7 @@
 }
 
 .btnExport {
-    background: #1e3a5f;
+    background: #11415e;
 }
 
 .btnExport:hover {
@@ -183,7 +211,17 @@
 }
 
 .btnImport {
-    background: #6b7280;
+    padding: 10px 20px;
+    background: #ffffff;
+    color: #11415e;
+    border: 1px solid #cbd5e0 ;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
 }
 
 .btnImport:hover {
@@ -196,32 +234,60 @@
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
     gap: 12px;
-    margin-top: 16px;
+    margin-top: 0px;
+}
+
+.statsContainer {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 1;
 }
 
 .statCard {
     background: #ffffff;
-    padding: 16px 20px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 10px 16px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: fit-content;
 }
 
 .statValue {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1e3a5f;
-    margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #11415e;
 }
 
-.statLabel {
-    font-size: 13px;
-    color: #6b7280;
+.ratioSuffix {
+    font-size: 12px;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #6b7280;
+    white-space: nowrap;
+  }
+  
+  .statValue.mapped{
+    color: #2b9c71;
+  }
+  
+  .statValue.unmapped {
+    color: #d97706;
+  }
+  
+  .statValue.terms {
+    color: #327dae;
+  } 
+
+.statLabel {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 /* ================================================
@@ -337,7 +403,7 @@
 .clusterTitle {
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
     margin-bottom: 8px;
 }
 
@@ -791,7 +857,7 @@
 .clusterTitle {
     font-size: 14px;
     font-weight: 600;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .clusterStats {
@@ -916,7 +982,7 @@
     margin: 0;
     font-size: 20px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .modalCloseBtn {
@@ -935,7 +1001,7 @@
 }
 
 .modalCloseBtn:hover {
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .modalBody {
@@ -952,7 +1018,7 @@
     margin: 0 0 12px 0;
     font-size: 16px;
     font-weight: 700;
-    color: #1e3a5f;
+    color: #11415e;
 }
 
 .conceptList {
@@ -978,7 +1044,7 @@
 
 .conceptListName {
     font-size: 14px;
-    color: #1e3a5f;
+    color: #11415e;
     font-weight: 500;
 }
 

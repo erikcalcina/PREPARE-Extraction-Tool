@@ -339,7 +339,7 @@ export default function DatasetMapping() {
 
                 {/* Toolbar */}
                 <div className={styles.toolbarSection}>
-                    <div className={styles.toolbar}>
+                    <div className={styles.filterSection}>
                         <select
                             value={selectedLabel}
                             onChange={(e) => setSelectedLabel(e.target.value)}
@@ -391,47 +391,53 @@ export default function DatasetMapping() {
                             />
                             <span>Standard concepts only</span>
                         </label>
-
-                        <button
-                            onClick={handleAutoMapAll}
-                            disabled={isLoading || selectedVocabularies.length === 0}
-                            className={styles.btnAutoMapAll}
-                        >
-                            Auto-Map All Unmapped
-                        </button>
-
-                        <button onClick={handleExport} className={styles.btnExport}>
-                            Export Mappings
-                        </button>
-
-                        <label className={styles.btnImport}>
-                            Import Mappings
-                            <input
-                                type="file"
-                                accept=".csv"
-                                onChange={handleImport}
-                                style={{ display: 'none' }}
-                            />
-                        </label>
                     </div>
-
+                    
                     {/* Stats */}
-                    <div className={styles.stats}>
-                        <div className={styles.statCard}>
-                            <div className={styles.statValue}>{stats.total}</div>
-                            <div className={styles.statLabel}>Total Clusters</div>
+                    <div className={styles.toolbar}>
+                        {/* Stats Cards on Left */}
+                        <div className={styles.statsContainer}>
+                            <div className={styles.statCard}>
+                                <div className={styles.statValue}>{stats.total}</div>
+                                <div className={styles.statLabel}>Total Clusters</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={styles.statValue}>{stats.mapped} ({stats.mappedPercentage}%)</div>
+                                <div className={styles.statLabel}>Mapped</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={styles.statValue}>{stats.unmapped}</div>
+                                <div className={styles.statLabel}>Unmapped</div>
+                            </div>
+                            <div className={styles.statCard}>
+                                <div className={styles.statValue}>{stats.approved}</div>
+                                <div className={styles.statLabel}>Approved</div>
+                            </div>
                         </div>
-                        <div className={styles.statCard}>
-                            <div className={styles.statValue}>{stats.mapped} ({stats.mappedPercentage}%)</div>
-                            <div className={styles.statLabel}>Mapped</div>
-                        </div>
-                        <div className={styles.statCard}>
-                            <div className={styles.statValue}>{stats.unmapped}</div>
-                            <div className={styles.statLabel}>Unmapped</div>
-                        </div>
-                        <div className={styles.statCard}>
-                            <div className={styles.statValue}>{stats.approved}</div>
-                            <div className={styles.statLabel}>Approved</div>
+
+                        {/* Buttons on Right */}
+                        <div className={styles.toolbarButtons}>
+                            <button
+                                onClick={handleAutoMapAll}
+                                disabled={isLoading || selectedVocabularies.length === 0}
+                                className={styles.btnAutoMapAll}
+                            >
+                                Auto-Map All Unmapped
+                            </button>
+
+                            <button onClick={handleExport} className={styles.btnExport}>
+                                Export Mappings
+                            </button>
+
+                            <label className={styles.btnImport}>
+                            Import Mappings
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleImport}
+                                    style={{ display: 'none' }}
+                                />
+                            </label>
                         </div>
                     </div>
                 </div>

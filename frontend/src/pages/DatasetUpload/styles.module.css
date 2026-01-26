@@ -6,7 +6,7 @@
     margin: 0 0 0;
     font-size: 26px;
     font-weight: 700;
-    color: #002262;
+    color: #11415e;
 }
 
 .sidebarContent {
@@ -18,13 +18,13 @@
 .backLink {
     font-size: 14px;
     font-weight: 500;
-    color: #002262;
+    color: #11415e;
     text-decoration: none;
     transition: color 0.2s ease;
 }
 
 .backLink:hover {
-    color: #4CAF50;
+    color: #144d70;
 }
 
 .content {
@@ -66,7 +66,7 @@
 
 .input:focus {
     outline: none;
-    border-color: #002262;
+    border-color: #11415e;
     box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
 }
 
@@ -98,7 +98,7 @@
     margin: 0 0 12px;
     font-size: 14px;
     font-weight: 500;
-    color: #1e40af;
+    color: #2b9c71;
 }
 
 .error {
@@ -128,7 +128,7 @@
     margin: 0 0 16px;
     font-size: 16px;
     font-weight: 700;
-    color: #002262;
+    color: #11415e;
 }
 
 .instructionsContent {
@@ -146,7 +146,7 @@
 }
 
 .instructionsContent strong {
-    color: #2b56a5;
+    color: #144d70;
 }
 
 @media (max-width: 900px) {

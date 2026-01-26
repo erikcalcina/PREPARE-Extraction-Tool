@@ -118,7 +118,7 @@
 }
 
 .statValue.processed {
-  color: #2cb27e;
+  color: #2b9c71;
 }
 
 .statValue.pending {
@@ -378,7 +378,7 @@
 }
 
 .actionButton.secondary {
-  background: #11415e;
+  background: #144d70;
   color: #ffffff;
 }
 
@@ -396,6 +396,7 @@
 }
 
 .actionButton.extract {
+  padding: 10px 20px;
   background: #ffffff;
   color: #11415e;
   border: 1px solid #e5e7eb;
@@ -406,6 +407,7 @@
 }
 
 .actionButton.danger {
+  
   background: #dc2626;
   color: #ffffff;
   border: 1px solid #b91c1c;
@@ -821,7 +823,7 @@
   display: inline-block;
   padding: 2px 6px;
   background: #ffffff;
-  border: 1px solid #d1d5db;
+  border: 1px solid #eff6fa;
   border-radius: 4px;
   font-family: monospace;
   font-size: 12px;
@@ -872,7 +874,7 @@
   padding: 8px 12px;
   background-color: #ffffff;
   border: 1px solid #cbd5e0;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
   color: #2d3748;
@@ -903,12 +905,12 @@
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background-color: #48bb78;
+    background-color: #144d70;
     border: none;
     border-radius: 6px;
     font-size: 14px;
-    font-weight: 600;
-    color: white;
+    font-weight: 500;
+    color: #ffffff;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
@@ -916,15 +918,15 @@
 }
 
 .reviewButton:hover:not(:disabled) {
-    background-color: #38a169;
+    background-color: #11415e;
 }
 
 .reviewButton.reviewed {
-    background-color: #4299e1;
+    background-color: #269b6f;
 }
 
 .reviewButton.reviewed:hover {
-    background-color: #3182ce;
+    background-color: #20855f;
 }
 
 .reviewButton:disabled {
@@ -1312,8 +1314,8 @@
   transform: translateX(-50%);
   width: 320px;
   padding: 12px 16px;
-  background: #11415e;
-  color: white;
+  background: #ffffff;
+  color: #11415e;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 400;
