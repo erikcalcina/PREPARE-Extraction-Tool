@@ -7,8 +7,14 @@ import { usePageTitle } from "hooks/usePageTitle";
 import type { ClusterData, ClusteredTerm } from "types";
 import * as api from "api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGripVertical, faPencil, faCheck, faXmark, faCircleQuestion, faArrowUp } from "@fortawesome/free-solid-svg-icons";
-import ClusterDetailModal from "./ClusterDetailModal";
+import {
+  faGripVertical,
+  faPencil,
+  faCheck,
+  faXmark,
+  faCircleQuestion,
+  faArrowUp,
+} from "@fortawesome/free-solid-svg-icons";
 import styles from "./styles.module.css";
 
 // ================================================
@@ -182,14 +188,13 @@ function ClusterOverlay({ cluster }: ClusterOverlayProps) {
 
 interface ClusterCardProps {
   cluster: ClusterData;
-  onView: () => void;
   onRename: (newTitle: string) => void;
   onDelete: () => void;
   onRemoveTerm: (termId: number) => void;
   isDraggingCluster: boolean;
 }
 
-function ClusterCard({ cluster, onView, onRename, onDelete, onRemoveTerm, isDraggingCluster }: ClusterCardProps) {
+function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingCluster }: ClusterCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(cluster.title);
 
@@ -226,10 +231,10 @@ function ClusterCard({ cluster, onView, onRename, onDelete, onRemoveTerm, isDrag
   // Inline style for custom color
   const labelStyle = cluster.label_color
     ? {
-      backgroundColor: `${cluster.label_color}20`,
-      color: cluster.label_color,
-      border: `1px solid ${cluster.label_color}40`,
-    }
+        backgroundColor: `${cluster.label_color}20`,
+        color: cluster.label_color,
+        border: `1px solid ${cluster.label_color}40`,
+      }
     : {};
 
   return (
@@ -308,9 +313,6 @@ function ClusterCard({ cluster, onView, onRename, onDelete, onRemoveTerm, isDrag
 
         {/* Action buttons */}
         <div className={styles.headerActions}>
-          <button onClick={onView} className={styles.btnView}>
-            View Details
-          </button>
           <button onClick={onDelete} className={styles.btnDelete}>
             Delete
           </button>
@@ -344,7 +346,6 @@ export default function DatasetClusters() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoClustering, setIsAutoClustering] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCluster, setSelectedCluster] = useState<ClusterData | null>(null);
   const [datasetName, setDatasetName] = useState<string>("");
   const [activeDragTerm, setActiveDragTerm] = useState<ClusteredTerm | null>(null);
   const [activeDragCluster, setActiveDragCluster] = useState<ClusterData | null>(null);
@@ -408,18 +409,6 @@ export default function DatasetClusters() {
       const data = await api.getClusters(parseInt(datasetId), selectedLabel);
       setClusters(data.clusters);
       setUnclusteredTerms(data.unclustered_terms);
-
-      // Update selectedCluster with fresh data if it still exists
-      // Backend may have deleted the cluster (e.g., when last term was removed)
-      if (selectedCluster) {
-        const updatedCluster = data.clusters.find((c) => c.id === selectedCluster.id);
-        if (updatedCluster) {
-          setSelectedCluster(updatedCluster);
-        } else {
-          // Cluster was deleted, close the modal
-          setSelectedCluster(null);
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load clusters");
     } finally {
@@ -1038,7 +1027,6 @@ export default function DatasetClusters() {
                     <ClusterCard
                       key={cluster.id}
                       cluster={cluster}
-                      onView={() => setSelectedCluster(cluster)}
                       onRename={(title) => handleRename(cluster.id, title)}
                       onDelete={() => handleDelete(cluster.id)}
                       onRemoveTerm={handleRemoveTerm}
@@ -1050,13 +1038,6 @@ export default function DatasetClusters() {
             </div>
           )}
           {unclusteredTerms.length > 0 && <DroppableUnclusteredArea terms={unclusteredTerms} />}
-          {selectedCluster && (
-            <ClusterDetailModal
-              cluster={selectedCluster}
-              onClose={() => setSelectedCluster(null)}
-              onRefresh={fetchClusters}
-            />
-          )}
           <DragOverlay>
             {activeDragTerm ? <TermOverlay term={activeDragTerm} /> : null}
             {activeDragCluster ? <ClusterOverlay cluster={activeDragCluster} /> : null}
