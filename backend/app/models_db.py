@@ -273,7 +273,7 @@ class Concept(SQLModel, table=True):
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(
-        foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False
+        foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False, index=True
     )
     vocabulary: Optional["Vocabulary"] = Relationship(back_populates="concepts")
 
