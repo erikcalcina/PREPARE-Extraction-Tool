@@ -2,6 +2,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "components/Layout";
 import Table from "components/Table";
 import Button from "components/Button";
+import { Select } from "components/Select";
+import Pagination from "components/Pagination";
 import { useVocabularyConcepts } from "hooks/useVocabularyConcepts";
 import { usePageTitle } from "hooks/usePageTitle";
 import type { Concept } from "types";
@@ -42,77 +44,6 @@ function StatCard({ label, value }: StatCardProps) {
     <div className={styles.statCard}>
       <div className={styles.statValue}>{typeof value === "number" ? value.toLocaleString() : value}</div>
       <div className={styles.statLabel}>{label}</div>
-    </div>
-  );
-}
-
-// ================================================
-// Pagination Component
-// ================================================
-
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
-
-function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  if (totalPages <= 1) return null;
-
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const showEllipsis = totalPages > 7;
-
-    if (!showEllipsis) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      pages.push(1);
-      if (currentPage > 3) {
-        pages.push("...");
-      }
-      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-        pages.push(i);
-      }
-      if (currentPage < totalPages - 2) {
-        pages.push("...");
-      }
-      pages.push(totalPages);
-    }
-
-    return pages;
-  };
-
-  return (
-    <div className={styles.pagination}>
-      <button className={styles.pageButton} onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-        Previous
-      </button>
-      <div className={styles.pageNumbers}>
-        {getPageNumbers().map((page, index) =>
-          typeof page === "number" ? (
-            <button
-              key={index}
-              className={`${styles.pageNumber} ${currentPage === page ? styles.active : ""}`}
-              onClick={() => onPageChange(page)}
-            >
-              {page}
-            </button>
-          ) : (
-            <span key={index} className={styles.ellipsis}>
-              {page}
-            </span>
-          )
-        )}
-      </div>
-      <button
-        className={styles.pageButton}
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-      >
-        Next
-      </button>
     </div>
   );
 }
@@ -244,44 +175,35 @@ const VocabularyDetail = () => {
               onChange={(e) => updateFilter("searchQuery", e.target.value)}
             />
 
-            <select
-              className={styles.filterSelect}
+            <Select
+              options={filterOptions.domains.map((d) => ({ value: d, label: d }))}
               value={filters.domain}
-              onChange={(e) => updateFilter("domain", e.target.value)}
-            >
-              <option value="">All Domains</option>
-              {filterOptions.domains.map((domain) => (
-                <option key={domain} value={domain}>
-                  {domain}
-                </option>
-              ))}
-            </select>
-
-            <select
+              onValueChange={(v) => updateFilter("domain", v)}
+              placeholder="All Domains"
+              fullWidth={false}
               className={styles.filterSelect}
+            />
+
+            <Select
+              options={filterOptions.conceptClasses.map((c) => ({ value: c, label: c }))}
               value={filters.conceptClass}
-              onChange={(e) => updateFilter("conceptClass", e.target.value)}
-            >
-              <option value="">All Classes</option>
-              {filterOptions.conceptClasses.map((cls) => (
-                <option key={cls} value={cls}>
-                  {cls}
-                </option>
-              ))}
-            </select>
-
-            <select
+              onValueChange={(v) => updateFilter("conceptClass", v)}
+              placeholder="All Classes"
+              fullWidth={false}
               className={styles.filterSelect}
+            />
+
+            <Select
+              options={filterOptions.standardConcepts.map((sc) => ({
+                value: sc,
+                label: formatStandardConcept(sc),
+              }))}
               value={filters.standardConcept}
-              onChange={(e) => updateFilter("standardConcept", e.target.value)}
-            >
-              <option value="">All Types</option>
-              {filterOptions.standardConcepts.map((sc) => (
-                <option key={sc} value={sc}>
-                  {formatStandardConcept(sc)}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => updateFilter("standardConcept", v)}
+              placeholder="All Types"
+              fullWidth={false}
+              className={styles.filterSelect}
+            />
 
             {hasActiveFilters && (
               <button className={styles.clearButton} onClick={clearFilters}>

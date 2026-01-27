@@ -317,22 +317,7 @@
 }
 
 .labelDropdownSelect {
-  padding: 10px 14px;
-  background: #ffffff;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
-  min-width: 300px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.labelDropdownSelect:focus {
-  outline: none;
-  border-color: #11415e;
-  box-shadow: 0 0 0 3px rgba(17, 65, 94, 0.1);
+  min-width: 180px;
 }
 
 /* Source Terms Section */
@@ -1594,19 +1579,7 @@
 }
 
 .pageSizeSelect {
-  padding: 6px 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #374151;
-  background: #ffffff;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.pageSizeSelect:focus {
-  outline: none;
-  border-color: #11415e;
+  min-width: 60px;
 }
 
 .paginationControls {

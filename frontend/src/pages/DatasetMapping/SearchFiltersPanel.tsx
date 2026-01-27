@@ -1,5 +1,6 @@
 import React from "react";
 import type { Vocabulary } from "types";
+import { Select } from "components/Select";
 import styles from "./styles.module.css";
 
 interface SearchFiltersPanelProps {
@@ -16,14 +17,26 @@ interface SearchFiltersPanelProps {
   includeSourceTerms: boolean;
   onIncludeSourceTermsChange: (value: boolean) => void;
 
-  // Vocabulary and domain filters
+  // Vocabulary filter
   vocabularies: Vocabulary[];
   selectedVocabularies: number[];
   onSelectedVocabulariesChange: (ids: number[]) => void;
+  vocabularyFilterEnabled: boolean;
+  onVocabularyFilterEnabledChange: (enabled: boolean) => void;
+
+  // Domain filter
   domainFilter: string;
   onDomainFilterChange: (value: string) => void;
+  domainFilterEnabled: boolean;
+  onDomainFilterEnabledChange: (enabled: boolean) => void;
+  domains: string[];
+
+  // Concept class filter
   conceptClassFilter: string;
   onConceptClassFilterChange: (value: string) => void;
+  conceptClassFilterEnabled: boolean;
+  onConceptClassFilterEnabledChange: (enabled: boolean) => void;
+  conceptClasses: string[];
 }
 
 export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
@@ -39,16 +52,42 @@ export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
   vocabularies,
   selectedVocabularies,
   onSelectedVocabulariesChange,
+  vocabularyFilterEnabled,
+  onVocabularyFilterEnabledChange,
   domainFilter,
   onDomainFilterChange,
+  domainFilterEnabled,
+  onDomainFilterEnabledChange,
+  domains,
   conceptClassFilter,
   onConceptClassFilterChange,
+  conceptClassFilterEnabled,
+  onConceptClassFilterEnabledChange,
+  conceptClasses,
 }) => {
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       onSearch();
     }
   };
+
+  // Convert vocabularies to Select options
+  const vocabularyOptions = vocabularies.map((vocab) => ({
+    value: vocab.id.toString(),
+    label: vocab.name,
+  }));
+
+  // Convert domains to Select options
+  const domainOptions = domains.map((domain) => ({
+    value: domain,
+    label: domain,
+  }));
+
+  // Convert concept classes to Select options
+  const conceptClassOptions = conceptClasses.map((cc) => ({
+    value: cc,
+    label: cc,
+  }));
 
   return (
     <div className={styles.searchFiltersPanel}>
@@ -93,48 +132,45 @@ export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
         </label>
       </div>
 
-      {/* Vocabulary Filter */}
+      {/* Vocabulary Filter - Multi-select */}
       <div className={styles.filterSection}>
-        <div className={styles.filterTitle}>Vocabulary</div>
-        <select
-          className={styles.filterSelect}
-          multiple
-          value={selectedVocabularies.map(String)}
-          onChange={(e) => {
-            const selected = Array.from(e.target.selectedOptions).map((o) => parseInt(o.value));
-            onSelectedVocabulariesChange(selected);
-          }}
-          style={{ minHeight: "80px" }}
-        >
-          {vocabularies.map((vocab) => (
-            <option key={vocab.id} value={vocab.id}>
-              {vocab.name} ({vocab.version})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Domain Filter */}
-      <div className={styles.filterSection}>
-        <div className={styles.filterTitle}>Domain</div>
-        <input
-          type="text"
-          className={styles.filterInputField}
-          value={domainFilter}
-          onChange={(e) => onDomainFilterChange(e.target.value)}
-          placeholder="e.g., Condition, Drug..."
+        <Select
+          label="Vocabulary"
+          enabled={vocabularyFilterEnabled}
+          onEnabledChange={onVocabularyFilterEnabledChange}
+          options={vocabularyOptions}
+          placeholder="Select vocabularies..."
+          multiSelect={true}
+          values={selectedVocabularies.map(String)}
+          onValuesChange={(vals) => onSelectedVocabulariesChange(vals.map((v) => parseInt(v)))}
         />
       </div>
 
-      {/* Concept Class Filter */}
+      {/* Domain Filter - Single-select */}
       <div className={styles.filterSection}>
-        <div className={styles.filterTitle}>Concept Class</div>
-        <input
-          type="text"
-          className={styles.filterInputField}
+        <Select
+          label="Domain"
+          enabled={domainFilterEnabled}
+          onEnabledChange={onDomainFilterEnabledChange}
+          options={domainOptions}
+          placeholder="Select domain..."
+          multiSelect={false}
+          value={domainFilter}
+          onValueChange={onDomainFilterChange}
+        />
+      </div>
+
+      {/* Concept Class Filter - Single-select */}
+      <div className={styles.filterSection}>
+        <Select
+          label="Concept Class"
+          enabled={conceptClassFilterEnabled}
+          onEnabledChange={onConceptClassFilterEnabledChange}
+          options={conceptClassOptions}
+          placeholder="Select concept class..."
+          multiSelect={false}
           value={conceptClassFilter}
-          onChange={(e) => onConceptClassFilterChange(e.target.value)}
-          placeholder="e.g., Clinical Finding..."
+          onValueChange={onConceptClassFilterChange}
         />
       </div>
     </div>

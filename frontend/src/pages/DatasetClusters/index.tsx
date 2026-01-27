@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
+import { Select } from "components/Select";
 import { usePageTitle } from "hooks/usePageTitle";
 import type { ClusterData, ClusteredTerm } from "types";
 import * as api from "api";
@@ -963,17 +964,13 @@ export default function DatasetClusters() {
           {/* Toolbar */}
           <div className={styles.toolbar}>
             <div className={styles.toolbarControls}>
-              <select
+              <Select
+                options={labels.map((l) => ({ value: l, label: l }))}
                 value={selectedLabel}
-                onChange={(e) => setSelectedLabel(e.target.value)}
+                onValueChange={setSelectedLabel}
+                fullWidth={false}
                 className={styles.labelFilter}
-              >
-                {labels.map((label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              />
 
               <input
                 type="text"

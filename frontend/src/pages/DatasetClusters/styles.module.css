@@ -121,7 +121,6 @@
   align-items: center;
 }
 
-.labelFilter,
 .searchInput {
   padding: 10px 14px;
   background: #ffffff;
@@ -134,12 +133,6 @@
 
 .labelFilter {
   min-width: 200px;
-}
-
-.labelFilter:focus {
-  outline: none;
-  border-color: #11415e;
-  box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
 }
 
 .searchInput {

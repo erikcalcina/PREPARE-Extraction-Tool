@@ -411,3 +411,11 @@ export interface ExtractionJobStatusResponse {
   total: number;
   message?: string;
 }
+
+// ================================================
+// Filter types
+// ================================================
+
+export interface DistinctValuesOutput {
+  values: string[];
+}

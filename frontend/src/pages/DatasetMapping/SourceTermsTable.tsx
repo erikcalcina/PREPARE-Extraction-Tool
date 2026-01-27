@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import type { ClusterMapping } from "types";
 import LoadingSpinner from "components/LoadingSpinner";
+import { Select } from "components/Select";
+import Pagination from "components/Pagination";
 import styles from "./styles.module.css";
 
 function getLabelColorClass(label: string): string {
@@ -95,19 +97,15 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       {/* Search and Controls Header */}
       <div className={styles.tableHeader}>
         <div className={styles.tableHeaderLeft}>
-          <select
+          <Select
+            options={labels.map((l) => ({ value: l, label: l }))}
             value={selectedLabel}
-            onChange={(e) => onLabelChange(e.target.value)}
-            className={styles.labelDropdownSelect}
+            onValueChange={onLabelChange}
+            placeholder="All Categories"
             aria-label="Filter by category"
-          >
-            <option value="">All Categories</option>
-            {labels.map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
-          </select>
+            fullWidth={false}
+            className={styles.labelDropdownSelect}
+          />
           <div className={styles.tableSearch}>
             <input
               type="text"
@@ -211,59 +209,18 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
         <div className={styles.paginationBar}>
           <div className={styles.pageSizeSelector}>
             <label htmlFor="page-size">Rows per page:</label>
-            <select
+            <Select
               id="page-size"
-              value={pageSize}
-              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              options={PAGE_SIZE_OPTIONS.map((s) => ({ value: String(s), label: String(s) }))}
+              value={String(pageSize)}
+              onValueChange={(v) => handlePageSizeChange(Number(v))}
+              size="small"
+              fullWidth={false}
               className={styles.pageSizeSelect}
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
-          <div className={styles.paginationControls}>
-            <button
-              className={styles.paginationBtn}
-              onClick={() => goToPage(1)}
-              disabled={currentPage === 1}
-              aria-label="First page"
-            >
-              ««
-            </button>
-            <button
-              className={styles.paginationBtn}
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              aria-label="Previous page"
-            >
-              «
-            </button>
-
-            <span className={styles.pageIndicator}>
-              Page {currentPage} of {totalPages || 1}
-            </span>
-
-            <button
-              className={styles.paginationBtn}
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              aria-label="Next page"
-            >
-              »
-            </button>
-            <button
-              className={styles.paginationBtn}
-              onClick={() => goToPage(totalPages)}
-              disabled={currentPage >= totalPages}
-              aria-label="Last page"
-            >
-              »»
-            </button>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={goToPage} />
         </div>
       )}
     </div>

@@ -33,6 +33,7 @@ import type {
   ConceptSearchParams,
   ExtractionJobStartResponse,
   ExtractionJobStatusResponse,
+  DistinctValuesOutput,
 } from "types";
 
 // ================================================
@@ -607,6 +608,16 @@ export async function downloadVocabulary(id: number): Promise<void> {
 
 export async function getVocabularyConcepts(vocabularyId: number, page = 1, limit = 50): Promise<ConceptsOutput> {
   return apiRequest<ConceptsOutput>(`/vocabularies/${vocabularyId}/concepts?page=${page}&limit=${limit}`);
+}
+
+export async function getDistinctDomains(vocabularyIds?: number[]): Promise<DistinctValuesOutput> {
+  const params = vocabularyIds?.length ? `?vocabulary_ids=${vocabularyIds.join(",")}` : "";
+  return apiRequest<DistinctValuesOutput>(`/vocabularies/filters/domains${params}`);
+}
+
+export async function getDistinctConceptClasses(vocabularyIds?: number[]): Promise<DistinctValuesOutput> {
+  const params = vocabularyIds?.length ? `?vocabulary_ids=${vocabularyIds.join(",")}` : "";
+  return apiRequest<DistinctValuesOutput>(`/vocabularies/filters/concept-classes${params}`);
 }
 
 // ================================================

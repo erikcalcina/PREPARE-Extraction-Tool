@@ -340,12 +340,12 @@ const DatasetOverview = () => {
               actions={[
                 {
                   label: "View Mappings",
-                  onClick: () => alert("Concept mapping view coming soon!"),
+                  onClick: () => navigate(`/datasets/${datasetId}/mapping`),
                   variant: "primary",
                 },
                 {
                   label: "Start Mapping",
-                  onClick: () => alert("Automated mapping coming soon!"),
+                  onClick: () => navigate(`/datasets/${datasetId}/mapping`),
                   variant: "secondary",
                 },
               ]}

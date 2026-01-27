@@ -33,6 +33,15 @@ export default function DatasetMapping() {
   const [comment, setComment] = useState("");
   const [includeSourceTerms, setIncludeSourceTerms] = useState(false);
 
+  // Filter enabled states
+  const [vocabularyFilterEnabled, setVocabularyFilterEnabled] = useState(false);
+  const [domainFilterEnabled, setDomainFilterEnabled] = useState(false);
+  const [conceptClassFilterEnabled, setConceptClassFilterEnabled] = useState(false);
+
+  // Filter options (fetched from API)
+  const [domains, setDomains] = useState<string[]>([]);
+  const [conceptClasses, setConceptClasses] = useState<string[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isMapping, setIsMapping] = useState(false);
@@ -86,6 +95,23 @@ export default function DatasetMapping() {
     fetchVocabularies();
   }, []);
 
+  // Fetch filter options (domains and concept classes)
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [domainsResult, classesResult] = await Promise.all([
+          api.getDistinctDomains(),
+          api.getDistinctConceptClasses(),
+        ]);
+        setDomains(domainsResult.values);
+        setConceptClasses(classesResult.values);
+      } catch (err) {
+        console.error("Failed to fetch filter options:", err);
+      }
+    };
+    fetchFilterOptions();
+  }, []);
+
   // Fetch mappings
   const fetchMappings = useCallback(async () => {
     if (!datasetId) return;
@@ -115,15 +141,19 @@ export default function DatasetMapping() {
 
   // Handle auto-search
   const handleAutoSearch = async () => {
-    if (!selectedMapping || !datasetId || selectedVocabularies.length === 0) return;
+    if (!selectedMapping || !datasetId) return;
+
+    // Use all vocabularies if filter is disabled, otherwise use selected
+    const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
+    if (vocabIdsToUse.length === 0) return;
 
     try {
       setIsSearching(true);
       const request: AutoMapRequest = {
-        vocabulary_ids: selectedVocabularies,
+        vocabulary_ids: vocabIdsToUse,
         use_cluster_terms: true,
-        domain_id: domainFilter || undefined,
-        concept_class_id: conceptClassFilter || undefined,
+        domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
+        concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
         standard_concept: standardOnly ? "S" : undefined,
       };
 
@@ -138,15 +168,19 @@ export default function DatasetMapping() {
 
   // Handle manual search
   const handleManualSearch = async () => {
-    if (!searchQuery || selectedVocabularies.length === 0) return;
+    if (!searchQuery) return;
+
+    // Use all vocabularies if filter is disabled, otherwise use selected
+    const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
+    if (vocabIdsToUse.length === 0) return;
 
     try {
       setIsSearching(true);
       const results = await api.searchConcepts({
         query: searchQuery,
-        vocabulary_ids: selectedVocabularies,
-        domain_id: domainFilter || undefined,
-        concept_class_id: conceptClassFilter || undefined,
+        vocabulary_ids: vocabIdsToUse,
+        domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
+        concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
         standard_concept: standardOnly ? "S" : undefined,
         limit: 10,
       });
@@ -219,7 +253,9 @@ export default function DatasetMapping() {
 
   // Handle auto-map all
   const handleAutoMapAll = () => {
-    if (!datasetId || selectedVocabularies.length === 0) return;
+    // Use all vocabularies if filter is disabled, otherwise use selected
+    const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
+    if (!datasetId || vocabIdsToUse.length === 0) return;
 
     const unmappedCount = mappings.filter((m) => m.status === "unmapped").length;
 
@@ -233,7 +269,7 @@ export default function DatasetMapping() {
         try {
           setIsLoading(true);
           const response = await api.autoMapAllClusters(parseInt(datasetId), {
-            vocabulary_ids: selectedVocabularies,
+            vocabulary_ids: vocabIdsToUse,
             label: selectedLabel || undefined,
             use_cluster_terms: true,
           });
@@ -355,7 +391,7 @@ export default function DatasetMapping() {
           <div className={styles.toolbarButtons}>
             <button
               onClick={handleAutoMapAll}
-              disabled={isLoading || selectedVocabularies.length === 0}
+              disabled={isLoading || vocabularies.length === 0}
               className={styles.btnAutoMapAll}
             >
               Auto-Map All
@@ -467,10 +503,18 @@ export default function DatasetMapping() {
               vocabularies={vocabularies}
               selectedVocabularies={selectedVocabularies}
               onSelectedVocabulariesChange={setSelectedVocabularies}
+              vocabularyFilterEnabled={vocabularyFilterEnabled}
+              onVocabularyFilterEnabledChange={setVocabularyFilterEnabled}
               domainFilter={domainFilter}
               onDomainFilterChange={setDomainFilter}
+              domainFilterEnabled={domainFilterEnabled}
+              onDomainFilterEnabledChange={setDomainFilterEnabled}
+              domains={domains}
               conceptClassFilter={conceptClassFilter}
               onConceptClassFilterChange={setConceptClassFilter}
+              conceptClassFilterEnabled={conceptClassFilterEnabled}
+              onConceptClassFilterEnabledChange={setConceptClassFilterEnabled}
+              conceptClasses={conceptClasses}
             />
           </div>
         </div>
