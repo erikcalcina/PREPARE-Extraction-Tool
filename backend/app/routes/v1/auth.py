@@ -1,6 +1,7 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -14,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.settings import settings
 from app.core.database import get_session, User
 from app.schemas import MessageOutput, UserRegister, UserResponse, UserStatsResponse
-from app.models_db import Dataset, Vocabulary
+from app.models_db import Dataset, Vocabulary, RefreshToken
 from sqlmodel import Session, select, func
 
 
@@ -33,7 +34,14 @@ class Token(BaseModel):
     """OAuth2 token response model."""
 
     access_token: str
+    refresh_token: str
     token_type: str
+
+
+class RefreshRequest(BaseModel):
+    """Request model for token refresh."""
+
+    refresh_token: str
 
 
 # ================================================
@@ -137,6 +145,101 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 
+def create_refresh_token(db: Session, user: User) -> str:
+    """
+    Create a refresh token and store it in the database.
+
+    Args:
+        db: Database session
+        user: User to create refresh token for
+
+    Returns:
+        Refresh token string
+    """
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
+    refresh_token = RefreshToken(
+        token=token,
+        user_id=user.id,
+        expires_at=expires_at,
+        revoked=False,
+    )
+    db.add(refresh_token)
+    db.commit()
+
+    return token
+
+
+def validate_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
+    """
+    Validate a refresh token and return it if valid.
+
+    Args:
+        db: Database session
+        token: Refresh token string
+
+    Returns:
+        RefreshToken object if valid, None otherwise
+    """
+    statement = select(RefreshToken).where(
+        RefreshToken.token == token,
+        RefreshToken.revoked == False,
+        RefreshToken.expires_at > datetime.now(timezone.utc),
+    )
+    return db.exec(statement).one_or_none()
+
+
+def revoke_refresh_token(db: Session, token: str) -> bool:
+    """
+    Revoke a refresh token.
+
+    Args:
+        db: Database session
+        token: Refresh token string
+
+    Returns:
+        True if token was revoked, False if not found
+    """
+    statement = select(RefreshToken).where(RefreshToken.token == token)
+    refresh_token = db.exec(statement).one_or_none()
+
+    if refresh_token:
+        refresh_token.revoked = True
+        db.add(refresh_token)
+        db.commit()
+        return True
+
+    return False
+
+
+def revoke_all_user_refresh_tokens(db: Session, user_id: int) -> int:
+    """
+    Revoke all refresh tokens for a user.
+
+    Args:
+        db: Database session
+        user_id: User ID to revoke tokens for
+
+    Returns:
+        Number of tokens revoked
+    """
+    statement = select(RefreshToken).where(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked == False,
+    )
+    tokens = db.exec(statement).all()
+
+    for token in tokens:
+        token.revoked = True
+        db.add(token)
+
+    db.commit()
+    return len(tokens)
+
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[Session, Depends(get_session)],
@@ -226,8 +329,8 @@ async def register(user_data: UserRegister, db: Session = Depends(get_session)):
     response_model=Token,
     status_code=status.HTTP_200_OK,
     summary="Login and get access token",
-    description="Authenticates a user with username and password via OAuth2 password flow. Returns a JWT access token for subsequent API requests and updates the user's last login timestamp",
-    response_description="JWT access token and token type (bearer)",
+    description="Authenticates a user with username and password via OAuth2 password flow. Returns JWT access and refresh tokens for subsequent API requests and updates the user's last login timestamp",
+    response_description="JWT access token, refresh token, and token type (bearer)",
 )
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -261,7 +364,15 @@ async def login(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return Token(access_token=access_token, token_type="bearer")
+
+    # Create refresh token
+    refresh_token = create_refresh_token(db, user)
+
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
 
 
 @router.get(
@@ -310,3 +421,83 @@ async def read_user_stats(
         dataset_count=dataset_count,
         vocabulary_count=vocabulary_count,
     )
+
+
+@router.post(
+    "/refresh",
+    response_model=Token,
+    status_code=status.HTTP_200_OK,
+    summary="Refresh access token",
+    description="Exchanges a valid refresh token for a new access token and refresh token pair. The old refresh token is revoked.",
+    response_description="New JWT access token, refresh token, and token type (bearer)",
+)
+async def refresh_token(
+    request: RefreshRequest,
+    db: Session = Depends(get_session),
+):
+    # Validate the refresh token
+    refresh_token_obj = validate_refresh_token(db, request.refresh_token)
+
+    if not refresh_token_obj:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Get the user
+    user = db.exec(
+        select(User).where(User.id == refresh_token_obj.user_id)
+    ).one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user.disabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
+    # Revoke the old refresh token (token rotation)
+    revoke_refresh_token(db, request.refresh_token)
+
+    # Create new access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+
+    # Create new refresh token
+    new_refresh_token = create_refresh_token(db, user)
+
+    return Token(
+        access_token=access_token,
+        refresh_token=new_refresh_token,
+        token_type="bearer",
+    )
+
+
+@router.post(
+    "/logout",
+    response_model=MessageOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Logout and revoke refresh token",
+    description="Revokes the provided refresh token, effectively logging out the user from that session.",
+    response_description="Confirmation message",
+)
+async def logout(
+    request: RefreshRequest,
+    db: Session = Depends(get_session),
+):
+    revoked = revoke_refresh_token(db, request.refresh_token)
+
+    if not revoked:
+        # Still return success even if token not found (already logged out)
+        return MessageOutput(message="Logged out successfully")
+
+    return MessageOutput(message="Logged out successfully")

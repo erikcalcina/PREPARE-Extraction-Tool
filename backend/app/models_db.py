@@ -29,6 +29,28 @@ class User(SQLModel, table=True):
     # Relationships to owned resources
     datasets: list["Dataset"] = Relationship(back_populates="user")
     vocabularies: list["Vocabulary"] = Relationship(back_populates="user")
+    refresh_tokens: list["RefreshToken"] = Relationship(back_populates="user")
+
+
+class RefreshToken(SQLModel, table=True):
+    """
+    Refresh token model for JWT token refresh flow.
+
+    Refresh tokens allow users to obtain new access tokens without
+    re-authenticating. Tokens can be revoked for logout functionality.
+    """
+
+    __tablename__ = "refresh_token"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    expires_at: datetime
+    revoked: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # Relationship back to User
+    user: Optional["User"] = Relationship(back_populates="refresh_tokens")
 
 
 class Dataset(SQLModel, table=True):
