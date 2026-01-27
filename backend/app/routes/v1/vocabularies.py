@@ -72,28 +72,42 @@ def get_vocabularies(
         .where(Vocabulary.user_id == current_user.id)
     ).one()
 
-    # Get paginated vocabularies
-    vocabularies = db.exec(
-        select(Vocabulary)
+    # Subquery for concept counts grouped by vocabulary_id
+    concept_counts_subquery = (
+        select(
+            Concept.vocabulary_id,
+            func.count(Concept.id).label("count")
+        )
+        .group_by(Concept.vocabulary_id)
+        .subquery()
+    )
+
+    # Get paginated vocabularies with concept counts in a single query
+    vocabularies_with_counts = db.exec(
+        select(
+            Vocabulary,
+            func.coalesce(concept_counts_subquery.c.count, 0).label("concept_count")
+        )
+        .outerjoin(
+            concept_counts_subquery,
+            Vocabulary.id == concept_counts_subquery.c.vocabulary_id
+        )
         .where(Vocabulary.user_id == current_user.id)
         .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
-    
+
     vocabulary_responses = [
         VocabularyResponse(
             id=vocabulary.id,
             name=vocabulary.name,
             uploaded=vocabulary.uploaded,
-            concept_count=db.exec(
-                select(func.count(Concept.id))
-                .where(Concept.vocabulary_id == vocabulary.id)
-            ).one(),
+            concept_count=concept_count,
             status=vocabulary.status,
             error_message=vocabulary.error_message
         )
-        for vocabulary in vocabularies
+        for vocabulary, concept_count in vocabularies_with_counts
     ]
 
     return VocabulariesOutput(
