@@ -1,10 +1,6 @@
-import io
-import csv
-from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
 from sqlmodel import Session, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
@@ -12,16 +8,17 @@ from app.library.file_parser import parse_concepts_file
 from app.models_db import VocabularyStatus
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
-    MessageOutput,
-    VocabularyResponse,
-    VocabulariesOutput,
-    VocabularyUploadResponse,
-    VocabularyOutput,
-    ProcessingVocabularyStats,
     ConceptCreate,
-    ConceptsOutput,
     ConceptOutput,
+    ConceptsOutput,
+    DistinctValuesOutput,
+    MessageOutput,
     PaginationParams,
+    ProcessingVocabularyStats,
+    VocabulariesOutput,
+    VocabularyOutput,
+    VocabularyResponse,
+    VocabularyUploadResponse,
     create_pagination_metadata,
 )
 from app.library.concept_indexer import indexer
@@ -45,6 +42,77 @@ def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this vocabulary",
         )
+
+
+# ================================================
+# Filter endpoints (must be before /{vocabulary_id})
+# ================================================
+
+
+@router.get(
+    "/filters/domains",
+    response_model=DistinctValuesOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get distinct domain values",
+    description="Returns distinct domain_id values from concepts in user's vocabularies",
+)
+def get_distinct_domains(
+    vocabulary_ids: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Get distinct domain values for filter dropdowns."""
+    query = (
+        select(Concept.domain_id)
+        .distinct()
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
+        .where(Concept.domain_id.isnot(None))
+        .where(Concept.domain_id != "")
+    )
+
+    if vocabulary_ids:
+        vocab_id_list = [
+            int(vid.strip()) for vid in vocabulary_ids.split(",") if vid.strip()
+        ]
+        if vocab_id_list:
+            query = query.where(Concept.vocabulary_id.in_(vocab_id_list))
+
+    results = db.exec(query.order_by(Concept.domain_id)).all()
+    return DistinctValuesOutput(values=results)
+
+
+@router.get(
+    "/filters/concept-classes",
+    response_model=DistinctValuesOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get distinct concept class values",
+    description="Returns distinct concept_class_id values from user's vocabularies",
+)
+def get_distinct_concept_classes(
+    vocabulary_ids: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Get distinct concept class values for filter dropdowns."""
+    query = (
+        select(Concept.concept_class_id)
+        .distinct()
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
+        .where(Concept.concept_class_id.isnot(None))
+        .where(Concept.concept_class_id != "")
+    )
+
+    if vocabulary_ids:
+        vocab_id_list = [
+            int(vid.strip()) for vid in vocabulary_ids.split(",") if vid.strip()
+        ]
+        if vocab_id_list:
+            query = query.where(Concept.vocabulary_id.in_(vocab_id_list))
+
+    results = db.exec(query.order_by(Concept.concept_class_id)).all()
+    return DistinctValuesOutput(values=results)
 
 
 # ================================================

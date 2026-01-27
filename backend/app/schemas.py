@@ -588,3 +588,9 @@ class MappingExportRequest(BaseModel):
     status_filter: Optional[str] = (
         None  # 'approved', 'pending', 'rejected', None for all
     )
+
+
+class DistinctValuesOutput(BaseModel):
+    """Response model for distinct filter values (domains, concept classes)."""
+
+    values: List[str]
