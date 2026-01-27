@@ -1,4 +1,4 @@
-"""add refresh token table
+"""add refresh token table and concept vocabulary index
 
 Revision ID: 008
 Revises: 007
@@ -35,7 +35,12 @@ def upgrade() -> None:
         op.f("ix_refresh_token_token"), "refresh_token", ["token"], unique=True
     )
 
+    op.create_index(
+        op.f("ix_concept_vocabulary_id"), "concept", ["vocabulary_id"], unique=False
+    )
+
 
 def downgrade() -> None:
+    op.drop_index(op.f("ix_concept_vocabulary_id"), table_name="concept")
     op.drop_index(op.f("ix_refresh_token_token"), table_name="refresh_token")
     op.drop_table("refresh_token")
