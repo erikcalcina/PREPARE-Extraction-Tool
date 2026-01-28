@@ -21,7 +21,7 @@
     margin: 0 0 28px;
     font-size: 28px;
     font-weight: 700;
-    color: #002262;
+    color: #11415e;
     text-align: center;
 }
 
@@ -54,7 +54,7 @@
 
 .input:focus {
     outline: none;
-    border-color: #002262;
+    border-color: #11415e;
     box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
 }
 
@@ -82,7 +82,7 @@
     font-size: 15px;
     font-weight: 600;
     color: #ffffff;
-    background-color: #002262;
+    background-color: #11415e;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -91,7 +91,7 @@
 }
 
 .submitButton:hover:not(:disabled) {
-    background-color: #002262;
+    background-color: #11415e;
 }
 
 .submitButton:disabled {
@@ -118,7 +118,7 @@
     padding: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #002262;
+    color: #11415e;
     background: none;
     border: none;
     cursor: pointer;
@@ -127,7 +127,7 @@
 }
 
 .switchButton:hover:not(:disabled) {
-    color: #439f46;
+    color: #144d70;
     text-decoration: underline;
 }
 
