@@ -22,6 +22,7 @@ import {
 // ================================================
 
 export function useRecords(datasetId: number) {
+  const SOURCE_TERMS_LIMIT = 500;
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
@@ -130,7 +131,7 @@ export function useRecords(datasetId: number) {
       setSelectedRecord(record);
       setIsLoadingTerms(true);
       try {
-        const response = await getRecordSourceTerms(datasetId, record.id);
+        const response = await getRecordSourceTerms(datasetId, record.id, SOURCE_TERMS_LIMIT);
         setSelectedRecordTerms(response.source_terms);
       } catch (err) {
         console.error("Failed to fetch source terms:", err);
@@ -239,7 +240,7 @@ export function useRecords(datasetId: number) {
     try {
       const response = await extractRecordTermsAPI(datasetId, selectedRecord.id, dataset.labels);
       // Refresh the terms for the selected record
-      const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+      const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id, SOURCE_TERMS_LIMIT);
       setSelectedRecordTerms(termsResponse.source_terms);
       // Refresh stats
       await fetchStats();
@@ -279,7 +280,7 @@ export function useRecords(datasetId: number) {
         }
 
         if (selectedRecord) {
-          const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+          const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id, SOURCE_TERMS_LIMIT);
           setSelectedRecordTerms(termsResponse.source_terms);
         }
         await fetchStats();
@@ -346,7 +347,7 @@ export function useRecords(datasetId: number) {
     await fetchStats();
     // Refresh selected record terms if one is selected
     if (selectedRecord) {
-      const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+      const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id, SOURCE_TERMS_LIMIT);
       setSelectedRecordTerms(termsResponse.source_terms);
     }
     return res;
