@@ -9,6 +9,7 @@ import styles from "./styles.module.css";
 import ProgressBar from "components/ProgressBar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
+import { downloadDataset as downloadDatasetAPI } from "api";
 
 // ================================================
 // Helper functions
@@ -456,6 +457,15 @@ const DatasetRecords = () => {
     }
   }, [deleteExtractedTermsForDataset]);
 
+  const handleDownloadGliner = useCallback(async () => {
+    try {
+      await downloadDatasetAPI(parsedDatasetId, "gliner");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to download GLiNER file";
+      alert(`Error: ${errorMessage}`);
+    }
+  }, [parsedDatasetId]);
+
   if (!parsedDatasetId) {
     return (
       <Layout>
@@ -540,6 +550,14 @@ const DatasetRecords = () => {
               )}
               <div className={styles.statLabel}>Reviewed</div>
             </div>
+            <button
+              className={styles.downloadButton}
+              onClick={handleDownloadGliner}
+              disabled={totalRecords === 0}
+              title="Download all annotated records in GLiNER JSON format"
+            >
+              Download
+            </button>
           </div>
           <div className={styles.pageActions}>
             <button

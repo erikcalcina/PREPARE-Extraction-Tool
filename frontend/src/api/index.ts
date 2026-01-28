@@ -233,7 +233,10 @@ export async function deleteDatasetExtractedTerms(datasetId: number): Promise<Me
   });
 }
 
-export async function downloadDataset(id: number): Promise<void> {
+export async function downloadDataset(
+  id: number,
+  format: "csv" | "json" | "gliner" = "csv"
+): Promise<void> {
   const token = getToken();
   const headers: HeadersInit = {};
 
@@ -241,21 +244,18 @@ export async function downloadDataset(id: number): Promise<void> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}/datasets/${id}/download`, {
-    headers,
-  });
+  const response = await fetch(`${API_BASE_URL}/datasets/${id}/download?format=${format}`, { headers });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Download failed" }));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
-  // Get filename from Content-Disposition header or use default
   const contentDisposition = response.headers.get("Content-Disposition");
-  const filenameMatch = contentDisposition?.match(/filename=(.+)/);
-  const filename = filenameMatch ? filenameMatch[1] : `dataset_${id}.csv`;
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
+  const fallbackExtension = format === "csv" ? "csv" : "json";
+  const filename = filenameMatch ? filenameMatch[1] : `dataset_${id}.${fallbackExtension}`;
 
-  // Create blob and trigger download
   const blob = await response.blob();
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");

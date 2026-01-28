@@ -439,13 +439,20 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-    file_content, media_type = download_annotated_dataset(records, format)
+    try:
+        file_content, media_type = download_annotated_dataset(records, format)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+
+    file_extension = "json" if format in {"json", "gliner"} else "csv"
 
     return StreamingResponse(
         iter([file_content]),
         media_type=media_type,
         headers={
-            "Content-Disposition": f"attachment; filename={dataset.name}.{format}"
+            "Content-Disposition": f'attachment; filename="{dataset.name}.{file_extension}"'
         },
     )
 

@@ -236,6 +236,29 @@ def download_annotated_dataset(records, format):
                 )
         return json.dumps(data), "application/json"
 
+    elif format == "gliner":
+        data = []
+        for record in records:
+            entities = []
+            for term in record.source_terms:
+                if term.start_position is None or term.end_position is None:
+                    continue
+                entities.append(
+                    {
+                        "text": (record.text or "")[
+                            term.start_position : term.end_position
+                        ]
+                        if record.text
+                        else term.value,
+                        "label": term.label,
+                        "start": term.start_position,
+                        "end": term.end_position,
+                    }
+                )
+            entities.sort(key=lambda entity: entity["start"])
+            data.append({"text": record.text or "", "entities": entities})
+        return json.dumps(data, ensure_ascii=False, indent=2), "application/json"
+
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
