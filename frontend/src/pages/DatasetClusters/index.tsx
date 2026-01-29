@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
@@ -349,6 +349,7 @@ export default function DatasetClusters() {
   const [activeDragTerm, setActiveDragTerm] = useState<ClusteredTerm | null>(null);
   const [activeDragCluster, setActiveDragCluster] = useState<ClusterData | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isDownloadingClusters, setIsDownloadingClusters] = useState(false);
 
   usePageTitle(datasetName ? `Term Clustering - ${datasetName}` : "Term Clustering");
 
@@ -445,6 +446,18 @@ export default function DatasetClusters() {
       setIsAutoClustering(false);
     }
   };
+
+  const handleDownloadClusters = useCallback(async () => {
+    if (!datasetId) return;
+    try {
+      setIsDownloadingClusters(true);
+      await api.downloadClusters(parseInt(datasetId, 10), selectedLabel || undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download clusters");
+    } finally {
+      setIsDownloadingClusters(false);
+    }
+  }, [datasetId, selectedLabel]);
 
   // Helper function to recalculate cluster stats
   const recalculateClusterStats = (cluster: ClusterData): ClusterData => {
@@ -953,6 +966,14 @@ export default function DatasetClusters() {
               <StatCard label="Terms" value={stats.totalTerms} variant="terms" />
               <StatCard label="Avg/Cluster" value={stats.avgTermsPerCluster} />
               <StatCard label="Unclustered" value={stats.unclusteredCount} variant="unclustered" />
+              <button
+                onClick={handleDownloadClusters}
+                disabled={isDownloadingClusters || (clusters.length === 0 && unclusteredTerms.length === 0)}
+                className={styles.downloadButton}
+                title="Download current clusters as JSON"
+              >
+                {isDownloadingClusters ? "Downloading..." : "Download"}
+              </button>
             </div>
             <div className={styles.pageActions}>
               <button
