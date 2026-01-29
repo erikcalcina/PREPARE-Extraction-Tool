@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional, Tuple
 import math
 
 from datetime import datetime, timezone
@@ -1215,36 +1215,83 @@ def create_clusters_for_dataset(
         )
 
     raw_texts = [st.value for st in source_terms]
-    texts = [_normalize_term(t) for t in raw_texts] 
-    if len(texts) == 0:
+    if not raw_texts:
         return MessageOutput(message="No terms to cluster")
 
-    embedding_model = model_registry.get_model("embedding_model2vec")
-    embeddings = embedding_model.embed(texts)
+    # 1) Decide value type for this label by majority vote
+    types = []
+    date_keys = []
+    measure_keys = []
 
-    # Default clustering parameters (can be tuned)
-    HDBSCAN_PARAMS = {
-        "min_cluster_size": 2,
-        "min_samples": None,
-        "metric": "euclidean",
-        "cluster_selection_method": "eom",
-    }
+    for t in raw_texts:
+        tp = _detect_value_type(t)
+        types.append(tp)
+        date_keys.append(_normalize_date_to_key(t) if tp == "date" else None)
+        measure_keys.append(_normalize_measure_to_key(t) if tp == "measure" else None)
 
-    clusterer = HDBSCAN(**HDBSCAN_PARAMS)
+    type_counts = Counter(types)
+    major_type = type_counts.most_common(1)[0][0]
 
-    labels_arr = clusterer.fit_predict(embeddings)
+    # 2) If it's dates: cluster by exact canonical key
+    if major_type == "date":
+        key_to_cluster = {}
+        labels_arr = []
+        next_id = 0
 
-    # Post-processing: merge clusters with very similar names (formatting / small typos) 2
-    labels_arr = _merge_labels_by_spelling(
-        labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
-        texts,                
-        max_typos=1,
-    )
+        for key in date_keys:
+            if key is None:
+                labels_arr.append(-1)  # unclustered if can't parse
+                continue
+            if key not in key_to_cluster:
+                key_to_cluster[key] = next_id
+                next_id += 1
+            labels_arr.append(key_to_cluster[key])
 
-    labels_arr = _merge_labels_by_centroid_similarity(
-        labels_arr, embeddings, threshold=0.8
-    )
-    labels_arr = [int(x) for x in labels_arr]
+        # For title picking later we still need texts (original)
+        texts = raw_texts
+
+    # 3) If it's measures: normalize -> cluster by exact match of normalized key
+    elif major_type == "measure":
+        key_to_cluster = {}
+        labels_arr = []
+        next_id = 0
+
+        for key in measure_keys:
+            if key is None:
+                labels_arr.append(-1)
+                continue
+            if key not in key_to_cluster:
+                key_to_cluster[key] = next_id
+                next_id += 1
+            labels_arr.append(key_to_cluster[key])
+
+        texts = raw_texts
+
+    # 4) Otherwise: default pipeline (embeddings + HDBSCAN + merges)
+    else:
+        texts = [_normalize_term(t) for t in raw_texts]
+
+        embedding_model = model_registry.get_model("embedding_model2vec")
+        embeddings = embedding_model.embed(texts)
+
+        HDBSCAN_PARAMS = {
+            "min_cluster_size": 2,
+            "min_samples": None,
+            "metric": "euclidean",
+            "cluster_selection_method": "eom",
+        }
+        clusterer = HDBSCAN(**HDBSCAN_PARAMS)
+        labels_arr = clusterer.fit_predict(embeddings)
+
+        labels_arr = _merge_labels_by_spelling(
+            labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
+            texts,
+            max_typos=1,
+        )
+
+        labels_arr = _merge_labels_by_centroid_similarity(labels_arr, embeddings, threshold=0.8)
+        labels_arr = [int(x) for x in labels_arr]
+
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
@@ -1318,9 +1365,103 @@ def create_clusters_for_dataset(
     return MessageOutput(message="Clusters rebuilt and saved to database.")
 
 
+
+DATE_SEPARATORS_RE = re.compile(r"[.\-/]")
+
+MEASURE_RE = re.compile(
+    r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
+    re.IGNORECASE,
+)
+
+def _detect_value_type(text: str) -> str:
+    """
+    Rough detector:
+    - date: looks like a date and can be normalized
+    - measure: looks like dosage/quantity with units
+    - id: mostly alnum with digits and separators (optional i guess)
+    - text: default
+    """
+    s = (text or "").strip()
+    if not s:
+        return "text"
+
+    # quick date-like check
+    if any(ch.isdigit() for ch in s) and DATE_SEPARATORS_RE.search(s):
+        # we'll confirm later by trying to normalize
+        return "date"
+
+    # measure-like check
+    if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
+        return "measure"
+
+    return "text"
+
+
+def _normalize_date_to_key(text: str) -> Optional[str]:
+    """
+    Convert many date formats to canonical YYYY-MM-DD.
+    If we can't confidently parse -> return None.
+    """
+    s = (text or "").strip()
+
+    # supports: DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
+    m = re.match(r"^\s*(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\s*$", s)
+    if not m:
+        return None
+
+    a, b, c = m.group(1), m.group(2), m.group(3)
+
+    # Heuristic:
+    # if first part has 4 digits -> YYYY-MM-DD
+    if len(a) == 4:
+        year = int(a)
+        month = int(b)
+        day = int(c)
+    else:
+        # assume DD.MM.YYYY
+        day = int(a)
+        month = int(b)
+        year = int(c)
+
+    # basic validation
+    if not (1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100):
+        return None
+
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def _normalize_measure_to_key(text: str) -> Optional[str]:
+    """
+    Normalize measures but keep numeric meaning:
+    - collapse spaces
+    - turn separators into spaces
+    - ensure unit separated
+    Example:
+      '2/50mg' -> '2 50 mg'
+      '2   50mg' -> '2 50 mg'
+    """
+    s = (text or "").strip().lower()
+    if not s:
+        return None
+    s = s.replace("/", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+
+    # ensure space before unit: "50mg" -> "50 mg"
+    s = re.sub(r"(\d)(mg|ml|g|mcg|µg|kg|iu|%)\b", r"\1 \2", s)
+
+    # remove spaces around dots/commas in decimals (optional)
+    s = s.replace(" ,", ",").replace(", ", ",").replace(" .", ".").replace(". ", ".")
+
+    if not re.search(r"\b(mg|ml|g|mcg|µg|kg|iu|%)\b", s):
+        return None
+
+    return s
+
+
 # ================================================
 # New enhanced clustering routes
 # ================================================
+
 
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
