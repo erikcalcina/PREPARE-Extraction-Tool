@@ -687,3 +687,33 @@ export async function importMappings(datasetId: number, file: File): Promise<Mes
 
   return response.json();
 }
+
+export async function downloadClusters(datasetId: number, label?: string): Promise<void> {
+  const token = getToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const params = label ? `?label=${encodeURIComponent(label)}` : "";
+  const response = await fetch(`${API_BASE_URL}/datasets/${datasetId}/clusters/download${params}`, { headers });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Download failed" }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition");
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
+  const filename = filenameMatch ? filenameMatch[1] : `clusters_${datasetId}.json`;
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}

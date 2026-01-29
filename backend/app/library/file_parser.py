@@ -2,6 +2,8 @@ import io
 import csv
 import codecs
 import json
+from collections import defaultdict
+from typing import Sequence, Tuple
 
 from dateutil import parser
 from datetime import datetime
@@ -9,7 +11,7 @@ import ijson
 
 from fastapi import HTTPException, status, UploadFile
 
-from app.models_db import Record, Concept
+from app.models_db import Record, Concept, Cluster
 
 
 # ================================================
@@ -264,3 +266,34 @@ def download_annotated_dataset(records, format):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsuported file format: {format}",
         )
+
+
+def build_clusters_download_json(
+    dataset_name: str,
+    clusters: Sequence[Cluster],
+    term_rows: Sequence[Tuple[int, str]],
+):
+    """Create JSON attachment content for dataset clusters."""
+
+    term_map = defaultdict(set)
+    for cluster_id, raw_value in term_rows:
+        if not raw_value:
+            continue
+        value = raw_value.strip()
+        if value:
+            term_map[int(cluster_id)].add(value)
+
+    payload = {
+        "clusters": [
+            {
+                "cluster_name": cluster.title,
+                "terms": sorted(term_map.get(cluster.id, set())),
+            }
+            for cluster in clusters
+        ]
+    }
+
+    safe_name = dataset_name or "dataset"
+    content = json.dumps(payload, ensure_ascii=False, indent=2)
+    filename = f"{safe_name}_clusters.json"
+    return content.encode("utf-8"), filename

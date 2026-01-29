@@ -1368,19 +1368,19 @@
 }
 
 .downloadButton {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #ffffff;
   color: #11415e;
   font-weight: 600;
   cursor: pointer;
-  min-width: 190px;
-  align-self: stretch;
+  min-width: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  font-size: 14px;
 }
 
 .downloadButton:hover:not(:disabled) {

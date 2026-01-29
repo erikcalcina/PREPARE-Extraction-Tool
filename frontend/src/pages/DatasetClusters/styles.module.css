@@ -89,7 +89,8 @@
 .statsGrid {
   display: flex;
   gap: 12px;
-  flex-wrap: nowrap;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
 .pageActions {
@@ -240,6 +241,33 @@
 
 .statValue.unclustered {
   color: #d97706;
+}
+
+.downloadButton {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #11415e;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.downloadButton:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #0f3550;
+}
+
+.downloadButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ================================================

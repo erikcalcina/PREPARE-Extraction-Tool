@@ -44,7 +44,10 @@ from app.schemas import (
     create_pagination_metadata,
 )
 
-from app.library.file_parser import download_annotated_dataset
+from app.library.file_parser import (
+    download_annotated_dataset,
+    build_clusters_download_json,
+)
 
 # ================================================
 # Route definitions
@@ -448,11 +451,16 @@ def download_dataset(
 
     file_extension = "json" if format in {"json", "gliner"} else "csv"
 
+    filename_parts = [dataset.name]
+    if format == "gliner":
+        filename_parts.append("extracted_terms")
+    filename = "_".join(filename_parts)
+
     return StreamingResponse(
         iter([file_content]),
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{dataset.name}.{file_extension}"'
+            "Content-Disposition": f'attachment; filename="{filename}.{file_extension}"'
         },
     )
 
@@ -1475,4 +1483,50 @@ def delete_extracted_source_terms(
     db.commit()
     return MessageOutput(
         message=f"Deleted {len(terms)} automatically extracted source terms"
+    )
+
+
+@router.get(
+    "/{dataset_id}/clusters/download",
+    response_class=StreamingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Download clusters JSON",
+    description="Exports clusters (optionally filtered by label) as a JSON attachment",
+)
+def download_clusters_json(
+    dataset_id: int,
+    label: Optional[str] = None,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    cluster_stmt = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    if label:
+        cluster_stmt = cluster_stmt.where(Cluster.label == label)
+    clusters = db.exec(cluster_stmt.order_by(Cluster.title)).all()
+    if not clusters:
+        raise HTTPException(status_code=404, detail="No clusters found for this dataset")
+
+    cluster_ids = [c.id for c in clusters]
+    term_rows = []
+    if cluster_ids:
+        term_rows = db.exec(
+            select(SourceTerm.cluster_id, SourceTerm.value).where(
+                SourceTerm.cluster_id.in_(cluster_ids)
+            )
+        ).all()
+
+    content, filename = build_clusters_download_json(
+        dataset.name,
+        clusters,
+        term_rows,
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
