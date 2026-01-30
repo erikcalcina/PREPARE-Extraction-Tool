@@ -1,26 +1,16 @@
-import { useEffect, useCallback } from "react";
-import Sidebar from "components/Sidebar";
-import Button from "components/Button";
+import React, { useEffect, useCallback } from "react";
+import classNames from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight, faCheck } from "@fortawesome/free-solid-svg-icons";
-import type { SourceTerm, SourceTermCreate } from "types";
+
+import Sidebar from "@/components/Sidebar";
+import Button from "@/components/Button";
+import { getLabelColorClass } from "@/utils/labelColors";
 import AnnotatableText from "./AnnotatableText";
+
+import type { SourceTerm, SourceTermCreate } from "@/types";
+
 import styles from "./styles.module.css";
-
-// ================================================
-// Helper function
-// ================================================
-
-function getLabelColorClass(label: string, labels: string[]): string {
-  const index = labels.indexOf(label);
-  if (index === -1) return "label1";
-  // Return label1 through label9 based on index (wrapping if more than 9)
-  return `label${(index % 9) + 1}`;
-}
-
-// ================================================
-// Interface
-// ================================================
 
 export interface AnnotationSidebarProps {
   isOpen: boolean;
@@ -43,11 +33,7 @@ export interface AnnotationSidebarProps {
   isReviewed?: boolean;
 }
 
-// ================================================
-// Component
-// ================================================
-
-const AnnotationSidebar = ({
+const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
   isOpen,
   text,
   labels,
@@ -66,7 +52,7 @@ const AnnotationSidebar = ({
   hasNextRecord = true,
   onMarkReviewed,
   isReviewed = false,
-}: AnnotationSidebarProps) => {
+}) => {
   // Handle label selection - either update selected annotation or select for new annotations
   const handleLabelSelection = useCallback(
     (label: string) => {
@@ -153,7 +139,9 @@ const AnnotationSidebar = ({
               {labels.map((label, index) => (
                 <button
                   key={label}
-                  className={`${styles.labelButton} ${styles[`label${index + 1}`]} ${selectedLabel === label ? styles.active : ""}`}
+                  className={classNames(styles.labelButton, styles[`label${index + 1}`], {
+                    [styles.active]: selectedLabel === label,
+                  })}
                   onClick={() => handleLabelSelection(label)}
                 >
                   <span className={styles.labelShortcut}>{index + 1}</span>
@@ -170,7 +158,9 @@ const AnnotationSidebar = ({
                 {selectedLabel ? (
                   <>
                     Highlight text to annotate as{" "}
-                    <span className={`${styles.inlineLabelBadge} ${styles[getLabelColorClass(selectedLabel, labels)]}`}>
+                    <span
+                      className={classNames(styles.inlineLabelBadge, styles[getLabelColorClass(selectedLabel, labels)])}
+                    >
                       {selectedLabel}
                     </span>
                   </>
@@ -273,13 +263,18 @@ const AnnotationSidebar = ({
                 {annotations.map((annotation) => (
                   <div
                     key={annotation.id}
-                    className={`${styles.annotationItem} ${selectedAnnotation === annotation.id ? styles.selected : ""}`}
+                    className={classNames(styles.annotationItem, {
+                      [styles.selected]: selectedAnnotation === annotation.id,
+                    })}
                     onClick={() => onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)}
                   >
                     <div className={styles.annotationContent}>
                       <span className={styles.annotationValue}>"{annotation.value}"</span>
                       <span
-                        className={`${styles.annotationLabel} ${styles[getLabelColorClass(annotation.label, labels)]}`}
+                        className={classNames(
+                          styles.annotationLabel,
+                          styles[getLabelColorClass(annotation.label, labels)]
+                        )}
                       >
                         {annotation.label}
                       </span>

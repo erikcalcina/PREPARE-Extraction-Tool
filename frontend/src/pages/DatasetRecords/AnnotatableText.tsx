@@ -1,20 +1,11 @@
-import { useRef, useMemo, useCallback } from "react";
-import type { SourceTerm, SourceTermCreate } from "types";
+import React, { useRef, useMemo, useCallback } from "react";
+import classNames from "classnames";
+
+import { getLabelColorClass } from "@/utils/labelColors";
+
+import type { SourceTerm, SourceTermCreate } from "@/types";
+
 import styles from "./styles.module.css";
-
-// ================================================
-// Helper function
-// ================================================
-
-function getLabelColorClass(label: string, labels: string[]): string {
-  const index = labels.indexOf(label);
-  if (index === -1) return "label1";
-  return `label${(index % 9) + 1}`;
-}
-
-// ================================================
-// Interface
-// ================================================
 
 export interface AnnotatableTextProps {
   text: string;
@@ -27,11 +18,7 @@ export interface AnnotatableTextProps {
   isAnnotating: boolean;
 }
 
-// ================================================
-// Component
-// ================================================
-
-const AnnotatableText = ({
+const AnnotatableText: React.FC<AnnotatableTextProps> = ({
   text,
   labels,
   annotations,
@@ -40,7 +27,7 @@ const AnnotatableText = ({
   onCreateAnnotation,
   onSelectAnnotation,
   isAnnotating,
-}: AnnotatableTextProps) => {
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Build segments from text and annotations
@@ -197,7 +184,7 @@ const AnnotatableText = ({
   return (
     <div
       ref={containerRef}
-      className={`${styles.annotatableText} ${isAnnotating ? styles.annotating : ""}`}
+      className={classNames(styles.annotatableText, { [styles.annotating]: isAnnotating })}
       onMouseUp={handleMouseUp}
       onClick={handleContainerClick}
     >
@@ -207,7 +194,9 @@ const AnnotatableText = ({
         ) : (
           <span
             key={idx}
-            className={`${styles.highlightedTerm} ${styles[getLabelColorClass(segment.term.label, labels)]} ${selectedAnnotation === segment.term.id ? styles.selectedAnnotation : ""}`}
+            className={classNames(styles.highlightedTerm, styles[getLabelColorClass(segment.term.label, labels)], {
+              [styles.selectedAnnotation]: selectedAnnotation === segment.term.id,
+            })}
             title={`${segment.term.label}: ${segment.term.value}`}
             onClick={(e) => handleAnnotationClick(segment.term.id, e)}
           >
