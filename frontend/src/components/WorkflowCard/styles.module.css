@@ -1,0 +1,123 @@
+.card {
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: all 0.2s ease;
+}
+
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card__icon {
+  font-size: 28px;
+  line-height: 0.5;
+  flex-shrink: 0;
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.card__title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #11415e;
+}
+
+.card__description {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* Stats */
+.card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card__stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.card__stat:last-child {
+  border-bottom: none;
+}
+
+.card__stat-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.card__stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #11415e;
+}
+
+/* Progress */
+.card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card__progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card__progress-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #11415e;
+}
+
+.card__progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #269b6f 0%, #269b6f 100%);
+  transition: width 0.3s ease;
+  border-radius: 0px;
+}
+
+/* Actions */
+.card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.card__button {
+  flex: 1;
+}
