@@ -1,15 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Layout from "components/Layout";
-import { usePageTitle } from '@/hooks/usePageTitle';
-import type { DatasetOverviewOutput, Vocabulary } from "types";
-import * as api from "api";
+import classNames from "classnames";
+import Layout from "@/components/Layout";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import type { DatasetOverviewOutput, Vocabulary } from "@/types";
+import * as api from "@/api";
+import Button from "@/components/Button";
+import StatCard from "@/components/StatCard";
+import WorkflowCard from "@/components/WorkflowCard";
+import { faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
 import styles from "./styles.module.css";
-import Button from "components/Button";
-import StatCard from "components/StatCard";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare, faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
-import { faMap } from "@fortawesome/free-solid-svg-icons/faMap";
 
 // ================================================
 // Helper functions
@@ -25,72 +25,7 @@ function formatDate(dateString: string): string {
 }
 
 function getLabelColorClass(index: number): string {
-  return `label${(index % 9) + 1}`;
-}
-
-// ================================================
-// Workflow Card Component
-// ================================================
-
-interface WorkflowCardProps {
-  title: string;
-  description: string;
-  icon?: any;
-  stats: Array<{ label: string; value: string | number }>;
-  progress?: { current: number; total: number };
-  actions: Array<{ label: string; onClick: () => void; variant?: "primary" | "secondary" }>;
-}
-
-function WorkflowCard({ title, description, icon, stats, progress, actions }: WorkflowCardProps) {
-  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
-
-  return (
-    <div className={styles.workflowCard}>
-      <div className={styles.workflowHeader}>
-        <div>
-          <h3 className={styles.workflowTitle}>{title}</h3>
-          <p className={styles.workflowDescription}>{description}</p>
-        </div>
-        {icon && <FontAwesomeIcon icon={icon} className={styles.workflowIcon} />}
-      </div>
-
-      <div className={styles.workflowStats}>
-        {stats.map((stat, idx) => (
-          <div key={idx} className={styles.workflowStat}>
-            <span className={styles.workflowStatLabel}>{stat.label}</span>
-            <span className={styles.workflowStatValue}>{stat.value}</span>
-          </div>
-        ))}
-      </div>
-
-      {progress && (
-        <div className={styles.progressSection}>
-          <div className={styles.progressHeader}>
-            <span className={styles.progressLabel}>Progress</span>
-            <span className={styles.progressText}>
-              {progress.current} / {progress.total} ({Math.round(progressPercentage)}%)
-            </span>
-          </div>
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${Math.min(100, progressPercentage)}%` }} />
-          </div>
-        </div>
-      )}
-
-      <div className={styles.workflowActions}>
-        {actions.map((action, idx) => (
-          <Button
-            key={idx}
-            onClick={action.onClick}
-            variant={action.variant === "primary" ? "primary" : "outline"}
-            className={styles.workflowButton}
-          >
-            {action.label}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
+  return `labels__badge--label${(index % 9) + 1}`;
 }
 
 // ================================================
@@ -146,7 +81,7 @@ const DatasetOverview = () => {
     if (!overview || vocabularies.length === 0) return;
 
     const confirmed = window.confirm(
-      `This will auto-map all unmapped clusters using vector search across all labels. Continue?`
+      "This will auto-map all unmapped clusters using vector search across all labels. Continue?"
     );
 
     if (!confirmed) return;
@@ -218,7 +153,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.error}>Invalid dataset ID</div>
+          <div className={styles["page--error"]}>Invalid dataset ID</div>
         </div>
       </Layout>
     );
@@ -228,7 +163,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.loading}>Loading dataset overview...</div>
+          <div className={styles["page--loading"]}>Loading dataset overview...</div>
         </div>
       </Layout>
     );
@@ -238,7 +173,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.error}>{error || "Failed to load dataset"}</div>
+          <div className={styles["page--error"]}>{error || "Failed to load dataset"}</div>
         </div>
       </Layout>
     );
@@ -249,24 +184,24 @@ const DatasetOverview = () => {
       <div className={styles.page}>
         {/* Header Section */}
         <div className={styles.header}>
-          <div className={styles.titleSection}>
+          <div className={styles["header__title-section"]}>
             <Button variant="outline" size="icon" onClick={() => navigate("/datasets")} aria-label="Back to Datasets">
               ←
             </Button>
             <div>
-              <h1 className={styles.title}>{overview.dataset.name}</h1>
-              <p className={styles.subtitle}>Dataset Overview and Statistics</p>
+              <h1 className={styles.header__title}>{overview.dataset.name}</h1>
+              <p className={styles.header__subtitle}>Dataset Overview and Statistics</p>
             </div>
           </div>
         </div>
 
         {/* Labels Section */}
         {overview.dataset.labels.length > 0 && (
-          <div className={styles.labelsSection}>
-            <span className={styles.labelsTitle}>Labels:</span>
-            <div className={styles.labels}>
+          <div className={styles.labels}>
+            <span className={styles.labels__title}>Labels:</span>
+            <div className={styles.labels__list}>
               {overview.dataset.labels.map((label, idx) => (
-                <span key={idx} className={`${styles.labelBadge} ${styles[getLabelColorClass(idx)]}`}>
+                <span key={idx} className={classNames(styles["labels__badge"], styles[getLabelColorClass(idx)])}>
                   {label}
                 </span>
               ))}
@@ -276,13 +211,13 @@ const DatasetOverview = () => {
 
         {/* Metadata Section */}
         <div className={styles.metadata}>
-          <div className={styles.metadataItem}>
-            <span className={styles.metadataLabel}>Uploaded:</span>
-            <span className={styles.metadataValue}>{formatDate(overview.dataset.uploaded)}</span>
+          <div className={styles.metadata__item}>
+            <span className={styles.metadata__label}>Uploaded:</span>
+            <span className={styles.metadata__value}>{formatDate(overview.dataset.uploaded)}</span>
           </div>
-          <div className={styles.metadataItem}>
-            <span className={styles.metadataLabel}>Last Modified:</span>
-            <span className={styles.metadataValue}>{formatDate(overview.dataset.last_modified)}</span>
+          <div className={styles.metadata__item}>
+            <span className={styles.metadata__label}>Last Modified:</span>
+            <span className={styles.metadata__value}>{formatDate(overview.dataset.last_modified)}</span>
           </div>
         </div>
 
@@ -295,9 +230,9 @@ const DatasetOverview = () => {
         </div>
 
         {/* Workflow Section */}
-        <div className={styles.workflowSection}>
-          <h2 className={styles.sectionTitle}>Workflow Steps</h2>
-          <div className={styles.workflowGrid}>
+        <div className={styles.workflow}>
+          <h2 className={styles.workflow__title}>Workflow Steps</h2>
+          <div className={styles.workflow__grid}>
             {/* Term Extraction Card */}
             <WorkflowCard
               title="Term Extraction"

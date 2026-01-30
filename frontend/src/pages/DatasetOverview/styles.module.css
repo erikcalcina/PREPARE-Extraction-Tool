@@ -10,46 +10,46 @@
   margin-bottom: 20px;
 }
 
-.titleSection {
+.header__title-section {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.title {
+.header__title {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
   color: #11415e;
 }
 
-.subtitle {
+.header__subtitle {
   margin: 2px 0 0;
   font-size: 14px;
   color: #6b7280;
 }
 
 /* Labels Section */
-.labelsSection {
+.labels {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.labelsTitle {
+.labels__title {
   font-size: 14px;
   font-weight: 600;
   color: #6b7280;
 }
 
-.labels {
+.labels__list {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.labelBadge {
+.labels__badge {
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 13px;
@@ -57,31 +57,31 @@
   color: #11415e;
 }
 
-.labelBadge.label1 {
+.labels__badge--label1 {
   background: #e5e7eb;
 }
-.labelBadge.label2 {
+.labels__badge--label2 {
   background: #e5e7eb;
 }
-.labelBadge.label3 {
+.labels__badge--label3 {
   background: #e5e7eb;
 }
-.labelBadge.label4 {
+.labels__badge--label4 {
   background: #e5e7eb;
 }
-.labelBadge.label5 {
+.labels__badge--label5 {
   background: #e5e7eb;
 }
-.labelBadge.label6 {
+.labels__badge--label6 {
   background: #e5e7eb;
 }
-.labelBadge.label7 {
+.labels__badge--label7 {
   background: #e5e7eb;
 }
-.labelBadge.label8 {
+.labels__badge--label8 {
   background: #e5e7eb;
 }
-.labelBadge.label9 {
+.labels__badge--label9 {
   background: #e5e7eb;
 }
 
@@ -96,19 +96,19 @@
   border: 1px solid #e5e7eb;
 }
 
-.metadataItem {
+.metadata__item {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.metadataLabel {
+.metadata__label {
   font-size: 14px;
   font-weight: 600;
   color: #6b7280;
 }
 
-.metadataValue {
+.metadata__value {
   font-size: 14px;
   font-weight: 500;
   color: #11415e;
@@ -122,150 +122,25 @@
 }
 
 /* Workflow Section */
-.workflowSection {
+.workflow {
   margin-top: 32px;
 }
 
-.sectionTitle {
+.workflow__title {
   font-size: 20px;
   font-weight: 700;
   color: #11415e;
   margin: 0 0 20px 0;
 }
 
-.workflowGrid {
+.workflow__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 
-/* Workflow Card */
-.workflowCard {
-  background: #ffffff;
-  border-radius: 4px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  transition: all 0.2s ease;
-}
-
-.workflowHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.workflowIcon {
-  font-size: 28px;
-  line-height: 0.5;
-  flex-shrink: 0;
-  color: #94a3b8;
-  opacity: 1;
-}
-
-.workflowTitle {
-  margin: 0 0 4px 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #11415e;
-}
-
-.workflowDescription {
-  margin: 0;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-/* Workflow Stats */
-.workflowStats {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.workflowStat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.workflowStat:last-child {
-  border-bottom: none;
-}
-
-.workflowStatLabel {
-  font-size: 13px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.workflowStatValue {
-  font-size: 16px;
-  font-weight: 700;
-  color: #11415e;
-}
-
-/* Progress Section */
-.progressSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.progressHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.progressLabel {
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.progressText {
-  font-size: 13px;
-  font-weight: 600;
-  color: #11415e;
-}
-
-.progressBar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #269b6f 0%, #269b6f 100%);
-  transition: width 0.3s ease;
-  border-radius: 0px;
-}
-
-/* Workflow Actions */
-.workflowActions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-}
-
-.workflowButton {
-  flex: 1;
-}
-
 /* Loading and Error States */
-.loading {
+.page--loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -274,7 +149,7 @@
   color: #6b7280;
 }
 
-.error {
+.page--error {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,7 +162,7 @@
 
 /* Responsive Design */
 @media (max-width: 1200px) {
-  .workflowGrid {
+  .workflow__grid {
     grid-template-columns: 1fr;
   }
 }
