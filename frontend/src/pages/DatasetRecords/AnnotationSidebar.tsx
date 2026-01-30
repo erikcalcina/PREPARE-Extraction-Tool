@@ -129,37 +129,37 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
   return (
     <Sidebar isOpen={isOpen} onClose={onClose} title="Annotation Panel" width="75vw">
-      <div className={styles.annotationSidebarLayout}>
+      <div className={styles['annotation-sidebar']}>
         {/* Left side - Text to annotate */}
         <div>
           {/* Label selector */}
-          <div className={styles.labelSection}>
-            <h3 className={styles.sectionTitle}>Labels</h3>
-            <div className={styles.labelButtons}>
+          <div className={styles['label-section']}>
+            <h3 className={styles['section-title']}>Labels</h3>
+            <div className={styles['label-section__buttons']}>
               {labels.map((label, index) => (
                 <button
                   key={label}
-                  className={classNames(styles.labelButton, styles[`label${index + 1}`], {
-                    [styles.active]: selectedLabel === label,
+                  className={classNames(styles['label-button'], styles[`label${index + 1}`], {
+                    [styles['label-button--active']]: selectedLabel === label,
                   })}
                   onClick={() => handleLabelSelection(label)}
                 >
-                  <span className={styles.labelShortcut}>{index + 1}</span>
+                  <span className={styles['label-button__shortcut']}>{index + 1}</span>
                   {label}
                 </button>
               ))}
             </div>
-            {labels.length === 0 && <p className={styles.noLabels}>No labels defined for this dataset.</p>}
+            {labels.length === 0 && <p className={styles['label-section__empty']}>No labels defined for this dataset.</p>}
           </div>
-          <div className={styles.annotationTextPanel}>
-            <div className={styles.annotationTextHeader}>
-              <h3 className={styles.sectionTitle}>Medical Record</h3>
-              <span className={styles.annotationHelpText}>
+          <div className={styles['annotation-text']}>
+            <div className={styles['annotation-text__header']}>
+              <h3 className={styles['section-title']}>Medical Record</h3>
+              <span className={styles['annotation-text__help']}>
                 {selectedLabel ? (
                   <>
                     Highlight text to annotate as{" "}
                     <span
-                      className={classNames(styles.inlineLabelBadge, styles[getLabelColorClass(selectedLabel, labels)])}
+                      className={classNames(styles['inline-label-badge'], styles[getLabelColorClass(selectedLabel, labels)])}
                     >
                       {selectedLabel}
                     </span>
@@ -169,7 +169,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 )}
               </span>
             </div>
-            <div className={styles.annotationTextContent}>
+            <div className={styles['annotation-text__content']}>
               <AnnotatableText
                 text={text}
                 labels={labels}
@@ -186,10 +186,10 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
         {/* Right side - Controls */}
 
-        <div className={styles.annotationControlsPanel}>
+        <div className={styles['annotation-controls']}>
           {/* Navigation and review buttons */}
-          <div className={styles.recordNavigation}>
-            <div className={styles.navigationButtons}>
+          <div className={styles['record-navigation']}>
+            <div className={styles['record-navigation__buttons']}>
               <Button
                 variant="outline"
                 onClick={onPreviousRecord}
@@ -197,7 +197,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 title="Previous record"
               >
                 <FontAwesomeIcon icon={faChevronLeft} />
-                <span className={styles.navButtonText}>Previous</span>
+                <span className={styles['record-navigation__button-text']}>Previous</span>
               </Button>
               <Button
                 variant="outline"
@@ -205,7 +205,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 disabled={!onNextRecord || !hasNextRecord}
                 title="Next record"
               >
-                <span className={styles.navButtonText}>Next</span>
+                <span className={styles['record-navigation__button-text']}>Next</span>
                 <FontAwesomeIcon icon={faChevronRight} />
               </Button>
             </div>
@@ -216,12 +216,12 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
               title={isReviewed ? "Marked as reviewed" : "Mark as reviewed"}
             >
               {isReviewed ? <FontAwesomeIcon icon={faCheck} /> : null}
-              <span className={styles.reviewButtonText}>{isReviewed ? "Reviewed" : "Mark Reviewed"}</span>
+              <span className={styles['record-navigation__review-text']}>{isReviewed ? "Reviewed" : "Mark Reviewed"}</span>
             </Button>
           </div>
 
           {/* Instructions */}
-          <div className={styles.annotationInstructions}>
+          <div className={styles['annotation-instructions']}>
             <p>
               <strong>Creating annotations:</strong> Select a label below, then highlight text in the medical record to
               annotate it.
@@ -237,7 +237,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
             <p>
               <strong>Keyboard shortcuts:</strong>
             </p>
-            <ul className={styles.shortcutList}>
+            <ul className={styles['annotation-instructions__shortcuts']}>
               <li>
                 <kbd>1</kbd>-<kbd>9</kbd> Select / change label
               </li>
@@ -254,33 +254,36 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
           </div>
 
           {/* Current annotations */}
-          <div className={styles.annotationSection}>
-            <h3 className={styles.sectionTitle}>Annotations ({annotations.length})</h3>
+          <div className={styles['annotation-section']}>
+            <h3 className={styles['section-title']}>Annotations ({annotations.length})</h3>
             {annotations.length === 0 ? (
-              <p className={styles.noAnnotations}>No annotations yet. Select text to create one.</p>
+              <p className={styles['annotation-section__empty']}>No annotations yet. Select text to create one.</p>
             ) : (
-              <div className={styles.annotationList}>
+              <div className={styles['annotation-section__list']}>
                 {annotations.map((annotation) => (
                   <div
                     key={annotation.id}
-                    className={classNames(styles.annotationItem, {
-                      [styles.selected]: selectedAnnotation === annotation.id,
+                    className={classNames(styles['annotation-item'], {
+                      [styles['annotation-item--selected']]: selectedAnnotation === annotation.id,
                     })}
                     onClick={() => onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)}
                   >
-                    <div className={styles.annotationContent}>
-                      <span className={styles.annotationValue}>"{annotation.value}"</span>
+                    <div className={styles['annotation-item__content']}>
+                      <span className={styles['annotation-item__value']}>"{annotation.value}"</span>
                       <span
                         className={classNames(
-                          styles.annotationLabel,
+                          styles['annotation-item__label'],
                           styles[getLabelColorClass(annotation.label, labels)]
                         )}
                       >
                         {annotation.label}
                       </span>
                     </div>
-                    <button
-                      className={styles.deleteAnnotationButton}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      colorScheme="danger"
+                      className={styles['annotation-item__delete']}
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteAnnotation(annotation.id);
@@ -296,7 +299,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                           strokeLinejoin="round"
                         />
                       </svg>
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>

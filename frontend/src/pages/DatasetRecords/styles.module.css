@@ -2,7 +2,7 @@
   font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-/* Header with Navigation */
+/* Header */
 .header {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -13,21 +13,21 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.pageInfo {
+.header__info {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
 }
 
-.pageTitle {
+.header__title {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
   color: #11415e;
 }
 
-.datasetLink {
+.header__dataset-link {
   margin: 0;
   padding: 0;
   font-size: 14px;
@@ -39,13 +39,13 @@
   font-family: inherit;
 }
 
-.datasetLink:hover {
+.header__dataset-link:hover {
   color: #11415e;
   text-decoration: underline;
 }
 
-/* Statistics Section */
-.statsSection {
+/* Stats Section */
+.stats-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -53,14 +53,13 @@
   margin-bottom: 24px;
 }
 
-/* Stats Cards */
-.statsGrid {
+.stats-section__grid {
   display: flex;
   gap: 12px;
   flex: 1;
 }
 
-.pageActions {
+.stats-section__actions {
   display: flex;
   gap: 8px;
 }
@@ -73,8 +72,8 @@
   min-height: calc(100vh - 240px);
 }
 
-/* Records List Panel */
-.recordsPanel {
+/* Records Panel */
+.records-panel {
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -84,19 +83,19 @@
   max-height: calc(100vh - 240px);
 }
 
-.recordsPanelHeader {
+.records-panel__header {
   padding: 16px 20px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.recordsPanelTitle {
+.records-panel__title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #11415e;
 }
 
-.searchInput {
+.records-panel__search {
   width: 100%;
   padding: 10px 14px;
   margin-top: 12px;
@@ -108,25 +107,25 @@
   transition: all 0.2s ease;
 }
 
-.searchInput:focus {
+.records-panel__search:focus {
   outline: none;
   border-color: #4caf50;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
-.searchInput::placeholder {
+.records-panel__search::placeholder {
   color: #9ca3af;
 }
 
-.filterGroup {
+.records-panel__filters {
   display: flex;
   gap: 16px;
   margin-top: 12px;
   padding: 8px 0;
 }
 
-.filterGroup label {
+.records-panel__filters label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -135,24 +134,25 @@
   color: #374151;
 }
 
-.filterGroup input[type="radio"] {
+.records-panel__filters input[type="radio"] {
   cursor: pointer;
   width: 16px;
   height: 16px;
   accent-color: #2cb27e;
 }
 
-.filterGroup label:hover span {
+.records-panel__filters label:hover span {
   color: #11415e;
 }
 
-.recordsList {
+.records-panel__list {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
 }
 
-.recordItem {
+/* Record Item */
+.record-item {
   padding: 14px 16px;
   margin-bottom: 4px;
   border-radius: 8px;
@@ -161,34 +161,34 @@
   border: 2px solid transparent;
 }
 
-.recordItem:hover {
+.record-item:hover {
   background: #f3f4f6;
 }
 
-.recordItem.selected {
+.record-item--selected {
   background: #ecfdf5;
   border-color: #2cb27e;
 }
 
-.recordItemHeader {
+.record-item__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
 
-.recordId {
+.record-item__id {
   font-size: 14px;
   font-weight: 600;
   color: #11415e;
 }
 
-.recordTime {
+.record-item__time {
   font-size: 12px;
   color: #9ca3af;
 }
 
-.recordPreview {
+.record-item__preview {
   font-size: 13px;
   color: #6b7280;
   display: -webkit-box;
@@ -198,14 +198,15 @@
   line-height: 1.4;
 }
 
-.recordStatus {
+.record-item__status {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
 }
 
-.statusBadge {
+/* Status Badge */
+.status-badge {
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
@@ -216,22 +217,22 @@
   letter-spacing: 0.02em;
 }
 
-.statusBadge.processed {
+.status-badge--processed {
   background: #dcfce7;
   color: #16593f;
 }
 
-.statusBadge.pending {
+.status-badge--pending {
   background: #fef3c7;
   color: #92400e;
 }
 
-.statusBadge.reviewed {
+.status-badge--reviewed {
   background: #dbeafe;
   color: #11415e;
 }
 
-.termCount {
+.record-item__term-count {
   font-size: 11px;
   color: #6b7280;
   background: #f3f4f6;
@@ -239,19 +240,19 @@
   border-radius: 12px;
 }
 
-.loadingMore {
+.loading-more {
   padding: 16px;
   text-align: center;
   color: #6b7280;
   font-size: 13px;
 }
 
-.loadMoreTrigger {
+.load-more-trigger {
   height: 1px;
 }
 
 /* Detail Panels Container */
-.detailPanels {
+.detail-panels {
   display: flex;
   flex-direction: row;
   gap: 16px;
@@ -260,7 +261,7 @@
 }
 
 /* Record Text Panel */
-.recordTextPanel {
+.record-text-panel {
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -272,7 +273,7 @@
   overflow: hidden;
 }
 
-.recordTextHeader {
+.record-text-panel__header {
   padding: 12px 16px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
@@ -281,25 +282,25 @@
   flex-shrink: 0;
 }
 
-.recordTextTitle {
+.record-text-panel__title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #11415e;
 }
 
-.detailActions {
+.record-text-panel__actions {
   display: flex;
   gap: 8px;
 }
 
-.recordTextContent {
+.record-text-panel__content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
-.recordText {
+.record-text {
   font-size: 14px;
   line-height: 1.7;
   color: #374151;
@@ -312,8 +313,8 @@
   word-break: break-word;
 }
 
-/* Extracted Terms Panel */
-.termsPanel {
+/* Terms Panel */
+.terms-panel {
   background: #ffffff;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -325,26 +326,27 @@
   overflow: hidden;
 }
 
-.termsPanelHeader {
+.terms-panel__header {
   padding: 12px 16px;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
 
-.termsPanelTitle {
+.terms-panel__title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #11415e;
 }
 
-.termsPanelContent {
+.terms-panel__content {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
 }
 
-.highlightedTerm {
+/* Highlighted Term */
+.highlighted-term {
   padding: 3px 0px;
   border-radius: 2px;
   cursor: pointer;
@@ -352,80 +354,80 @@
 }
 
 /* Highlighted term colors - 9 distinct colors matching labels */
-.highlightedTerm.label1 {
+.highlighted-term.label1 {
   background: #fca5a5;
   color: #7f1d1d;
 }
-.highlightedTerm.label1:hover {
+.highlighted-term.label1:hover {
   background: #f87171;
 }
 
-.highlightedTerm.label2 {
+.highlighted-term.label2 {
   background: #c3f5e2;
   color: #16593f;
 }
-.highlightedTerm.label2:hover {
+.highlighted-term.label2:hover {
   background: #9befcf;
 }
 
-.highlightedTerm.label3 {
+.highlighted-term.label3 {
   background: #d4e6f2;
   color: #13425e;
 }
-.highlightedTerm.label3:hover {
+.highlighted-term.label3:hover {
   background: #93c1de;
 }
 
-.highlightedTerm.label4 {
+.highlighted-term.label4 {
   background: #fcffa7;
   color: #713f12;
 }
-.highlightedTerm.label4:hover {
+.highlighted-term.label4:hover {
   background: #f5fc28;
 }
 
-.highlightedTerm.label5 {
+.highlighted-term.label5 {
   background: #ffd8ef;
   color: #61103f;
 }
-.highlightedTerm.label5:hover {
+.highlighted-term.label5:hover {
   background: #ff96d3;
 }
 
-.highlightedTerm.label6 {
+.highlighted-term.label6 {
   background: #5eead4;
   color: #134e4a;
 }
-.highlightedTerm.label6:hover {
+.highlighted-term.label6:hover {
   background: #2dd4bf;
 }
 
-.highlightedTerm.label7 {
+.highlighted-term.label7 {
   background: #fdba74;
   color: #7c2d12;
 }
-.highlightedTerm.label7:hover {
+.highlighted-term.label7:hover {
   background: #fb923c;
 }
 
-.highlightedTerm.label8 {
+.highlighted-term.label8 {
   background: #c4b5fd;
   color: #4c1d95;
 }
-.highlightedTerm.label8:hover {
+.highlighted-term.label8:hover {
   background: #a78bfa;
 }
 
-.highlightedTerm.label9 {
+.highlighted-term.label9 {
   background: #94a3b8;
   color: #1e293b;
 }
-.highlightedTerm.label9:hover {
+.highlighted-term.label9:hover {
   background: #64748b;
 }
 
 /* Focused term (when scrolled to via View button) */
-.focusedTerm {
+.highlighted-term--focused {
   animation: focusPulse 2s ease-out;
   outline: 3px solid #3b82f6;
   outline-offset: 2px;
@@ -446,14 +448,22 @@
   }
 }
 
+/* Selected annotation highlight */
+.highlighted-term--selected-annotation {
+  outline: 2px solid #11415e;
+  outline-offset: 1.2px;
+  border-radius: 2px;
+}
+
 /* Terms List */
-.termsList {
+.terms-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.termItem {
+/* Term Item */
+.term-item {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -463,13 +473,13 @@
   border: 1px solid #e5e7eb;
 }
 
-.termInfo {
+.term-item__info {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.termValue {
+.term-item__value {
   font-size: 13px;
   font-weight: 600;
   color: #11415e;
@@ -477,7 +487,7 @@
   align-items: center;
 }
 
-.termMeta {
+.term-item__meta {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -485,7 +495,7 @@
   color: #6b7280;
 }
 
-.termLabel {
+.term-item__label {
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
@@ -493,16 +503,14 @@
   width: fit-content;
 }
 
-/* termLabel colors are defined with labelButton classes above */
-
-.termPosition {
+.term-item__position {
   color: #9ca3af;
   display: flex;
   align-items: center;
 }
 
 /* Empty States */
-.emptyState {
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -514,18 +522,18 @@
   padding: 20px;
 }
 
-.emptyStateIcon {
+.empty-state__icon {
   font-size: 32px;
   margin-bottom: 8px;
   opacity: 0.5;
 }
 
-.emptyStateText {
+.empty-state__text {
   font-size: 14px;
   margin: 0;
 }
 
-.emptyStateSubtext {
+.empty-state__subtext {
   font-size: 12px;
   color: #9ca3af;
   margin-top: 4px;
@@ -557,23 +565,21 @@
     grid-template-columns: 1fr;
   }
 
-  .statsGrid {
+  .stats-section__grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 640px) {
-  .statsGrid {
+  .stats-section__grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* ================================================
-   Annotation Sidebar Styles
-   ================================================ */
+/* Annotation Sidebar */
 
 /* Two-column layout */
-.annotationSidebarLayout {
+.annotation-sidebar {
   display: grid;
   grid-template-columns: 1fr 400px;
   gap: 24px;
@@ -581,32 +587,32 @@
 }
 
 @media (max-width: 1100px) {
-  .annotationSidebarLayout {
+  .annotation-sidebar {
     grid-template-columns: 1fr 360px;
     gap: 16px;
   }
 }
 
 @media (max-width: 900px) {
-  .annotationSidebarLayout {
+  .annotation-sidebar {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
     height: auto;
     max-height: calc(100vh - 100px);
   }
 
-  .annotationTextPanel {
+  .annotation-text {
     max-height: 50vh;
   }
 
-  .annotationControlsPanel {
+  .annotation-controls {
     max-height: 40vh;
     overflow-y: auto;
   }
 }
 
 /* Left panel - Text */
-.annotationTextPanel {
+.annotation-text {
   display: flex;
   flex-direction: column;
   background: #ffffff;
@@ -615,7 +621,7 @@
   overflow: hidden;
 }
 
-.annotationTextHeader {
+.annotation-text__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -624,23 +630,23 @@
   background: #f9fafb;
 }
 
-.annotationTextHeader .sectionTitle {
+.annotation-text__header .section-title {
   margin: 0;
 }
 
-.annotationHelpText {
+.annotation-text__help {
   font-size: 13px;
   color: #6b7280;
 }
 
-.annotationTextContent {
+.annotation-text__content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
 /* Right panel - Controls */
-.annotationControlsPanel {
+.annotation-controls {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -649,7 +655,7 @@
 }
 
 /* Instructions */
-.annotationInstructions {
+.annotation-instructions {
   padding: 12px 16px;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
@@ -657,18 +663,18 @@
   flex-shrink: 0;
 }
 
-.annotationInstructions p {
+.annotation-instructions p {
   margin: 0;
   font-size: 13px;
   color: #11415e;
   line-height: 1.5;
 }
 
-.annotationInstructions p + p {
+.annotation-instructions p + p {
   margin-top: 8px;
 }
 
-.annotationInstructions kbd {
+.annotation-instructions kbd {
   display: inline-block;
   padding: 2px 6px;
   background: #ffffff;
@@ -679,7 +685,7 @@
   color: #374151;
 }
 
-.shortcutList {
+.annotation-instructions__shortcuts {
   margin: 8px 0 0;
   padding-left: 0;
   list-style: none;
@@ -688,7 +694,7 @@
   gap: 4px 8px;
 }
 
-.shortcutList li {
+.annotation-instructions__shortcuts li {
   font-size: 13px;
   color: #11415e;
   display: flex;
@@ -696,11 +702,8 @@
   gap: 8px;
 }
 
-/* ================================================
-   Record Navigation Buttons (for Annotation Sidebar)
-   ================================================ */
-
-.recordNavigation {
+/* Record Navigation */
+.record-navigation {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -708,43 +711,43 @@
   justify-content: flex-end;
 }
 
-.navigationButtons {
+.record-navigation__buttons {
   display: flex;
   align-items: flex-end;
   gap: 8px;
   flex: 0 0 auto;
 }
 
-.navButtonText {
+.record-navigation__button-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.reviewButtonText {
+.record-navigation__review-text {
   white-space: nowrap;
 }
 
 /* Responsive styles for annotation sidebar navigation */
 @media (max-width: 1200px) {
-  .recordNavigation {
+  .record-navigation {
     flex-direction: column;
     align-items: stretch;
   }
 }
 
 @media (max-width: 900px) {
-  .recordNavigation {
+  .record-navigation {
     flex-direction: row;
   }
 
-  .navigationButtons {
+  .record-navigation__buttons {
     flex: 0 0 auto;
   }
 }
 
 /* Label Section */
-.labelSection {
+.label-section {
   flex-shrink: 0;
   flex-wrap: wrap;
   padding: 10px 12px;
@@ -753,7 +756,7 @@
   margin-bottom: 12px;
 }
 
-.sectionTitle {
+.section-title {
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 600;
@@ -761,7 +764,7 @@
   flex-shrink: 0;
 }
 
-.labelButtons {
+.label-section__buttons {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -769,7 +772,8 @@
   gap: 6px;
 }
 
-.labelButton {
+/* Label Button */
+.label-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -783,7 +787,7 @@
   font-family: inherit;
 }
 
-.labelButton .labelShortcut {
+.label-button__shortcut {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -796,131 +800,131 @@
 }
 
 /* Label colors - 9 distinct colors */
-.labelButton.label1,
-.termLabel.label1,
-.annotationLabel.label1,
-.inlineLabelBadge.label1 {
+.label-button.label1,
+.term-item__label.label1,
+.annotation-item__label.label1,
+.inline-label-badge.label1 {
   background: #fca5a5;
   color: #7f1d1d;
 }
-.labelButton.label1:hover,
-.labelButton.label1.active {
+.label-button.label1:hover,
+.label-button.label1.label-button--active {
   background: #fca5a5;
   border-color: #f87171;
 }
 
-.labelButton.label2,
-.termLabel.label2,
-.annotationLabel.label2,
-.inlineLabelBadge.label2 {
+.label-button.label2,
+.term-item__label.label2,
+.annotation-item__label.label2,
+.inline-label-badge.label2 {
   background: #c3f5e2;
   color: #16593f;
 }
-.labelButton.label2:hover,
-.labelButton.label2.active {
+.label-button.label2:hover,
+.label-button.label2.label-button--active {
   background: #9befcf;
   border-color: #4ade80;
 }
 
-.labelButton.label3,
-.termLabel.label3,
-.annotationLabel.label3,
-.inlineLabelBadge.label3 {
+.label-button.label3,
+.term-item__label.label3,
+.annotation-item__label.label3,
+.inline-label-badge.label3 {
   background: #d4e6f2;
   color: #13425e;
 }
-.labelButton.label3:hover,
-.labelButton.label3.active {
+.label-button.label3:hover,
+.label-button.label3.label-button--active {
   background: #93c1de;
   border-color: #60a5fa;
 }
 
-.labelButton.label4,
-.termLabel.label4,
-.annotationLabel.label4,
-.inlineLabelBadge.label4 {
+.label-button.label4,
+.term-item__label.label4,
+.annotation-item__label.label4,
+.inline-label-badge.label4 {
   background: #fcffa7;
   color: #713f12;
 }
-.labelButton.label4:hover,
-.labelButton.label4.active {
+.label-button.label4:hover,
+.label-button.label4.label-button--active {
   background: #f5fc28;
   border-color: #facc15;
 }
 
-.labelButton.label5,
-.termLabel.label5,
-.annotationLabel.label5,
-.inlineLabelBadge.label5 {
+.label-button.label5,
+.term-item__label.label5,
+.annotation-item__label.label5,
+.inline-label-badge.label5 {
   background: #ffd8ef;
   color: #61103f;
 }
-.labelButton.label5:hover,
-.labelButton.label5.active {
+.label-button.label5:hover,
+.label-button.label5.label-button--active {
   background: #ff96d3;
   border-color: #e879f9;
 }
 
-.labelButton.label6,
-.termLabel.label6,
-.annotationLabel.label6,
-.inlineLabelBadge.label6 {
+.label-button.label6,
+.term-item__label.label6,
+.annotation-item__label.label6,
+.inline-label-badge.label6 {
   background: #5eead4;
   color: #134e4a;
 }
-.labelButton.label6:hover,
-.labelButton.label6.active {
+.label-button.label6:hover,
+.label-button.label6.label-button--active {
   background: #2dd4bf;
   border-color: #2dd4bf;
 }
 
-.labelButton.label7,
-.termLabel.label7,
-.annotationLabel.label7,
-.inlineLabelBadge.label7 {
+.label-button.label7,
+.term-item__label.label7,
+.annotation-item__label.label7,
+.inline-label-badge.label7 {
   background: #fdba74;
   color: #7c2d12;
 }
-.labelButton.label7:hover,
-.labelButton.label7.active {
+.label-button.label7:hover,
+.label-button.label7.label-button--active {
   background: #fb923c;
   border-color: #fb923c;
 }
 
-.labelButton.label8,
-.termLabel.label8,
-.annotationLabel.label8,
-.inlineLabelBadge.label8 {
+.label-button.label8,
+.term-item__label.label8,
+.annotation-item__label.label8,
+.inline-label-badge.label8 {
   background: #c4b5fd;
   color: #4c1d95;
 }
-.labelButton.label8:hover,
-.labelButton.label8.active {
+.label-button.label8:hover,
+.label-button.label8.label-button--active {
   background: #a78bfa;
   border-color: #c084fc;
 }
 
-.labelButton.label9,
-.termLabel.label9,
-.annotationLabel.label9,
-.inlineLabelBadge.label9 {
+.label-button.label9,
+.term-item__label.label9,
+.annotation-item__label.label9,
+.inline-label-badge.label9 {
   background: #94a3b8;
   color: #1e293b;
 }
-.labelButton.label9:hover,
-.labelButton.label9.active {
+.label-button.label9:hover,
+.label-button.label9.label-button--active {
   background: #64748b;
   border-color: #64748b;
 }
 
-.noLabels {
+.label-section__empty {
   font-size: 13px;
   color: #6b7280;
   font-style: italic;
 }
 
 /* Annotation Section */
-.annotationSection {
+.annotation-section {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -928,7 +932,7 @@
   overflow: hidden;
 }
 
-.annotationList {
+.annotation-section__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -937,7 +941,8 @@
   padding-right: 4px;
 }
 
-.annotationItem {
+/* Annotation Item */
+.annotation-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -949,16 +954,16 @@
   transition: all 0.2s ease;
 }
 
-.annotationItem:hover {
+.annotation-item:hover {
   background: #f3f4f6;
 }
 
-.annotationItem.selected {
+.annotation-item--selected {
   background: #eff6ff;
   border-color: #11415e;
 }
 
-.annotationContent {
+.annotation-item__content {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -966,7 +971,7 @@
   min-width: 0;
 }
 
-.annotationValue {
+.annotation-item__value {
   font-size: 13px;
   font-weight: 500;
   color: #11415e;
@@ -975,7 +980,7 @@
   text-overflow: ellipsis;
 }
 
-.annotationLabel {
+.annotation-item__label {
   display: inline-block;
   padding: 2px 8px;
   font-size: 11px;
@@ -984,7 +989,7 @@
   width: fit-content;
 }
 
-.deleteAnnotationButton {
+.annotation-item__delete {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -999,12 +1004,12 @@
   flex-shrink: 0;
 }
 
-.deleteAnnotationButton:hover {
+.annotation-item__delete:hover {
   background: #fef2f2;
   color: #dc2626;
 }
 
-.noAnnotations {
+.annotation-section__empty {
   font-size: 13px;
   color: #6b7280;
   font-style: italic;
@@ -1012,11 +1017,8 @@
   padding: 20px;
 }
 
-/* ================================================
-   Annotatable Text Styles
-   ================================================ */
-
-.annotatableText {
+/* Annotatable Text */
+.annotatable-text {
   font-size: 14px;
   line-height: 1.7;
   color: #374151;
@@ -1028,35 +1030,17 @@
   position: relative;
 }
 
-.annotatableText.annotating {
+.annotatable-text--annotating {
   cursor: text;
   user-select: text;
 }
 
-.annotatableText.annotating::selection,
-.annotatableText.annotating *::selection {
+.annotatable-text--annotating::selection,
+.annotatable-text--annotating *::selection {
   background: rgba(59, 130, 246, 0.3);
 }
 
-/* Inline label badge for help text */
-.inlineLabelBadge {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 12px;
-  border-radius: 4px;
-  font-style: normal;
-  vertical-align: middle;
-}
-
-/* Selected annotation highlight */
-.highlightedTerm.selectedAnnotation {
-  outline: 2px solid #11415e;
-  outline-offset: 1.2px;
-  border-radius: 2px;
-}
-
-/* Annotation hint */
-.annotationHint {
+.annotatable-text__hint {
   position: absolute;
   bottom: 8px;
   left: 50%;
@@ -1069,11 +1053,18 @@
   white-space: nowrap;
 }
 
-/* ================================================
-   Info Tooltip
-   ================================================ */
+/* Inline Label Badge */
+.inline-label-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  font-style: normal;
+  vertical-align: middle;
+}
 
-.infoTooltip {
+/* Info Tooltip */
+.info-tooltip {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -1081,17 +1072,17 @@
   cursor: help;
 }
 
-.infoIcon {
+.info-tooltip__icon {
   font-size: 16px;
   color: #9ca3af;
   transition: color 0.2s ease;
 }
 
-.infoTooltip:hover .infoIcon {
+.info-tooltip:hover .info-tooltip__icon {
   color: #11415e;
 }
 
-.tooltipContent {
+.info-tooltip__content {
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
@@ -1113,38 +1104,38 @@
   z-index: 1000;
 }
 
-.infoTooltip:hover .tooltipContent {
+.info-tooltip:hover .info-tooltip__content {
   opacity: 1;
   visibility: visible;
 }
 
-.tooltipContent p {
+.info-tooltip__content p {
   margin: 0 0 12px 0;
 }
 
-.tooltipContent strong {
+.info-tooltip__content strong {
   display: block;
   margin-bottom: 8px;
   font-size: 14px;
 }
 
-.tooltipContent ul {
+.info-tooltip__content ul {
   margin: 0;
   padding-left: 16px;
   list-style-type: disc;
 }
 
-.tooltipContent ul li {
+.info-tooltip__content ul li {
   margin-bottom: 4px;
 }
 
-.tooltipContent ul li:last-child {
+.info-tooltip__content ul li:last-child {
   margin-bottom: 0;
 }
 
 /* Responsive: adjust tooltip position on smaller screens */
 @media (max-width: 768px) {
-  .tooltipContent {
+  .info-tooltip__content {
     left: 0;
     transform: translateX(0);
     width: 250px;

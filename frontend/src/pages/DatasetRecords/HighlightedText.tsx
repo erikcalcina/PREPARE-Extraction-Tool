@@ -63,7 +63,7 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({ text, terms, labels, 
   }, [text, terms]);
 
   return (
-    <div className={styles.recordText}>
+    <div className={styles['record-text']}>
       {segments.map((segment, idx) =>
         segment.type === "text" ? (
           <span key={idx}>{segment.content}</span>
@@ -71,8 +71,8 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({ text, terms, labels, 
           <span
             key={idx}
             data-term-id={segment.term.id}
-            className={classNames(styles.highlightedTerm, styles[getLabelColorClass(segment.term.label, labels)], {
-              [styles.focusedTerm]: focusedTermId === segment.term.id,
+            className={classNames(styles['highlighted-term'], styles[getLabelColorClass(segment.term.label, labels)], {
+              [styles['highlighted-term--focused']]: focusedTermId === segment.term.id,
             })}
             title={`${segment.term.label}: ${segment.term.value}`}
           >

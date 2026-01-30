@@ -319,12 +319,12 @@ const DatasetRecords: React.FC = () => {
             ← Back to Overview
           </Button>
 
-          <div className={styles.pageInfo}>
-            <h1 className={styles.pageTitle}>
+          <div className={styles['header__info']}>
+            <h1 className={styles['header__title']}>
               Term Extraction
-              <span className={styles.infoTooltip}>
-                <FontAwesomeIcon icon={faCircleQuestion} className={styles.infoIcon} />
-                <span className={styles.tooltipContent}>
+              <span className={styles['info-tooltip']}>
+                <FontAwesomeIcon icon={faCircleQuestion} className={styles['info-tooltip__icon']} />
+                <span className={styles['info-tooltip__content']}>
                   <p>Annotate the text with the appropriate labels to identify medical terms for standardization.</p>
                   <strong>How to use:</strong>
                   <ul>
@@ -336,13 +336,14 @@ const DatasetRecords: React.FC = () => {
                 </span>
               </span>
             </h1>
-            <button
-              className={styles.datasetLink}
+            <Button
+              variant="ghost"
+              className={styles['header__dataset-link']}
               onClick={() => navigate(`/datasets/${datasetId}`)}
               title="Go to Dataset Overview"
             >
               Dataset: {dataset?.name || "Loading..."}
-            </button>
+            </Button>
           </div>
 
           <Button
@@ -355,8 +356,8 @@ const DatasetRecords: React.FC = () => {
         </div>
 
         {/* Statistics and Actions */}
-        <div className={styles.statsSection}>
-          <div className={styles.statsGrid}>
+        <div className={styles['stats-section']}>
+          <div className={styles['stats-section__grid']}>
             <StatCard label="Total" value={stats?.total_records ?? 0} />
             <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
             <StatCard
@@ -369,7 +370,7 @@ const DatasetRecords: React.FC = () => {
               color="green"
             />
           </div>
-          <div className={styles.pageActions}>
+          <div className={styles['stats-section__actions']}>
             <Button
               variant="outline"
               onClick={handleExtractTermsForDataset}
@@ -393,8 +394,8 @@ const DatasetRecords: React.FC = () => {
             )}
           </div>
           {isExtractingDataset && (
-            <div className={styles.progressWrapper}>
-              <span className={styles.progressLabel}>
+            <div className={styles['stats-section__progress']}>
+              <span className={styles['stats-section__progress-label']}>
                 Extraction in progress…
                 {extractionProgress && extractionProgress.total > 0
                   ? ` ${extractionProgress.completed}/${extractionProgress.total}`
@@ -417,25 +418,25 @@ const DatasetRecords: React.FC = () => {
         {/* Main Content */}
         <div className={styles.content}>
           {/* Records List Panel */}
-          <div className={styles.recordsPanel}>
-            <div className={styles.recordsPanelHeader}>
-              <h2 className={styles.recordsPanelTitle}>Records List</h2>
+          <div className={styles['records-panel']}>
+            <div className={styles['records-panel__header']}>
+              <h2 className={styles['records-panel__title']}>Records List</h2>
               <input
                 type="text"
-                className={styles.searchInput}
+                className={styles['records-panel__search']}
                 placeholder="Search by patient ID..."
                 value={patientIdQuery}
                 onChange={(e) => setPatientIdQuery(e.target.value)}
               />
               <input
                 type="text"
-                className={styles.searchInput}
+                className={styles['records-panel__search']}
                 placeholder="Search by text..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
 
-              <div className={styles.filterGroup}>
+              <div className={styles['records-panel__filters']}>
                 <label>
                   <input
                     type="radio"
@@ -468,13 +469,13 @@ const DatasetRecords: React.FC = () => {
                 </label>
               </div>
             </div>
-            <div className={styles.recordsList}>
+            <div className={styles['records-panel__list']}>
               {isLoading ? (
                 <div className={styles.loading}>Loading records...</div>
               ) : records.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyStateIcon}>📄</div>
-                  <p className={styles.emptyStateText}>
+                <div className={styles['empty-state']}>
+                  <div className={styles['empty-state__icon']}>📄</div>
+                  <p className={styles['empty-state__text']}>
                     {searchQuery || patientIdQuery || reviewStatusFilter !== "all"
                       ? "No matching records"
                       : "No records yet"}
@@ -490,22 +491,22 @@ const DatasetRecords: React.FC = () => {
                       onClick={() => selectRecord(record)}
                     />
                   ))}
-                  {hasMore && <div ref={loadMoreRef} className={styles.loadMoreTrigger} />}
-                  {isLoadingMore && <div className={styles.loadingMore}>Loading more records...</div>}
+                  {hasMore && <div ref={loadMoreRef} className={styles['load-more-trigger']} />}
+                  {isLoadingMore && <div className={styles['loading-more']}>Loading more records...</div>}
                 </>
               )}
             </div>
           </div>
 
           {/* Detail Panels */}
-          <div className={styles.detailPanels}>
+          <div className={styles['detail-panels']}>
             {selectedRecord ? (
               <>
                 {/* Record Text Panel */}
-                <div className={styles.recordTextPanel}>
-                  <div className={styles.recordTextHeader}>
-                    <h2 className={styles.recordTextTitle}>NER View</h2>
-                    <div className={styles.detailActions}>
+                <div className={styles['record-text-panel']}>
+                  <div className={styles['record-text-panel__header']}>
+                    <h2 className={styles['record-text-panel__title']}>NER View</h2>
+                    <div className={styles['record-text-panel__actions']}>
                       <Button
                         variant="outline"
                         size="small"
@@ -527,13 +528,13 @@ const DatasetRecords: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className={styles.recordTextHeader}>
-                    <h3 className={styles.recordTextTitle}>
+                  <div className={styles['record-text-panel__header']}>
+                    <h3 className={styles['record-text-panel__title']}>
                       Patient ID: {selectedRecord.patient_id}
                       {selectedRecord.seq_number && ` | #${selectedRecord.seq_number}`}
                     </h3>
                   </div>
-                  <div className={styles.recordTextContent}>
+                  <div className={styles['record-text-panel__content']}>
                     {isLoadingTerms ? (
                       <div className={styles.loading}>Loading...</div>
                     ) : (
@@ -548,25 +549,25 @@ const DatasetRecords: React.FC = () => {
                 </div>
 
                 {/* Extracted Terms Panel */}
-                <div className={styles.termsPanel}>
-                  <div className={styles.termsPanelHeader}>
-                    <h2 className={styles.termsPanelTitle}>Extracted Terms ({selectedRecordTerms.length})</h2>
+                <div className={styles['terms-panel']}>
+                  <div className={styles['terms-panel__header']}>
+                    <h2 className={styles['terms-panel__title']}>Extracted Terms ({selectedRecordTerms.length})</h2>
                   </div>
-                  <div className={styles.termsPanelContent}>
+                  <div className={styles['terms-panel__content']}>
                     {selectedRecordTerms.length === 0 ? (
-                      <div className={styles.emptyState}>
-                        <p className={styles.emptyStateText}>No terms extracted</p>
-                        <p className={styles.emptyStateSubtext}>Run NER extraction to identify terms</p>
+                      <div className={styles['empty-state']}>
+                        <p className={styles['empty-state__text']}>No terms extracted</p>
+                        <p className={styles['empty-state__subtext']}>Run NER extraction to identify terms</p>
                       </div>
                     ) : (
-                      <div className={styles.termsList}>
+                      <div className={styles['terms-list']}>
                         {selectedRecordTerms.map((term) => (
-                          <div key={term.id} className={styles.termItem}>
-                            <div className={styles.termInfo}>
-                              <div className={styles.termMeta}>
-                                <span className={styles.termValue}>{term.value}</span>
+                          <div key={term.id} className={styles['term-item']}>
+                            <div className={styles['term-item__info']}>
+                              <div className={styles['term-item__meta']}>
+                                <span className={styles['term-item__value']}>{term.value}</span>
                                 {term.start_position !== null && (
-                                  <span className={styles.termPosition}>
+                                  <span className={styles['term-item__position']}>
                                     [{term.start_position}-{term.end_position}]
                                   </span>
                                 )}
@@ -576,7 +577,7 @@ const DatasetRecords: React.FC = () => {
                               </div>
                               <span
                                 className={classNames(
-                                  styles.termLabel,
+                                  styles['term-item__label'],
                                   styles[getLabelColorClass(term.label, dataset?.labels ?? [])]
                                 )}
                               >
@@ -591,10 +592,10 @@ const DatasetRecords: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className={styles.recordTextPanel}>
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyStateIcon}>👈</div>
-                  <p className={styles.emptyStateText}>Select a record to view details</p>
+              <div className={styles['record-text-panel']}>
+                <div className={styles['empty-state']}>
+                  <div className={styles['empty-state__icon']}>👈</div>
+                  <p className={styles['empty-state__text']}>Select a record to view details</p>
                 </div>
               </div>
             )}

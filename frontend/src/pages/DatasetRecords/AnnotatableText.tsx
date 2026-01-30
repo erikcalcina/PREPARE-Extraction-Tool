@@ -184,7 +184,7 @@ const AnnotatableText: React.FC<AnnotatableTextProps> = ({
   return (
     <div
       ref={containerRef}
-      className={classNames(styles.annotatableText, { [styles.annotating]: isAnnotating })}
+      className={classNames(styles['annotatable-text'], { [styles['annotatable-text--annotating']]: isAnnotating })}
       onMouseUp={handleMouseUp}
       onClick={handleContainerClick}
     >
@@ -194,8 +194,8 @@ const AnnotatableText: React.FC<AnnotatableTextProps> = ({
         ) : (
           <span
             key={idx}
-            className={classNames(styles.highlightedTerm, styles[getLabelColorClass(segment.term.label, labels)], {
-              [styles.selectedAnnotation]: selectedAnnotation === segment.term.id,
+            className={classNames(styles['highlighted-term'], styles[getLabelColorClass(segment.term.label, labels)], {
+              [styles['highlighted-term--selected-annotation']]: selectedAnnotation === segment.term.id,
             })}
             title={`${segment.term.label}: ${segment.term.value}`}
             onClick={(e) => handleAnnotationClick(segment.term.id, e)}
@@ -205,7 +205,7 @@ const AnnotatableText: React.FC<AnnotatableTextProps> = ({
         )
       )}
       {isAnnotating && !selectedLabel && (
-        <div className={styles.annotationHint}>Select a label from the sidebar to start annotating</div>
+        <div className={styles['annotatable-text__hint']}>Select a label from the sidebar to start annotating</div>
       )}
     </div>
   );
