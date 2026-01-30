@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import classNames from "classnames";
 import styles from "./styles.module.css";
 
 export interface SelectOption {
@@ -33,6 +35,12 @@ interface SelectProps {
   "aria-label"?: string;
 }
 
+interface MenuPosition {
+  top: number;
+  left: number;
+  width: number;
+}
+
 export const Select: React.FC<SelectProps> = ({
   options,
   placeholder = "Select...",
@@ -53,6 +61,9 @@ export const Select: React.FC<SelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({ top: 0, left: 0, width: 0 });
 
   // Determine if filter mode is active (shows checkbox header)
   const isFilterMode = label !== undefined && onEnabledChange !== undefined;
@@ -60,17 +71,50 @@ export const Select: React.FC<SelectProps> = ({
   // Combined disabled state
   const isDisabled = disabled || (isFilterMode && !enabled);
 
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
   // Close dropdown on click outside
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        menuRef.current &&
+        !menuRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
+
+  // Reposition on scroll/resize while open
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    const handleScrollOrResize = () => updatePosition();
+
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [isOpen, updatePosition]);
 
   const handleToggle = () => {
     if (!isDisabled) {
@@ -110,21 +154,66 @@ export const Select: React.FC<SelectProps> = ({
     }
   };
 
-  const containerClasses = [
-    styles.select,
-    isDisabled ? styles["select--disabled"] : "",
-    size === "small" ? styles["select--small"] : "",
-    fullWidth ? styles["select--fullWidth"] : "",
-    className || "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const containerClasses = classNames(
+    {
+      [styles["select--disabled"]]: isDisabled,
+      [styles["select--small"]]: size === "small",
+      [styles["select--full-width"]]: fullWidth,
+    },
+    className
+  );
+
+  const menuClasses = classNames(styles.select__menu, {
+    [styles["select__menu--small"]]: size === "small",
+  });
+
+  const menu = isOpen && !isDisabled && (
+    <div
+      ref={menuRef}
+      className={menuClasses}
+      role="listbox"
+      style={{
+        top: menuPosition.top,
+        left: menuPosition.left,
+        width: menuPosition.width,
+      }}
+    >
+      {options.length === 0 ? (
+        <div className={styles.select__empty}>No options available</div>
+      ) : (
+        options.map((option) => (
+          <div
+            key={option.value}
+            className={classNames(styles.select__option, {
+              [styles["select__option--selected"]]: multiSelect
+                ? values.includes(option.value)
+                : value === option.value,
+            })}
+            onClick={() => (multiSelect ? handleMultiSelect(option.value) : handleSingleSelect(option.value))}
+            role="option"
+            aria-selected={multiSelect ? values.includes(option.value) : value === option.value}
+          >
+            {multiSelect && (
+              <input
+                type="checkbox"
+                checked={values.includes(option.value)}
+                onChange={() => handleMultiSelect(option.value)}
+                className={styles["select__option-checkbox"]}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            <span className={styles["select__option-label"]}>{option.label}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
 
   return (
     <div ref={containerRef} className={containerClasses} id={id}>
       {isFilterMode && (
         <div className={styles.select__header}>
-          <label className={styles.select__checkboxLabel}>
+          <label className={styles["select__checkbox-label"]}>
             <input
               type="checkbox"
               checked={enabled}
@@ -137,6 +226,7 @@ export const Select: React.FC<SelectProps> = ({
       )}
 
       <button
+        ref={triggerRef}
         type="button"
         className={styles.select__trigger}
         onClick={handleToggle}
@@ -145,46 +235,11 @@ export const Select: React.FC<SelectProps> = ({
         aria-haspopup="listbox"
         aria-label={ariaLabel}
       >
-        <span className={styles.select__triggerText}>{getDisplayText()}</span>
+        <span className={styles["select__trigger-text"]}>{getDisplayText()}</span>
         <span className={styles.select__arrow}>{isOpen ? "▲" : "▼"}</span>
       </button>
 
-      {isOpen && !isDisabled && (
-        <div className={styles.select__menu} role="listbox">
-          {options.length === 0 ? (
-            <div className={styles.select__empty}>No options available</div>
-          ) : (
-            options.map((option) => (
-              <div
-                key={option.value}
-                className={`${styles.select__option} ${
-                  multiSelect
-                    ? values.includes(option.value)
-                      ? styles["select__option--selected"]
-                      : ""
-                    : value === option.value
-                      ? styles["select__option--selected"]
-                      : ""
-                }`}
-                onClick={() => (multiSelect ? handleMultiSelect(option.value) : handleSingleSelect(option.value))}
-                role="option"
-                aria-selected={multiSelect ? values.includes(option.value) : value === option.value}
-              >
-                {multiSelect && (
-                  <input
-                    type="checkbox"
-                    checked={values.includes(option.value)}
-                    onChange={() => handleMultiSelect(option.value)}
-                    className={styles.select__optionCheckbox}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                )}
-                <span className={styles.select__optionLabel}>{option.label}</span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {menu && createPortal(menu, document.body)}
     </div>
   );
 };

@@ -1,14 +1,10 @@
 /* Select Component Styles */
 
-.select {
-  position: relative;
-}
-
-.select--fullWidth {
+.select--full-width {
   width: 100%;
 }
 
-.select--disabled {
+.select--disabled .select__trigger {
   opacity: 0.5;
 }
 
@@ -16,7 +12,7 @@
   margin-bottom: 6px;
 }
 
-.select__checkboxLabel {
+.select__checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -72,7 +68,7 @@
   color: #9ca3af;
 }
 
-.select__triggerText {
+.select__trigger-text {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,11 +82,7 @@
 }
 
 .select__menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
+  position: fixed;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
@@ -99,7 +91,7 @@
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
   max-height: 200px;
   overflow-y: auto;
-  z-index: 50;
+  z-index: 9999;
 }
 
 .select__empty {
@@ -134,7 +126,7 @@
   background: #e0f2fe;
 }
 
-.select__optionCheckbox {
+.select__option-checkbox {
   cursor: pointer;
   accent-color: #11415e;
   width: 14px;
@@ -142,7 +134,7 @@
   flex-shrink: 0;
 }
 
-.select__optionLabel {
+.select__option-label {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,6 +157,6 @@
   font-size: 12px;
 }
 
-.select--small .select__menu {
+.select__menu--small {
   max-height: 150px;
 }
