@@ -4,8 +4,8 @@ import Layout from 'components/Layout';
 import FileDropzone from 'components/FileDropzone';
 import Button from 'components/Button';
 import ProgressBar from 'components/ProgressBar';
-import { useVocabularies } from 'hooks/useVocabularies';
-import { usePageTitle } from 'hooks/usePageTitle';
+import { useVocabularies } from '@/hooks/useVocabularies';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import styles from './styles.module.css';
 
 // Note: File parsing is handled by the backend

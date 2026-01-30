@@ -4,7 +4,7 @@ import UserAvatar from "components/UserAvatar";
 import Dropdown from "components/Dropdown";
 import Logo from "components/Logo";
 
-import { useAuth } from "hooks/useAuth";
+import { useAuth } from '@/hooks/useAuth';
 
 import styles from "./styles.module.css";
 

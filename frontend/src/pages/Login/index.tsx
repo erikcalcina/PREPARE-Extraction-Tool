@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "hooks/useAuth";
-import { usePageTitle } from "hooks/usePageTitle";
+import { useAuth } from '@/hooks/useAuth';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import Button from "components/Button";
 import styles from "./styles.module.css";
 

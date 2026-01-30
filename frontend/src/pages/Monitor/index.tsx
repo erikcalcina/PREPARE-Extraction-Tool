@@ -1,5 +1,5 @@
 import Layout from 'components/Layout';
-import { usePageTitle } from 'hooks/usePageTitle';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import styles from './styles.module.css';
 
 // ================================================

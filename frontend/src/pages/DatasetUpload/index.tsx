@@ -4,8 +4,8 @@ import Layout from 'components/Layout';
 import FileDropzone from 'components/FileDropzone';
 import Button from 'components/Button';
 import ProgressBar from 'components/ProgressBar';
-import { useDatasets } from 'hooks/useDatasets';
-import { usePageTitle } from 'hooks/usePageTitle';
+import { useDatasets } from '@/hooks/useDatasets';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import styles from './styles.module.css';
 
 // Note: File parsing is handled by the backend

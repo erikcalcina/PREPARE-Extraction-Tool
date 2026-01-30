@@ -1,4 +1,4 @@
-import { AuthContext, useAuthProvider } from 'hooks/useAuth';
+import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
 
 // ================================================
 // Interface

@@ -4,8 +4,8 @@ import Table from "components/Table";
 import Button from "components/Button";
 import { Select } from "components/Select";
 import Pagination from "components/Pagination";
-import { useVocabularyConcepts } from "hooks/useVocabularyConcepts";
-import { usePageTitle } from "hooks/usePageTitle";
+import { useVocabularyConcepts } from '@/hooks/useVocabularyConcepts';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import type { Concept } from "types";
 import styles from "./styles.module.css";
 

@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import Layout from "components/Layout";
 import Table from "components/Table";
 import Button from "components/Button";
-import { useVocabularies } from "hooks/useVocabularies";
-import { usePageTitle } from "hooks/usePageTitle";
+import { useVocabularies } from '@/hooks/useVocabularies';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import type { Vocabulary } from "types";
 import styles from "./styles.module.css";
 
