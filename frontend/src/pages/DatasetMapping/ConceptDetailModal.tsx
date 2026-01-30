@@ -93,9 +93,16 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
       >
         <div className={styles.modalHeader}>
           <h2 id="concept-detail-title">Concept Details</h2>
-          <button ref={closeButtonRef} onClick={onClose} className={styles.modalCloseBtn} aria-label="Close dialog">
+          <Button
+            ref={closeButtonRef}
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className={styles.modalCloseBtn}
+            aria-label="Close dialog"
+          >
             x
-          </button>
+          </Button>
         </div>
 
         <div className={styles.modalBody}>

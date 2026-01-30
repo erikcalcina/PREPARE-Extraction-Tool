@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import Button from "@/components/Button";
 import styles from "./styles.module.css";
 
 // ================================================
@@ -61,7 +62,13 @@ const Sidebar = ({ isOpen, onClose, title, width = "400px", children }: SidebarP
       >
         <header className={styles["sidebar__header"]}>
           <h2 className={styles["sidebar__title"]}>{title}</h2>
-          <button className={styles["sidebar__close-button"]} onClick={onClose} aria-label="Close sidebar">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={styles["sidebar__close-button"]}
+            onClick={onClose}
+            aria-label="Close sidebar"
+          >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 d="M15 5L5 15M5 5L15 15"
@@ -71,7 +78,7 @@ const Sidebar = ({ isOpen, onClose, title, width = "400px", children }: SidebarP
                 strokeLinejoin="round"
               />
             </svg>
-          </button>
+          </Button>
         </header>
         <div className={styles["sidebar__content"]}>{children}</div>
       </aside>

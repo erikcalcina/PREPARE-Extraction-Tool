@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import Button from "@/components/Button";
 import styles from "./styles.module.css";
 
 export type ToastType = "success" | "error" | "info" | "warning";
@@ -22,9 +23,15 @@ export const Toast: React.FC<ToastProps> = ({ message, type = "info", duration =
     <div className={`${styles.toast} ${styles[`toast--${type}`]}`} role="alert" aria-live="polite">
       <span className={styles.icon}>{getIcon(type)}</span>
       <span className={styles.message}>{message}</span>
-      <button className={styles.closeButton} onClick={onClose} aria-label="Close notification">
+      <Button
+        variant="ghost"
+        size="icon"
+        className={styles.closeButton}
+        onClick={onClose}
+        aria-label="Close notification"
+      >
         &times;
-      </button>
+      </Button>
     </div>
   );
 };

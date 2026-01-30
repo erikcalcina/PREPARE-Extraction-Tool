@@ -5,10 +5,11 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
 import Button from "components/Button";
 import { Select } from "components/Select";
-import { usePageTitle } from '@/hooks/usePageTitle';
+import { usePageTitle } from "@/hooks/usePageTitle";
 import type { ClusterData, ClusteredTerm } from "types";
 import * as api from "api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import classNames from "classnames";
 import {
   faGripVertical,
   faPencil,
@@ -80,9 +81,15 @@ function DraggableTerm({ term, clusterId, onRemove }: DraggableTermProps) {
         </div>
       </div>
       {onRemove && (
-        <button className={styles.termRemoveBtn} onClick={handleRemove} title="Remove from cluster">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={styles.termRemoveBtn}
+          onClick={handleRemove}
+          title="Remove from cluster"
+        >
           <FontAwesomeIcon icon={faXmark} />
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -257,26 +264,34 @@ function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingClus
                 autoFocus
                 className={styles.titleInput}
               />
-              <button onClick={handleRename} className={styles.btnEditAction} title="Save">
+              <Button variant="ghost" size="icon" onClick={handleRename} className={styles.btnEditAction} title="Save">
                 <FontAwesomeIcon icon={faCheck} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => {
                   setEditTitle(cluster.title);
                   setIsEditing(false);
                 }}
-                className={`${styles.btnEditAction} ${styles.btnEditCancel}`}
+                className={classNames(styles.btnEditAction, styles.btnEditCancel)}
                 title="Cancel"
               >
                 <FontAwesomeIcon icon={faXmark} />
-              </button>
+              </Button>
             </div>
           ) : (
             <div className={styles.clusterNameDisplay}>
               <h3>{cluster.title}</h3>
-              <button onClick={() => setIsEditing(true)} className={styles.btnEditName} title="Edit cluster name">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditing(true)}
+                className={styles.btnEditName}
+                title="Edit cluster name"
+              >
                 <FontAwesomeIcon icon={faPencil} />
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -902,13 +917,14 @@ export default function DatasetClusters() {
                   </span>
                 </span>
               </h1>
-              <button
+              <Button
+                variant="ghost"
                 className={styles.datasetLink}
                 onClick={() => navigate(`/datasets/${datasetId}`)}
                 title="Go to Dataset Overview"
               >
                 Dataset: {datasetName || "Loading..."}
-              </button>
+              </Button>
             </div>
 
             <Button
@@ -983,7 +999,9 @@ export default function DatasetClusters() {
           {error && (
             <div className={styles.error}>
               {error}
-              <button onClick={() => setError(null)}>×</button>
+              <Button variant="ghost" size="icon" onClick={() => setError(null)}>
+                ×
+              </Button>
             </div>
           )}
 
@@ -1021,9 +1039,9 @@ export default function DatasetClusters() {
             {activeDragCluster ? <ClusterOverlay cluster={activeDragCluster} /> : null}
           </DragOverlay>
           {showBackToTop && (
-            <button className={styles.backToTop} onClick={scrollToTop} title="Back to top">
+            <Button variant="ghost" size="icon" className={styles.backToTop} onClick={scrollToTop} title="Back to top">
               <FontAwesomeIcon icon={faArrowUp} />
-            </button>
+            </Button>
           )}
         </div>
       </DndContext>
