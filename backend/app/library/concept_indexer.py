@@ -64,6 +64,8 @@ class ConceptIndexer:
                     "properties": {
                         "vocab_term_id": {"type": "keyword"},
                         "vocab_term_name": {"type": "text"},
+                        "domain_id": {"type": "keyword"},
+                        "concept_class_id": {"type": "keyword"},
                         "embedding": {
                             "type": "dense_vector",
                             "dims": self.embedding_dim,
@@ -132,6 +134,8 @@ class ConceptIndexer:
                         "_source": {
                             "vocab_term_id": c.vocab_term_id,
                             "vocab_term_name": c.vocab_term_name,
+                            "domain_id": c.domain_id,
+                            "concept_class_id": c.concept_class_id,
                             "embedding": [float(x) for x in emb],
                         },
                     })
@@ -168,6 +172,8 @@ class ConceptIndexer:
         doc = {
             "vocab_term_id": concept_db.vocab_term_id,
             "vocab_term_name": concept_text,
+            "domain_id": concept_db.domain_id,
+            "concept_class_id": concept_db.concept_class_id,
             "embedding": vect_embedding,
         }
 
