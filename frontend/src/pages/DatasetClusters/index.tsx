@@ -5,7 +5,7 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
 import Button from "components/Button";
 import { Select } from "components/Select";
-import { usePageTitle } from "hooks/usePageTitle";
+import { usePageTitle } from '@/hooks/usePageTitle';
 import type { ClusterData, ClusteredTerm } from "types";
 import * as api from "api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -17,6 +17,7 @@ import {
   faCircleQuestion,
   faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
+import StatCard from "components/StatCard";
 import styles from "./styles.module.css";
 
 // ================================================
@@ -35,27 +36,6 @@ function getLabelColorClass(label: string, customColor?: string): string {
     "Body Part": "bodypart",
   };
   return labelMap[label] || "default";
-}
-
-// ================================================
-// Stats Card Component
-// ================================================
-
-interface StatCardProps {
-  label: string;
-  value: number | string;
-  variant?: "default" | "clusters" | "terms" | "unclustered";
-}
-
-function StatCard({ label, value, variant = "default" }: StatCardProps) {
-  return (
-    <div className={styles.statCard}>
-      <div className={`${styles.statValue} ${variant !== "default" ? styles[variant] : ""}`}>
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </div>
-      <div className={styles.statLabel}>{label}</div>
-    </div>
-  );
 }
 
 // ================================================
@@ -943,10 +923,10 @@ export default function DatasetClusters() {
           {/* Statistics and Actions */}
           <div className={styles.statsSection}>
             <div className={styles.statsGrid}>
-              <StatCard label="Clusters" value={stats.totalClusters} variant="clusters" />
-              <StatCard label="Terms" value={stats.totalTerms} variant="terms" />
-              <StatCard label="Avg/Cluster" value={stats.avgTermsPerCluster} />
-              <StatCard label="Unclustered" value={stats.unclusteredCount} variant="unclustered" />
+              <StatCard label="Clusters" value={stats.totalClusters} />
+              <StatCard label="Terms" value={stats.totalTerms} color="blue" />
+              <StatCard label="Avg/Cluster" value={stats.avgTermsPerCluster} color="green" />
+              <StatCard label="Unclustered" value={stats.unclusteredCount} color="orange" />
             </div>
             <div className={styles.pageActions}>
               <Button

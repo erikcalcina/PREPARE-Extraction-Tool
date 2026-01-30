@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import Layout from "components/Layout";
-import { useRecords } from "hooks/useRecords";
-import { usePageTitle } from "hooks/usePageTitle";
+import { useRecords } from '@/hooks/useRecords';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import type { Record as RecordType, SourceTerm, SourceTermCreate } from "types";
 import Button from "components/Button";
+import StatCard from "components/StatCard";
 import AnnotationSidebar from "./AnnotationSidebar";
 import styles from "./styles.module.css";
 import ProgressBar from "components/ProgressBar";
@@ -117,29 +118,6 @@ function HighlightedText({ text, terms, labels, focusedTermId }: HighlightedText
           </span>
         )
       )}
-    </div>
-  );
-}
-
-// ================================================
-// Stats Card Component
-// ================================================
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  suffix?: string;
-  variant?: "default" | "processed" | "pending" | "terms";
-}
-
-function StatCard({ label, value, suffix = "", variant = "default" }: StatCardProps) {
-  return (
-    <div className={styles.statCard}>
-      <div className={`${styles.statValue} ${variant !== "default" ? styles[variant] : ""}`}>
-        {value.toLocaleString()}
-        {suffix}
-      </div>
-      <div className={styles.statLabel}>{label}</div>
     </div>
   );
 }
@@ -474,8 +452,6 @@ const DatasetRecords = () => {
 
   const reviewedValue = displayMode === "percentage" ? reviewedPercentage : reviewedRecords;
 
-  const reviewedSuffix = displayMode === "percentage" ? "%" : ` / ${totalRecords}`;
-
   return (
     <Layout>
       <div className={styles.page}>
@@ -524,19 +500,16 @@ const DatasetRecords = () => {
         <div className={styles.statsSection}>
           <div className={styles.statsGrid}>
             <StatCard label="Total" value={stats?.total_records ?? 0} />
-            <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} variant="terms" />
-            <div className={styles.statCard}>
-              <div className={`${styles.statValue} ${styles.processed}`}>
-                {reviewedValue}
-                {displayMode === "percentage" ? "%" : ""}
-              </div>
-              {displayMode === "percentage" && (
-                <span className={styles.ratioSuffix}>
-                  ({formatCompactNumber(reviewedRecords)}/{formatCompactNumber(totalRecords)})
-                </span>
-              )}
-              <div className={styles.statLabel}>Reviewed</div>
-            </div>
+            <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
+            <StatCard
+              label="Reviewed"
+              value={
+                displayMode === "percentage"
+                  ? `${reviewedValue}% (${formatCompactNumber(reviewedRecords)}/${formatCompactNumber(totalRecords)})`
+                  : reviewedValue
+              }
+              color="green"
+            />
           </div>
           <div className={styles.pageActions}>
             <Button

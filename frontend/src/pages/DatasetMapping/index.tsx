@@ -1,14 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Layout from "components/Layout";
-import { usePageTitle } from "hooks/usePageTitle";
-import { useToast } from "hooks/useToast";
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { useToast } from '@/hooks/useToast';
 import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "types";
 import * as api from "api";
 import ConceptDetailModal from "./ConceptDetailModal";
 import { ToastContainer } from "components/Toast/ToastContainer";
 import ConfirmDialog from "components/ConfirmDialog";
 import Button from "components/Button";
+import StatCard from "components/StatCard";
 import SourceTermsTable from "./SourceTermsTable";
 import SearchFiltersPanel from "./SearchFiltersPanel";
 import TargetConceptsList from "./TargetConceptsList";
@@ -421,24 +422,10 @@ export default function DatasetMapping() {
         {/* Stats Section with Actions */}
         <div className={styles.statsSection}>
           <div className={styles.statsContainer}>
-            <div className={styles.statCard}>
-              <div className={`${styles.statValue} ${styles.terms}`}>{stats.total}</div>
-              <div className={styles.statLabel}>Total</div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={`${styles.statValue} ${styles.mapped}`}>
-                {stats.mapped} ({stats.mappedPercentage}%)
-              </div>
-              <div className={styles.statLabel}>Mapped</div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={`${styles.statValue} ${styles.approved}`}>{stats.approved}</div>
-              <div className={styles.statLabel}>Approved</div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={`${styles.statValue} ${styles.unmapped}`}>{stats.unmapped}</div>
-              <div className={styles.statLabel}>Unmapped</div>
-            </div>
+            <StatCard label="Total" value={stats.total} />
+            <StatCard label="Mapped" value={`${stats.mapped} (${stats.mappedPercentage}%)`} color="blue" />
+            <StatCard label="Approved" value={stats.approved} color="green" />
+            <StatCard label="Unmapped" value={stats.unmapped} color="orange" />
           </div>
 
           <div className={styles.toolbarButtons}>

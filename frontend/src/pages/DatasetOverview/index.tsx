@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Layout from "components/Layout";
-import { usePageTitle } from "hooks/usePageTitle";
+import { usePageTitle } from '@/hooks/usePageTitle';
 import type { DatasetOverviewOutput, Vocabulary } from "types";
 import * as api from "api";
 import styles from "./styles.module.css";
 import Button from "components/Button";
+import StatCard from "components/StatCard";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPenToSquare, faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
 import { faMap } from "@fortawesome/free-solid-svg-icons/faMap";
@@ -25,27 +26,6 @@ function formatDate(dateString: string): string {
 
 function getLabelColorClass(index: number): string {
   return `label${(index % 9) + 1}`;
-}
-
-// ================================================
-// Stat Card Component
-// ================================================
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  variant?: "default" | "processed" | "pending" | "terms";
-}
-
-function StatCard({ label, value, variant = "default" }: StatCardProps) {
-  return (
-    <div className={styles.statCard}>
-      <div className={styles.statLabel}>{label}</div>
-      <div className={`${styles.statValue} ${variant !== "default" ? styles[variant] : ""}`}>
-        {value.toLocaleString()}
-      </div>
-    </div>
-  );
 }
 
 // ================================================
@@ -309,9 +289,9 @@ const DatasetOverview = () => {
         {/* Statistics Cards */}
         <div className={styles.statsGrid}>
           <StatCard label="Total Records" value={overview.stats.total_records} />
-          <StatCard label="Records Processed" value={overview.stats.processed_count} variant="processed" />
-          <StatCard label="Total Terms" value={overview.stats.extracted_terms_count} variant="terms" />
-          <StatCard label="Pending Review" value={overview.stats.pending_review_count} variant="pending" />
+          <StatCard label="Records Processed" value={overview.stats.processed_count} color="green" />
+          <StatCard label="Total Terms" value={overview.stats.extracted_terms_count} color="blue" />
+          <StatCard label="Pending Review" value={overview.stats.pending_review_count} color="orange" />
         </div>
 
         {/* Workflow Section */}
