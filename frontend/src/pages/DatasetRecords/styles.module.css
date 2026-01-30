@@ -13,26 +13,6 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.navButton {
-  padding: 10px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  font-family: inherit;
-}
-
-.navButton:hover {
-  background: #f3f4f6;
-  color: #11415e;
-  border-color: #d1d5db;
-}
-
 .pageInfo {
   display: flex;
   flex-direction: column;
@@ -357,73 +337,6 @@
   gap: 8px;
 }
 
-.actionButton {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  font-family: inherit;
-}
-
-.actionButton.primary {
-  background: #269b6f;
-  color: #ffffff;
-}
-
-.actionButton.primary:hover {
-  background: #20855f;
-}
-
-.actionButton.secondary {
-  background: #144d70;
-  color: #ffffff;
-}
-
-.actionButton.secondary:hover {
-  background: #11415e;
-}
-
-.actionButton.cluster {
-  background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
-  color: #ffffff;
-}
-
-.actionButton.cluster:hover {
-  background: linear-gradient(135deg, #11415e 0%, #11415e 100%);
-}
-
-.actionButton.extract {
-  padding: 10px 20px;
-  background: #ffffff;
-  color: #11415e;
-  border: 1px solid #e5e7eb;
-}
-
-.actionButton.extract:hover {
-  background: #e5e7eb;
-}
-
-.actionButton.danger {
-  background: #dc2626;
-  color: #ffffff;
-  border: 1px solid #b91c1c;
-}
-.actionButton.danger:hover {
-  background: #b91c1c;
-}
-
-.actionButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.actionButton:disabled:hover {
-  background: inherit;
-}
-
 .recordTextContent {
   flex: 1;
   overflow-y: auto;
@@ -630,25 +543,6 @@
   color: #9ca3af;
   display: flex;
   align-items: center;
-}
-
-.termViewButton {
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #11415e;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-
-.termViewButton:hover {
-  text-decoration: underline;
 }
 
 /* Empty States */
@@ -865,72 +759,10 @@
   flex: 0 0 auto;
 }
 
-.navButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #2d3748;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-  flex: 0 0 auto;
-}
-
-.navButton:hover:not(:disabled) {
-  background-color: #edf2f7;
-  border-color: #a0aec0;
-}
-
-.navButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .navButtonText {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.reviewButton {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background-color: #144d70;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-    font-family: inherit;
-}
-
-.reviewButton:hover:not(:disabled) {
-    background-color: #11415e;
-}
-
-.reviewButton.reviewed {
-    background-color: #269b6f;
-}
-
-.reviewButton.reviewed:hover {
-    background-color: #20855f;
-}
-
-.reviewButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .reviewButtonText {
@@ -943,17 +775,9 @@
     flex-direction: column;
     align-items: stretch;
   }
-
-  .reviewButton {
-    width: 100%;
-  }
 }
 
 @media (max-width: 900px) {
-  .reviewButton {
-    flex: 1;
-  }
-
   .recordNavigation {
     flex-direction: row;
   }

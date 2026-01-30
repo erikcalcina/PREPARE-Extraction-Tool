@@ -16,26 +16,6 @@
   gap: 12px;
 }
 
-.backButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #6b7280;
-  transition: all 0.2s ease;
-  font-size: 18px;
-}
-
-.backButton:hover {
-  background: #f3f4f6;
-  color: #11415e;
-}
-
 .title {
   margin: 0;
   font-size: 24px;
@@ -319,34 +299,6 @@
 
 .workflowButton {
   flex: 1;
-  padding: 10px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid;
-}
-
-.workflowButton.primary {
-  background: #11415e;
-  color: #ffffff;
-  border-color: #11415e;
-}
-
-.workflowButton.primary:hover {
-  background: #11415e;
-  border-color: #11415e;
-}
-
-.workflowButton.secondary {
-  background: #ffffff;
-  color: #11415e;
-  border-color: #11415e;
-}
-
-.workflowButton.secondary:hover {
-  background: #f0fdf4;
 }
 
 /* Loading and Error States */

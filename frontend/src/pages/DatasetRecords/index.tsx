@@ -4,6 +4,7 @@ import Layout from "components/Layout";
 import { useRecords } from "hooks/useRecords";
 import { usePageTitle } from "hooks/usePageTitle";
 import type { Record as RecordType, SourceTerm, SourceTermCreate } from "types";
+import Button from "components/Button";
 import AnnotationSidebar from "./AnnotationSidebar";
 import styles from "./styles.module.css";
 import ProgressBar from "components/ProgressBar";
@@ -480,13 +481,9 @@ const DatasetRecords = () => {
       <div className={styles.page}>
         {/* Header with Navigation */}
         <div className={styles.header}>
-          <button
-            className={styles.navButton}
-            onClick={() => navigate(`/datasets/${datasetId}`)}
-            title="Back to Dataset Overview"
-          >
+          <Button variant="outline" onClick={() => navigate(`/datasets/${datasetId}`)} title="Back to Dataset Overview">
             ← Back to Overview
-          </button>
+          </Button>
 
           <div className={styles.pageInfo}>
             <h1 className={styles.pageTitle}>
@@ -514,13 +511,13 @@ const DatasetRecords = () => {
             </button>
           </div>
 
-          <button
-            className={styles.navButton}
+          <Button
+            variant="outline"
             onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
             title="Go to Term Clustering"
           >
             Clustering →
-          </button>
+          </Button>
         </div>
 
         {/* Statistics and Actions */}
@@ -542,30 +539,26 @@ const DatasetRecords = () => {
             </div>
           </div>
           <div className={styles.pageActions}>
-            <button
-              className={`${styles.actionButton} ${styles.extract}`}
+            <Button
+              variant="outline"
               onClick={handleExtractTermsForDataset}
               disabled={isExtractingDataset || !dataset?.labels?.length}
               title={!dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"}
             >
               {isExtractingDataset ? "Extracting..." : "Extract All Terms"}
-            </button>
-            <button
-              className={`${styles.actionButton} ${styles.danger}`}
+            </Button>
+            <Button
+              variant="danger"
               onClick={handleDeleteExtractedTerms}
               disabled={isExtractingDataset}
               title="Delete all automatically extracted terms"
             >
               Delete Extracted Terms
-            </button>
+            </Button>
             {isExtractingDataset && (
-              <button
-                className={`${styles.actionButton} ${styles.secondary}`}
-                onClick={cancelDatasetExtraction}
-                disabled={isCancellingExtraction}
-              >
+              <Button variant="primary" onClick={cancelDatasetExtraction} disabled={isCancellingExtraction}>
                 {isCancellingExtraction ? "Cancelling…" : "Cancel Extraction"}
-              </button>
+              </Button>
             )}
           </div>
           {isExtractingDataset && (
@@ -682,8 +675,9 @@ const DatasetRecords = () => {
                   <div className={styles.recordTextHeader}>
                     <h2 className={styles.recordTextTitle}>NER View</h2>
                     <div className={styles.detailActions}>
-                      <button
-                        className={`${styles.actionButton} ${styles.extract}`}
+                      <Button
+                        variant="outline"
+                        size="small"
                         onClick={handleExtractTermsForRecord}
                         disabled={isExtracting || !dataset?.labels?.length}
                         title={
@@ -693,13 +687,13 @@ const DatasetRecords = () => {
                         }
                       >
                         {isExtracting ? "Extracting..." : "Extract Terms"}
-                      </button>
-                      <button className={`${styles.actionButton} ${styles.secondary}`} onClick={handleOpenAnnotation}>
+                      </Button>
+                      <Button variant="primary" size="small" onClick={handleOpenAnnotation}>
                         Edit Labels
-                      </button>
-                      <button className={`${styles.actionButton} ${styles.primary}`} onClick={handleMarkReviewed}>
+                      </Button>
+                      <Button variant="success" size="small" onClick={handleMarkReviewed}>
                         {selectedRecord.reviewed ? "Unmark Reviewed" : "Mark Reviewed"}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <div className={styles.recordTextHeader}>
@@ -745,9 +739,9 @@ const DatasetRecords = () => {
                                     [{term.start_position}-{term.end_position}]
                                   </span>
                                 )}
-                                <button className={styles.termViewButton} onClick={() => scrollToTerm(term.id)}>
+                                <Button variant="ghost" size="small" onClick={() => scrollToTerm(term.id)}>
                                   View
-                                </button>
+                                </Button>
                               </div>
                               <span
                                 className={`${styles.termLabel} ${styles[getLabelColorClass(term.label, dataset?.labels ?? [])]}`}

@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
+import Button from "components/Button";
 import { Select } from "components/Select";
 import { usePageTitle } from "hooks/usePageTitle";
 import type { ClusterData, ClusteredTerm } from "types";
@@ -317,9 +318,9 @@ function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingClus
 
         {/* Action buttons */}
         <div className={styles.headerActions}>
-          <button onClick={onDelete} className={styles.btnDelete}>
+          <Button variant="outline" size="small" colorScheme="danger" onClick={onDelete}>
             Delete
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -896,13 +897,13 @@ export default function DatasetClusters() {
         <div className={styles.page}>
           {/* Header with Navigation */}
           <div className={styles.header}>
-            <button
-              className={styles.navButton}
+            <Button
+              variant="outline"
               onClick={() => navigate(`/datasets/${datasetId}/records`)}
               title="Back to Term Extraction"
             >
               ← Back to Extraction
-            </button>
+            </Button>
 
             <div className={styles.pageInfo}>
               <h1 className={styles.pageTitle}>
@@ -930,13 +931,13 @@ export default function DatasetClusters() {
               </button>
             </div>
 
-            <button
-              className={styles.navButton}
+            <Button
+              variant="outline"
               onClick={() => navigate(`/datasets/${datasetId}/mapping`)}
               title="Go to Concept Mapping"
             >
               Mapping →
-            </button>
+            </Button>
           </div>
 
           {/* Statistics and Actions */}
@@ -948,16 +949,17 @@ export default function DatasetClusters() {
               <StatCard label="Unclustered" value={stats.unclusteredCount} variant="unclustered" />
             </div>
             <div className={styles.pageActions}>
-              <button
+              <Button
+                variant="primary"
+                size="small"
                 onClick={handleAutoClustering}
                 disabled={isAutoClustering || !selectedLabel}
-                className={styles.btnAutoClustering}
               >
                 {isAutoClustering ? "Clustering..." : "Auto-Cluster"}
-              </button>
-              <button onClick={handleCreateCluster} className={styles.btnCreate}>
+              </Button>
+              <Button variant="outline" size="small" onClick={handleCreateCluster}>
                 + New Cluster
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1013,13 +1015,9 @@ export default function DatasetClusters() {
                 <div className={styles.emptyState}>
                   <h2>No clusters yet</h2>
                   <p>Get started by auto-clustering your terms for the selected label</p>
-                  <button
-                    onClick={handleAutoClustering}
-                    disabled={!selectedLabel}
-                    className={styles.btnAutoClusteringLarge}
-                  >
+                  <Button variant="primary" size="large" onClick={handleAutoClustering} disabled={!selectedLabel}>
                     Auto-Cluster {selectedLabel || "Terms"}
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className={styles.clustersList}>

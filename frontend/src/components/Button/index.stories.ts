@@ -1,54 +1,120 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { fn } from 'storybook/test';
+import { fn } from "storybook/test";
 
-import Button from './index';
+import Button from "./index";
 
-// More on how to set up stories at: https://storybook.js.org/docs/writing-stories#default-export
 const meta = {
-  title: 'Example/Button',
+  title: "Components/Button",
   component: Button,
   parameters: {
-    // Optional parameter to center the component in the Canvas. More info: https://storybook.js.org/docs/configure/story-layout
-    layout: 'centered',
+    layout: "centered",
   },
-  // This component will have an automatically generated Autodocs entry: https://storybook.js.org/docs/writing-docs/autodocs
-  tags: ['autodocs'],
-  // More on argTypes: https://storybook.js.org/docs/api/argtypes
+  tags: ["autodocs"],
   argTypes: {
-    backgroundColor: { control: 'color' },
+    variant: {
+      control: "select",
+      options: ["primary", "secondary", "success", "danger", "warning", "info", "ghost", "outline"],
+    },
+    size: {
+      control: "select",
+      options: ["small", "medium", "large", "icon"],
+    },
+    colorScheme: {
+      control: "select",
+      options: ["default", "danger", "primary"],
+    },
   },
-  // Use `fn` to spy on the onClick arg, which will appear in the actions panel once invoked: https://storybook.js.org/docs/essentials/actions#action-args
   args: { onClick: fn() },
 } satisfies Meta<typeof Button>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// More on writing stories with args: https://storybook.js.org/docs/writing-stories/args
 export const Primary: Story = {
   args: {
-    primary: true,
-    label: 'Button',
+    variant: "primary",
+    label: "Primary Button",
   },
 };
 
 export const Secondary: Story = {
   args: {
-    label: 'Button',
+    variant: "secondary",
+    label: "Secondary Button",
   },
 };
 
-export const Large: Story = {
+export const Success: Story = {
   args: {
-    size: 'large',
-    label: 'Button',
+    variant: "success",
+    label: "Success Button",
+  },
+};
+
+export const Danger: Story = {
+  args: {
+    variant: "danger",
+    label: "Danger Button",
+  },
+};
+
+export const Warning: Story = {
+  args: {
+    variant: "warning",
+    label: "Warning Button",
+  },
+};
+
+export const Info: Story = {
+  args: {
+    variant: "info",
+    label: "Info Button",
+  },
+};
+
+export const Ghost: Story = {
+  args: {
+    variant: "ghost",
+    label: "Ghost Button",
+  },
+};
+
+export const GhostDanger: Story = {
+  args: {
+    variant: "ghost",
+    colorScheme: "danger",
+    label: "Delete",
+  },
+};
+
+export const Outline: Story = {
+  args: {
+    variant: "outline",
+    label: "Outline Button",
   },
 };
 
 export const Small: Story = {
   args: {
-    size: 'small',
-    label: 'Button',
+    variant: "primary",
+    size: "small",
+    label: "Small Button",
+  },
+};
+
+export const Large: Story = {
+  args: {
+    variant: "primary",
+    size: "large",
+    label: "Large Button",
+  },
+};
+
+export const Disabled: Story = {
+  args: {
+    variant: "primary",
+    label: "Disabled Button",
+    disabled: true,
   },
 };

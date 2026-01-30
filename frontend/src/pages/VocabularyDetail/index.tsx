@@ -143,9 +143,9 @@ const VocabularyDetail = () => {
       <div className={styles.page}>
         {/* Header */}
         <div className={styles.header}>
-          <button className={styles.backButton} onClick={() => navigate("/vocabularies")}>
+          <Button variant="outline" onClick={() => navigate("/vocabularies")}>
             ← Back to Vocabularies
-          </button>
+          </Button>
           <div className={styles.headerInfo}>
             <h1 className={styles.title}>{vocabulary?.name || "Loading..."}</h1>
             {vocabulary?.version && <span className={styles.version}>v{vocabulary.version}</span>}
@@ -206,9 +206,9 @@ const VocabularyDetail = () => {
             />
 
             {hasActiveFilters && (
-              <button className={styles.clearButton} onClick={clearFilters}>
+              <Button variant="outline" onClick={clearFilters}>
                 Clear Filters
-              </button>
+              </Button>
             )}
           </div>
 

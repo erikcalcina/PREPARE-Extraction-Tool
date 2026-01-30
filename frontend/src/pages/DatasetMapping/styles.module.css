@@ -17,26 +17,6 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.navButton {
-  padding: 10px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  font-family: inherit;
-}
-
-.navButton:hover {
-  background: #f3f4f6;
-  color: #11415e;
-  border-color: #d1d5db;
-}
-
 .pageInfo {
   display: flex;
   flex-direction: column;
@@ -176,57 +156,6 @@
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.btnAutoMapAll,
-.btnExport {
-  padding: 10px 20px;
-  background: #269b6f;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.btnAutoMapAll:hover:not(:disabled) {
-  background: #20855f;
-}
-
-.btnAutoMapAll:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btnExport {
-  background: #11415e;
-}
-
-.btnExport:hover {
-  background: #152b47;
-}
-
-.btnImport {
-  padding: 10px 20px;
-  background: #ffffff;
-  color: #11415e;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.btnImport:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
 }
 
 /* ================================================
@@ -409,15 +338,15 @@
   box-shadow: 0 0 0 3px rgba(17, 65, 94, 0.1);
 }
 
-/* Bottom Section - Two Column */
+/* Bottom Section - Stacked Vertical */
 .bottomSection {
-  display: grid;
-  grid-template-columns: 1fr 380px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   min-height: 280px;
 }
 
-/* Target Concepts List (Left) */
+/* Target Concepts List */
 .targetConceptsListPanel {
   background: #ffffff;
   border-radius: 12px;
@@ -425,6 +354,23 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.panelContentWrapper {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.searchOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  color: #11415e;
 }
 
 .panelHeader {
@@ -447,19 +393,31 @@
   overflow-y: auto;
 }
 
-/* Search Filters Panel (Right) */
+/* Search Filters Panel (Top) */
 .searchFiltersPanel {
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   overflow: hidden;
 }
 
 .filterSection {
   padding: 12px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-right: 1px solid #f3f4f6;
+  border-bottom: none;
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.filterSection:last-child {
+  border-right: none;
 }
 
 .filterTitle {
@@ -763,20 +721,6 @@
   color: #000;
 }
 
-.btnRemoveConcept {
-  padding: 4px 12px;
-  background: #f0f0f0;
-  border: 1px solid #c0c0c0;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  font-family: inherit;
-}
-
-.btnRemoveConcept:hover {
-  background: #e0e0e0;
-}
-
 .noTarget {
   padding: 20px;
   text-align: center;
@@ -981,27 +925,6 @@
   color: #666;
 }
 
-.btnApprove {
-  padding: 6px 24px;
-  background: #269b6f;
-  color: white;
-  border: 1px solid #20855f;
-  border-radius: 3px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.btnApprove:hover:not(:disabled) {
-  background: #20855f;
-}
-
-.btnApprove:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .vocabularyBadge,
 .domainBadge,
 .classBadge {
@@ -1033,47 +956,6 @@
   gap: 8px;
 }
 
-.btnApprove,
-.btnReject,
-.btnDelete,
-.btnAutoMap {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btnApprove {
-  background: #269b6f;
-  color: white;
-}
-
-.btnApprove:hover {
-  background: #20855f;
-}
-
-.btnReject {
-  background: #ef4444;
-  color: white;
-}
-
-.btnReject:hover {
-  background: #dc2626;
-}
-
-.btnDelete {
-  background: #6b7280;
-  color: white;
-}
-
-.btnDelete:hover {
-  background: #4b5563;
-}
-
 /* Keep for backwards compatibility */
 .clusterTitle {
   font-size: 14px;
@@ -1086,29 +968,6 @@
   gap: 12px;
   font-size: 12px;
   color: #6b7280;
-}
-
-.btnAutoMap {
-  background: #4caf50;
-  color: white;
-  width: 100%;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btnAutoMap:hover:not(:disabled) {
-  background: #45a049;
-}
-
-.btnAutoMap:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .unmappedState {
@@ -1126,11 +985,6 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.btnApprove:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .emptyCell {
@@ -1279,36 +1133,6 @@
   border-top: 1px solid #e5e7eb;
 }
 
-.btnPrimary,
-.btnSecondary {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btnPrimary {
-  background: #4caf50;
-  color: white;
-}
-
-.btnPrimary:hover {
-  background: #45a049;
-}
-
-.btnSecondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btnSecondary:hover {
-  background: #e5e7eb;
-}
-
 /* ================================================
    States
    ================================================ */
@@ -1391,49 +1215,17 @@
   background: #eff6ff;
 }
 
+.conceptResultRow--matched {
+  background: #f3f4f6;
+}
+
+.conceptResultRow--matched:hover {
+  background: #e5e7eb;
+}
+
 .conceptActions {
   display: flex;
   gap: 6px;
-}
-
-.btnMapConcept {
-  padding: 6px 12px;
-  background: #269b6f;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btnMapConcept:hover:not(:disabled) {
-  background: #20855f;
-}
-
-.btnMapConcept:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btnReplace {
-  padding: 6px 12px;
-  background: #ffffff;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.btnReplace:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #d1d5db;
 }
 
 /* Source Terms Table (refactored) */
@@ -1614,4 +1406,36 @@
   padding: 0 12px;
   font-size: 13px;
   color: #374151;
+}
+
+/* ================================================
+   Sortable Headers & Pagination
+   ================================================ */
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.sortableHeader:hover {
+  background: #f3f4f6;
+}
+
+.sortableHeader--active {
+  color: #11415e;
+  background: #eff6ff;
+}
+
+.sortIcon {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.paginationWrapper {
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
 }

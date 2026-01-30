@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback } from "react";
+import Button from "components/Button";
 import styles from "./styles.module.css";
 
 export type DialogVariant = "danger" | "warning" | "info";
@@ -98,16 +99,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           {message}
         </p>
         <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button
             ref={confirmButtonRef}
-            className={`${styles.confirmButton} ${styles[`confirmButton--${variant}`]}`}
+            variant={variant === "danger" ? "danger" : variant === "warning" ? "warning" : "info"}
             onClick={onConfirm}
           >
             {confirmText}
-          </button>
+          </Button>
         </div>
       </div>
     </>

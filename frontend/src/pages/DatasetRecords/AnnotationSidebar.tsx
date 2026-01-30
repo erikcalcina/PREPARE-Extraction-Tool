@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from "react";
 import Sidebar from "components/Sidebar";
+import Button from "components/Button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight, faCheck } from "@fortawesome/free-solid-svg-icons";
 import type { SourceTerm, SourceTermCreate } from "types";
@@ -199,34 +200,34 @@ const AnnotationSidebar = ({
           {/* Navigation and review buttons */}
           <div className={styles.recordNavigation}>
             <div className={styles.navigationButtons}>
-              <button
-                className={styles.navButton}
+              <Button
+                variant="outline"
                 onClick={onPreviousRecord}
                 disabled={!onPreviousRecord || !hasPreviousRecord}
                 title="Previous record"
               >
                 <FontAwesomeIcon icon={faChevronLeft} />
                 <span className={styles.navButtonText}>Previous</span>
-              </button>
-              <button
-                className={styles.navButton}
+              </Button>
+              <Button
+                variant="outline"
                 onClick={onNextRecord}
                 disabled={!onNextRecord || !hasNextRecord}
                 title="Next record"
               >
                 <span className={styles.navButtonText}>Next</span>
                 <FontAwesomeIcon icon={faChevronRight} />
-              </button>
+              </Button>
             </div>
-            <button
-              className={`${styles.reviewButton} ${isReviewed ? styles.reviewed : ""}`}
+            <Button
+              variant={isReviewed ? "success" : "primary"}
               onClick={onMarkReviewed}
               disabled={!onMarkReviewed}
               title={isReviewed ? "Marked as reviewed" : "Mark as reviewed"}
             >
               {isReviewed ? <FontAwesomeIcon icon={faCheck} /> : null}
               <span className={styles.reviewButtonText}>{isReviewed ? "Reviewed" : "Mark Reviewed"}</span>
-            </button>
+            </Button>
           </div>
 
           {/* Instructions */}

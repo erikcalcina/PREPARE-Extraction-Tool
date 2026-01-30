@@ -1,26 +1,23 @@
-import classNames from 'classnames';
+import React, { forwardRef } from "react";
+import classNames from "classnames";
 
-import styles from './styles.module.css';
+import styles from "./styles.module.css";
 
 // ====================================
 // Interface
 // ====================================
 
-export interface ButtonProps {
-    /** Is this the principal call to action on the page? */
-    primary?: boolean;
-    /** What background color to use */
-    backgroundColor?: string;
-    /** How large should the button be? */
-    size?: 'small' | 'medium' | 'large';
-    /** Button contents */
-    label: string;
-    /** Button type */
-    type?: 'button' | 'submit' | 'reset';
-    /** Disabled state */
-    disabled?: boolean;
-    /** Optional click handler */
-    onClick?: () => void;
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual style variant */
+  variant?: "primary" | "secondary" | "success" | "danger" | "warning" | "info" | "ghost" | "outline";
+  /** Button size */
+  size?: "small" | "medium" | "large" | "icon";
+  /** Button text (alternative to children) */
+  label?: string;
+  /** Button content (takes priority over label) */
+  children?: React.ReactNode;
+  /** Color scheme modifier for ghost/outline variants */
+  colorScheme?: "default" | "danger" | "primary";
 }
 
 // ====================================
@@ -28,25 +25,41 @@ export interface ButtonProps {
 // ====================================
 
 /** Primary UI component for user interaction */
-const Button = ({
-    primary = false,
-    size = 'medium',
-    type = 'button',
-    backgroundColor,
-    label,
-    ...props
-}: ButtonProps) => {
-    const mode = primary ? styles.primary : styles.secondary;
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      variant = "secondary",
+      size = "medium",
+      type = "button",
+      label,
+      children,
+      colorScheme = "default",
+      className,
+      ...props
+    },
+    ref
+  ) => {
     return (
-        <button
-            type={type}
-            className={classNames(styles.button, styles[size], mode)}
-            style={{ backgroundColor }}
-            {...props}
-        >
-            {label}
-        </button>
+      <button
+        ref={ref}
+        type={type}
+        className={classNames(
+          styles.button,
+          styles[`button--${variant}`],
+          styles[`button--${size}`],
+          {
+            [styles[`button--color-${colorScheme}`]]: colorScheme !== "default",
+          },
+          className
+        )}
+        {...props}
+      >
+        {children ?? label}
+      </button>
     );
-};
+  }
+);
+
+Button.displayName = "Button";
 
 export default Button;

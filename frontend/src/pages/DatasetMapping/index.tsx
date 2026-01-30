@@ -1,13 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Layout from "components/Layout";
 import { usePageTitle } from "hooks/usePageTitle";
 import { useToast } from "hooks/useToast";
-import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest } from "types";
+import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "types";
 import * as api from "api";
 import ConceptDetailModal from "./ConceptDetailModal";
 import { ToastContainer } from "components/Toast/ToastContainer";
 import ConfirmDialog from "components/ConfirmDialog";
+import Button from "components/Button";
 import SourceTermsTable from "./SourceTermsTable";
 import SearchFiltersPanel from "./SearchFiltersPanel";
 import TargetConceptsList from "./TargetConceptsList";
@@ -33,6 +34,12 @@ export default function DatasetMapping() {
   const [comment, setComment] = useState("");
   const [includeSourceTerms, setIncludeSourceTerms] = useState(false);
 
+  // Search pagination state
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchPagination, setSearchPagination] = useState<PaginationMetadata | null>(null);
+  const [sortBy, setSortBy] = useState<"relevance" | "name" | "domain">("relevance");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   // Filter enabled states
   const [vocabularyFilterEnabled, setVocabularyFilterEnabled] = useState(false);
   const [domainFilterEnabled, setDomainFilterEnabled] = useState(false);
@@ -52,6 +59,7 @@ export default function DatasetMapping() {
   // Silence unused warning - will be used for concept detail modal
   void setSelectedConcept;
 
+  const importInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -139,6 +147,25 @@ export default function DatasetMapping() {
     }
   }, [selectedMapping?.cluster_id]);
 
+  // Re-search when any filter or query mode changes
+  useEffect(() => {
+    if (!selectedMapping) return;
+    if (useSourceTerm) {
+      handleAutoSearch();
+    } else if (searchQuery) {
+      handleManualSearch(1);
+    }
+  }, [
+    useSourceTerm,
+    standardOnly,
+    domainFilter,
+    domainFilterEnabled,
+    conceptClassFilter,
+    conceptClassFilterEnabled,
+    vocabularyFilterEnabled,
+    selectedVocabularies,
+  ]);
+
   // Handle auto-search
   const handleAutoSearch = async () => {
     if (!selectedMapping || !datasetId) return;
@@ -155,6 +182,7 @@ export default function DatasetMapping() {
         domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
         concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
         standard_concept: standardOnly ? "S" : undefined,
+        search_type: "vector",
       };
 
       const results = await api.autoMapCluster(parseInt(datasetId), selectedMapping.cluster_id, request);
@@ -167,12 +195,15 @@ export default function DatasetMapping() {
   };
 
   // Handle manual search
-  const handleManualSearch = async () => {
+  const handleManualSearch = async (page = 1) => {
     if (!searchQuery) return;
 
     // Use all vocabularies if filter is disabled, otherwise use selected
     const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
     if (vocabIdsToUse.length === 0) return;
+
+    const limit = 10;
+    const offset = (page - 1) * limit;
 
     try {
       setIsSearching(true);
@@ -182,10 +213,16 @@ export default function DatasetMapping() {
         domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
         concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
         standard_concept: standardOnly ? "S" : undefined,
-        limit: 10,
+        search_type: "hybrid",
+        limit,
+        offset,
+        sort_by: sortBy,
+        sort_order: sortOrder,
       });
 
       setSearchResults(results.results);
+      setSearchPagination(results.pagination || null);
+      setSearchPage(page);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -195,10 +232,29 @@ export default function DatasetMapping() {
 
   // Handle search (triggered by Enter key or search button)
   const handleSearch = () => {
+    setSearchPage(1);
     if (useSourceTerm) {
       handleAutoSearch();
     } else {
-      handleManualSearch();
+      handleManualSearch(1);
+    }
+  };
+
+  // Handle page change for manual search
+  const handleSearchPageChange = (page: number) => {
+    if (!useSourceTerm) {
+      handleManualSearch(page);
+    }
+  };
+
+  // Handle sort change
+  const handleSortChange = (newSortBy: "relevance" | "name" | "domain") => {
+    const newOrder = sortBy === newSortBy && sortOrder === "desc" ? "asc" : "desc";
+    setSortBy(newSortBy);
+    setSortOrder(newOrder);
+    // Re-search with new sort
+    if (!useSourceTerm && searchQuery) {
+      handleManualSearch(1);
     }
   };
 
@@ -272,6 +328,7 @@ export default function DatasetMapping() {
             vocabulary_ids: vocabIdsToUse,
             label: selectedLabel || undefined,
             use_cluster_terms: true,
+            search_type: "vector",
           });
 
           toast.success(`Auto-mapping complete! Mapped: ${response.mapped_count}, Failed: ${response.failed_count}`);
@@ -337,13 +394,13 @@ export default function DatasetMapping() {
       <div className={styles.page}>
         {/* Header with Navigation */}
         <div className={styles.header}>
-          <button
-            className={styles.navButton}
+          <Button
+            variant="outline"
             onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
             title="Back to Clustering"
           >
             ← Back to Clustering
-          </button>
+          </Button>
 
           <div className={styles.pageInfo}>
             <h1 className={styles.pageTitle}>Concept Mapping</h1>
@@ -356,13 +413,9 @@ export default function DatasetMapping() {
             </button>
           </div>
 
-          <button
-            className={styles.navButton}
-            onClick={() => navigate(`/datasets/${datasetId}`)}
-            title="Go to Overview"
-          >
+          <Button variant="outline" onClick={() => navigate(`/datasets/${datasetId}`)} title="Go to Overview">
             Overview →
-          </button>
+          </Button>
         </div>
 
         {/* Stats Section with Actions */}
@@ -389,22 +442,23 @@ export default function DatasetMapping() {
           </div>
 
           <div className={styles.toolbarButtons}>
-            <button
+            <Button
+              variant="success"
+              size="small"
               onClick={handleAutoMapAll}
               disabled={isLoading || vocabularies.length === 0}
-              className={styles.btnAutoMapAll}
             >
               Auto-Map All
-            </button>
+            </Button>
 
-            <button onClick={handleExport} className={styles.btnExport}>
+            <Button variant="primary" size="small" onClick={handleExport}>
               Export
-            </button>
+            </Button>
 
-            <label className={styles.btnImport}>
+            <Button variant="outline" size="small" onClick={() => importInputRef.current?.click()}>
               Import
-              <input type="file" accept=".csv" onChange={handleImport} style={{ display: "none" }} />
-            </label>
+            </Button>
+            <input ref={importInputRef} type="file" accept=".csv" onChange={handleImport} style={{ display: "none" }} />
           </div>
         </div>
 
@@ -448,21 +502,22 @@ export default function DatasetMapping() {
             </div>
             <div className={styles.selectionActions}>
               {selectedMapping?.concept_id && (
-                <button onClick={handleDeleteMapping} className={styles.btnRemoveConcept}>
+                <Button variant="outline" size="small" onClick={handleDeleteMapping}>
                   Remove
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                variant="success"
+                size="small"
                 onClick={() => {
                   if (selectedMapping?.concept_id) {
                     handleMapConcept(selectedMapping.concept_id, "approved");
                   }
                 }}
                 disabled={!selectedMapping?.concept_id || isMapping}
-                className={styles.btnApprove}
               >
                 Accept
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -481,15 +536,8 @@ export default function DatasetMapping() {
             />
           </div>
 
-          {/* Bottom Section: Target Concepts List + Search Filters */}
+          {/* Bottom Section: Search Filters above Target Concepts */}
           <div className={styles.bottomSection}>
-            <TargetConceptsList
-              selectedMapping={selectedMapping}
-              searchResults={searchResults}
-              isSearching={isSearching}
-              onMapConcept={handleMapConcept}
-            />
-
             <SearchFiltersPanel
               useSourceTerm={useSourceTerm}
               onUseSourceTermChange={setUseSourceTerm}
@@ -515,6 +563,19 @@ export default function DatasetMapping() {
               conceptClassFilterEnabled={conceptClassFilterEnabled}
               onConceptClassFilterEnabledChange={setConceptClassFilterEnabled}
               conceptClasses={conceptClasses}
+            />
+
+            <TargetConceptsList
+              selectedMapping={selectedMapping}
+              searchResults={searchResults}
+              isSearching={isSearching}
+              onMapConcept={handleMapConcept}
+              pagination={searchPagination}
+              currentPage={searchPage}
+              onPageChange={handleSearchPageChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
             />
           </div>
         </div>

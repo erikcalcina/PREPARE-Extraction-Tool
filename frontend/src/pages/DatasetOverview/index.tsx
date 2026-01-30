@@ -2,9 +2,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Layout from "components/Layout";
 import { usePageTitle } from "hooks/usePageTitle";
-import type { DatasetOverviewOutput } from "types";
+import type { DatasetOverviewOutput, Vocabulary } from "types";
 import * as api from "api";
 import styles from "./styles.module.css";
+import Button from "components/Button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPenToSquare, faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
 import { faMap } from "@fortawesome/free-solid-svg-icons/faMap";
@@ -98,13 +99,14 @@ function WorkflowCard({ title, description, icon, stats, progress, actions }: Wo
 
       <div className={styles.workflowActions}>
         {actions.map((action, idx) => (
-          <button
+          <Button
             key={idx}
             onClick={action.onClick}
-            className={`${styles.workflowButton} ${action.variant === "primary" ? styles.primary : styles.secondary}`}
+            variant={action.variant === "primary" ? "primary" : "outline"}
+            className={styles.workflowButton}
           >
             {action.label}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -119,7 +121,9 @@ const DatasetOverview = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<DatasetOverviewOutput | null>(null);
+  const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMappingAll, setIsMappingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const parsedDatasetId = datasetId ? parseInt(datasetId, 10) : 0;
@@ -144,6 +148,48 @@ const DatasetOverview = () => {
 
     fetchOverview();
   }, [parsedDatasetId]);
+
+  // Fetch vocabularies for auto-mapping
+  useEffect(() => {
+    const fetchVocabularies = async () => {
+      try {
+        const data = await api.getVocabularies(1, 100);
+        setVocabularies(data.vocabularies);
+      } catch (err) {
+        console.error("Failed to fetch vocabularies:", err);
+      }
+    };
+    fetchVocabularies();
+  }, []);
+
+  const handleStartMapping = async () => {
+    if (!overview || vocabularies.length === 0) return;
+
+    const confirmed = window.confirm(
+      `This will auto-map all unmapped clusters using vector search across all labels. Continue?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsMappingAll(true);
+      const vocabIds = vocabularies.map((v) => v.id);
+      const response = await api.autoMapAllClusters(parsedDatasetId, {
+        vocabulary_ids: vocabIds,
+        use_cluster_terms: true,
+        search_type: "vector",
+      });
+      alert(`Auto-mapping complete! Mapped: ${response.mapped_count}, Failed: ${response.failed_count}`);
+      // Refresh overview
+      const data = await api.getDatasetOverview(parsedDatasetId);
+      setOverview(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to start mapping";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setIsMappingAll(false);
+    }
+  };
 
   const handleExtractAll = async () => {
     if (!overview) return;
@@ -224,9 +270,9 @@ const DatasetOverview = () => {
         {/* Header Section */}
         <div className={styles.header}>
           <div className={styles.titleSection}>
-            <button className={styles.backButton} onClick={() => navigate("/datasets")} title="Back to Datasets">
+            <Button variant="outline" size="icon" onClick={() => navigate("/datasets")} aria-label="Back to Datasets">
               ←
-            </button>
+            </Button>
             <div>
               <h1 className={styles.title}>{overview.dataset.name}</h1>
               <p className={styles.subtitle}>Dataset Overview and Statistics</p>
@@ -344,8 +390,8 @@ const DatasetOverview = () => {
                   variant: "primary",
                 },
                 {
-                  label: "Start Mapping",
-                  onClick: () => navigate(`/datasets/${datasetId}/mapping`),
+                  label: isMappingAll ? "Mapping..." : "Start Mapping",
+                  onClick: handleStartMapping,
                   variant: "secondary",
                 },
               ]}

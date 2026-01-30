@@ -68,24 +68,27 @@ const Vocabularies = () => {
       width: "15%",
       render: (item: Vocabulary) => (
         <div className={styles.actions}>
-          <button
-            className={styles.actionLink}
+          <Button
+            variant="ghost"
+            size="small"
             onClick={(e) => {
               e.stopPropagation();
               downloadVocabulary(item.id);
             }}
           >
             Download
-          </button>
-          <button
-            className={`${styles.actionLink} ${styles.delete}`}
+          </Button>
+          <Button
+            variant="ghost"
+            size="small"
+            colorScheme="danger"
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
             }}
           >
             Delete
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -94,7 +97,7 @@ const Vocabularies = () => {
   const sidebar = (
     <div className={styles.sidebarContent}>
       <Link to="/vocabularies/upload">
-        <Button primary label="+ Upload vocabulary" />
+        <Button variant="primary" label="+ Upload vocabulary" />
       </Link>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import type { ConceptHierarchy } from "types";
 import * as api from "api";
 import LoadingSpinner from "components/LoadingSpinner";
+import Button from "components/Button";
 import styles from "./styles.module.css";
 
 interface ConceptDetailModalProps {
@@ -196,12 +197,12 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
         </div>
 
         <div className={styles.modalFooter}>
-          <button onClick={onClose} className={styles.btnSecondary}>
+          <Button variant="outline" onClick={onClose}>
             Close
-          </button>
-          <button onClick={onMap} className={styles.btnPrimary}>
+          </Button>
+          <Button variant="success" onClick={onMap}>
             Map to Selected Cluster
-          </button>
+          </Button>
         </div>
       </div>
     </div>
