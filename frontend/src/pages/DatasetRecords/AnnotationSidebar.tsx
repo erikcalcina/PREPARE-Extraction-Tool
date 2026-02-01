@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from "react";
 import classNames from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faChevronRight, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight, faCheck, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 import Sidebar from "@/components/Sidebar";
 import Button from "@/components/Button";
