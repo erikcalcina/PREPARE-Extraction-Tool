@@ -60,7 +60,6 @@ export default function DatasetMapping() {
   // Silence unused warning - will be used for concept detail modal
   void setSelectedConcept;
 
-  const importInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -68,7 +67,7 @@ export default function DatasetMapping() {
     message: string;
     onConfirm: () => void;
     variant?: "danger" | "warning" | "info";
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => { } });
 
   usePageTitle(datasetName ? `Concept Mapping - ${datasetName}` : "Concept Mapping");
 
@@ -354,23 +353,6 @@ export default function DatasetMapping() {
     }
   };
 
-  // Handle import
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !datasetId) return;
-
-    try {
-      setIsLoading(true);
-      const result = await api.importMappings(parseInt(datasetId), file);
-      toast.success(result.message);
-      await fetchMappings();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Calculate stats
   const stats = useMemo(() => {
     const total = mappings.length;
@@ -432,11 +414,6 @@ export default function DatasetMapping() {
             <Button variant="primary" size="small" onClick={handleExport}>
               Export
             </Button>
-
-            <Button variant="outline" size="small" onClick={() => importInputRef.current?.click()}>
-              Import
-            </Button>
-            <input ref={importInputRef} type="file" accept=".csv" onChange={handleImport} style={{ display: "none" }} />
           </div>
         </div>
 
