@@ -467,19 +467,23 @@
 }
 
 .term-item__value {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: #11415e;
-  display: flex;
-  align-items: center;
 }
 
 .term-item__meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   font-size: 11px;
   color: #6b7280;
+}
+
+.term-item__meta button {
+  padding: 0;
 }
 
 .term-item__label {
@@ -492,8 +496,7 @@
 
 .term-item__position {
   color: #9ca3af;
-  display: flex;
-  align-items: center;
+  white-space: nowrap;
 }
 
 /* Empty States */
