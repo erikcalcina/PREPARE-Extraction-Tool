@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
@@ -38,6 +38,7 @@ export default function DatasetClusters() {
   const [activeDragCluster, setActiveDragCluster] = useState<ClusterData | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isDownloadingClusters, setIsDownloadingClusters] = useState(false);
+  const [activeLetter, setActiveLetter] = useState("");
   const [labelReviewed, setLabelReviewed] = useState(false);
   const [isTogglingReview, setIsTogglingReview] = useState(false);
 
@@ -570,10 +571,56 @@ export default function DatasetClusters() {
     return letters;
   }, [filteredClusters]);
 
+  // Track active letter via IntersectionObserver
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    // Build a map from cluster ID to its first letter
+    const clusterLetterMap = new Map<string, string>();
+    for (const c of filteredClusters) {
+      const firstChar = c.title.charAt(0).toUpperCase();
+      const letter = /[A-Z]/.test(firstChar) ? firstChar : "#";
+      clusterLetterMap.set(String(c.id), letter);
+    }
+
+    // Disconnect previous observer
+    observerRef.current?.disconnect();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the topmost visible entry
+        let topEntry: IntersectionObserverEntry | null = null;
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (!topEntry || entry.boundingClientRect.top < topEntry.boundingClientRect.top) {
+              topEntry = entry;
+            }
+          }
+        }
+        if (topEntry) {
+          const clusterId = (topEntry.target as HTMLElement).dataset.clusterId;
+          if (clusterId && clusterLetterMap.has(clusterId)) {
+            setActiveLetter(clusterLetterMap.get(clusterId)!);
+          }
+        }
+      },
+      { rootMargin: "-106px 0px -80% 0px", threshold: 0 }
+    );
+
+    observerRef.current = observer;
+
+    // Observe all cluster card elements
+    const elements = document.querySelectorAll("[data-cluster-id]");
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [filteredClusters]);
+
   // Full alphabet for navigation
   const alphabet = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
   const scrollToLetter = (letter: string) => {
+    setActiveLetter(letter);
     const cluster = filteredClusters.find((c) => {
       const firstChar = c.title.charAt(0).toUpperCase();
       if (letter === "#") {
@@ -583,7 +630,7 @@ export default function DatasetClusters() {
     });
     if (cluster) {
       const element = document.querySelector(`[data-cluster-id="${cluster.id}"]`);
-      element?.scrollIntoView({ behavior: "smooth", block: "start" });
+      element?.scrollIntoView({ behavior: "instant", block: "start" });
     }
   };
 
@@ -709,16 +756,18 @@ export default function DatasetClusters() {
               {alphabet.map((letter) => {
                 const isActive = availableLetters.has(letter);
                 return (
-                  <button
+                  <Button
                     key={letter}
+                    variant="outline"
                     className={classNames(styles["alphabet-nav__button"], {
                       [styles["alphabet-nav__button--disabled"]]: !isActive,
+                      [styles["alphabet-nav__button--active"]]: isActive && activeLetter === letter,
                     })}
                     onClick={() => scrollToLetter(letter)}
                     disabled={!isActive}
                   >
                     {letter}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

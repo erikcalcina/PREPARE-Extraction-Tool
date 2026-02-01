@@ -199,16 +199,23 @@
   border-radius: 4px;
   background: #ffffff;
   color: #374151;
+  padding: 0;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.alphabet-nav__button:hover:not(:disabled) {
+.alphabet-nav__button:hover:not(:disabled):not(.alphabet-nav__button--active) {
   background: #f6fafc;
   border-color: #11415e;
   color: #144d70;
+}
+
+.alphabet-nav__button--active {
+  background-color: #144d70 !important;
+  border-color: #144d70 !important;
+  color: #ffffff !important;
 }
 
 .alphabet-nav__button--disabled {
