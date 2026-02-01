@@ -1,8 +1,8 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Layout from "components/Layout";
-import { usePageTitle } from '@/hooks/usePageTitle';
-import { useToast } from '@/hooks/useToast';
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { useToast } from "@/hooks/useToast";
 import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "types";
 import * as api from "api";
 import ConceptDetailModal from "./ConceptDetailModal";
@@ -10,6 +10,7 @@ import { ToastContainer } from "components/Toast/ToastContainer";
 import ConfirmDialog from "components/ConfirmDialog";
 import Button from "components/Button";
 import StatCard from "components/StatCard";
+import WorkflowPageHeader from "@/components/WorkflowPageHeader";
 import SourceTermsTable from "./SourceTermsTable";
 import SearchFiltersPanel from "./SearchFiltersPanel";
 import TargetConceptsList from "./TargetConceptsList";
@@ -17,7 +18,6 @@ import styles from "./styles.module.css";
 
 export default function DatasetMapping() {
   const { datasetId } = useParams<{ datasetId: string }>();
-  const navigate = useNavigate();
 
   const [datasetName, setDatasetName] = useState<string>("");
   const [mappings, setMappings] = useState<ClusterMapping[]>([]);
@@ -394,30 +394,21 @@ export default function DatasetMapping() {
     <Layout>
       <div className={styles.page}>
         {/* Header with Navigation */}
-        <div className={styles.header}>
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/datasets/${datasetId}/clusters`)}
-            title="Back to Clustering"
-          >
-            ← Back to Clustering
-          </Button>
-
-          <div className={styles.pageInfo}>
-            <h1 className={styles.pageTitle}>Concept Mapping</h1>
-            <button
-              className={styles.datasetLink}
-              onClick={() => navigate(`/datasets/${datasetId}`)}
-              title="Go to Dataset Overview"
-            >
-              Dataset: {datasetName || "Loading..."}
-            </button>
-          </div>
-
-          <Button variant="outline" onClick={() => navigate(`/datasets/${datasetId}`)} title="Go to Overview">
-            Overview →
-          </Button>
-        </div>
+        <WorkflowPageHeader
+          title="Concept Mapping"
+          datasetId={datasetId!}
+          datasetName={datasetName}
+          backButton={{
+            label: "Back to Clustering",
+            to: `/datasets/${datasetId}/clusters`,
+            title: "Back to Clustering",
+          }}
+          forwardButton={{
+            label: "Overview",
+            to: `/datasets/${datasetId}`,
+            title: "Go to Overview",
+          }}
+        />
 
         {/* Stats Section with Actions */}
         <div className={styles.statsSection}>
@@ -452,7 +443,9 @@ export default function DatasetMapping() {
         {error && (
           <div className={styles.error}>
             {error}
-            <button onClick={() => setError(null)}>×</button>
+            <Button variant="ghost" size="icon" onClick={() => setError(null)}>
+              ×
+            </Button>
           </div>
         )}
 
