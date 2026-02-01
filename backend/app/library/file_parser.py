@@ -287,6 +287,7 @@ def build_clusters_download_json(
         "clusters": [
             {
                 "cluster_name": cluster.title,
+                "label": cluster.label,
                 "terms": sorted(term_map.get(cluster.id, set())),
             }
             for cluster in clusters
