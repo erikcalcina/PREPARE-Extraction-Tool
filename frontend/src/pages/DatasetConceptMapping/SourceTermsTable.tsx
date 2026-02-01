@@ -1,30 +1,25 @@
 import React, { useState, useMemo, useEffect } from "react";
-import type { ClusterMapping } from "types";
-import Table, { type Column } from "components/Table";
-import LoadingSpinner from "components/LoadingSpinner";
-import { Select } from "components/Select";
-import Pagination from "components/Pagination";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faXmark, faMagnifyingGlass, faQuestion } from "@fortawesome/free-solid-svg-icons";
+
+import Table, { type Column } from "@components/Table";
+import LoadingSpinner from "@components/LoadingSpinner";
+import { Select } from "@components/Select";
+import Pagination from "@components/Pagination";
+
+import type { ClusterMapping } from "@/types";
+import type { IconProp } from "@fortawesome/fontawesome-svg-core";
+
 import styles from "./styles.module.css";
 
-function getLabelColorClass(label: string): string {
-  const labelMap: Record<string, string> = {
-    Condition: "condition",
-    Medication: "medication",
-    "Lab Test": "labtest",
-    Procedure: "procedure",
-    "Body Part": "bodypart",
+function getStatusIcon(status: string): IconProp {
+  const statusMap: Record<string, IconProp> = {
+    unmapped: faQuestion,
+    pending: faMagnifyingGlass,
+    approved: faCheck,
+    rejected: faXmark,
   };
-  return labelMap[label] || "default";
-}
-
-function getStatusColorClass(status: string): string {
-  const statusMap: Record<string, string> = {
-    unmapped: "unmapped",
-    pending: "pending",
-    approved: "approved",
-    rejected: "rejected",
-  };
-  return statusMap[status] || "unmapped";
+  return statusMap[status] || faQuestion;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -39,7 +34,7 @@ interface SourceTermsTableProps {
   onLabelChange: (label: string) => void;
 }
 
-export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
+const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
   mappings,
   selectedMapping,
   onSelectMapping,
@@ -98,15 +93,8 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       {
         key: "status",
         header: "Status",
-        render: (mapping: ClusterMapping) => (
-          <span
-            className={`${styles.statusBadge} ${styles[getStatusColorClass(mapping.status)]}`}
-            role="status"
-            aria-label={`Status: ${mapping.status}`}
-          >
-            {mapping.status.charAt(0).toUpperCase()}
-          </span>
-        ),
+        align: "center",
+        render: (mapping: ClusterMapping) => <FontAwesomeIcon icon={getStatusIcon(mapping.status)} />,
       },
       {
         key: "cluster_id",
@@ -123,11 +111,7 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       {
         key: "cluster_label",
         header: "Label",
-        render: (mapping: ClusterMapping) => (
-          <span className={`${styles.labelBadge} ${styles[getLabelColorClass(mapping.cluster_label)]}`}>
-            {mapping.cluster_label}
-          </span>
-        ),
+        render: (mapping: ClusterMapping) => <span className={styles.labelBadge}>{mapping.cluster_label}</span>,
       },
       {
         key: "concept_id",

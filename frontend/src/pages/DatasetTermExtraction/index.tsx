@@ -13,19 +13,21 @@ import HighlightedText from "./HighlightedText";
 import RecordItem from "./RecordItem";
 import AnnotationSidebar from "./AnnotationSidebar";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
+
 import type { SourceTermCreate } from "@/types";
 
 import styles from "./styles.module.css";
 import ProgressBar from "@/components/ProgressBar";
 import { downloadDataset as downloadDatasetAPI } from "@/api";
 
-const DatasetRecords: React.FC = () => {
+const DatasetTermExtraction: React.FC = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [patientIdQuery, setPatientIdQuery] = useState("");
   const [reviewStatusFilter, setReviewStatusFilter] = useState<"all" | "reviewed" | "not_reviewed">("all");
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const [displayMode] = useState<"percentage" | "ratio">("percentage");
 
   // Annotation state
   const [isAnnotating, setIsAnnotating] = useState(false);
@@ -46,7 +48,6 @@ const DatasetRecords: React.FC = () => {
     isLoading,
     isLoadingMore,
     isLoadingTerms,
-    isExtracting,
     isExtractingDataset,
     isCancellingExtraction,
     extractionProgress,
@@ -58,7 +59,6 @@ const DatasetRecords: React.FC = () => {
     addSourceTerm,
     removeSourceTerm,
     updateSourceTermLabel,
-    extractTermsForRecord,
     extractTermsForDataset,
     cancelDatasetExtraction,
     deleteExtractedTermsForDataset,
@@ -264,18 +264,6 @@ const DatasetRecords: React.FC = () => {
     }
   }, []);
 
-  // Extract terms handlers
-  const handleExtractTermsForRecord = useCallback(async () => {
-    if (!selectedRecord) return;
-    try {
-      const response = await extractTermsForRecord();
-      alert(response.message || "Terms extracted successfully");
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to extract terms";
-      alert(`Error: ${errorMessage}`);
-    }
-  }, [selectedRecord, extractTermsForRecord]);
-
   const handleExtractTermsForDataset = useCallback(async () => {
     if (!stats?.total_records) return;
 
@@ -333,9 +321,7 @@ const DatasetRecords: React.FC = () => {
   const totalRecords = stats?.total_records ?? 0;
   const reviewedRecords = records.filter((r) => r.reviewed).length;
 
-  const reviewedPercentage = totalRecords > 0 ? `${((reviewedRecords / totalRecords) * 100).toFixed(1)}` : "0.0%";
-
-  const reviewedValue = displayMode === "percentage" ? reviewedPercentage : reviewedRecords;
+  const reviewedPercentage = totalRecords > 0 ? `${((reviewedRecords / totalRecords) * 100).toFixed(1)}%` : "0.0%";
 
   return (
     <Layout>
@@ -360,9 +346,9 @@ const DatasetRecords: React.FC = () => {
               <p>Annotate the text with the appropriate labels to identify medical terms for standardization.</p>
               <strong>How to use:</strong>
               <ul>
-                <li>Click Extract All Terms to automatically identify terms</li>
-                <li>Click Edit Labels to manually add or remove annotations</li>
-                <li>Mark records as Reviewed when done</li>
+                <li>Click Auto-Detect Terms in All Records to automatically identify terms</li>
+                <li>Click Edit Labels to manually add or remove term labels</li>
+                <li>Mark record as Reviewed when done</li>
                 <li>Use filters to find specific records</li>
               </ul>
             </>
@@ -372,9 +358,9 @@ const DatasetRecords: React.FC = () => {
         {/* Statistics and Actions */}
         <div className={styles["stats-section"]}>
           <div className={styles["stats-section__grid"]}>
-            <StatCard label="Total" value={stats?.total_records ?? 0} />
-            <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
-            <StatCard label="Reviewed" value={reviewedValue} color="green" />
+            <StatCard label="Records" value={stats?.total_records ?? 0} />
+            <StatCard label="Identified Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
+            <StatCard label="Reviewed Records" value={reviewedPercentage} color="green" />
           </div>
           <div className={styles["stats-section__actions"]}>
             {isExtractingDataset ? (
@@ -408,16 +394,6 @@ const DatasetRecords: React.FC = () => {
               <>
                 <Button
                   variant="outline"
-                  onClick={handleExtractTermsForDataset}
-                  disabled={!dataset?.labels?.length}
-                  title={
-                    !dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"
-                  }
-                >
-                  Auto-Detect Terms in All Records
-                </Button>
-                <Button
-                  variant="outline"
                   onClick={handleTermDownload}
                   disabled={totalRecords === 0}
                   title={
@@ -429,11 +405,21 @@ const DatasetRecords: React.FC = () => {
                   Download Term Dataset
                 </Button>
                 <Button
+                  variant="outline"
+                  onClick={handleExtractTermsForDataset}
+                  disabled={!dataset?.labels?.length}
+                  title={
+                    !dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"
+                  }
+                >
+                  Auto-Detect Terms in All Records
+                </Button>
+                <Button
                   variant="danger"
                   onClick={handleDeleteExtractedTerms}
                   title="Delete all automatically extracted terms"
                 >
-                  Delete Extracted Terms
+                  Delete Auto-Extracted Terms
                 </Button>
               </>
             )}
@@ -537,21 +523,21 @@ const DatasetRecords: React.FC = () => {
                       <Button
                         variant="outline"
                         size="small"
-                        onClick={handleExtractTermsForRecord}
-                        disabled={isExtracting || !dataset?.labels?.length}
-                        title={
-                          !dataset?.labels?.length
-                            ? "No labels defined for this dataset"
-                            : "Extract terms from this record"
-                        }
+                        onClick={handleOpenAnnotation}
+                        disabled={selectedRecord.reviewed}
+                        title={selectedRecord.reviewed ? "Unmark as reviewed to edit labels" : "Edit Labels"}
                       >
-                        {isExtracting ? "Extracting..." : "Extract Terms"}
-                      </Button>
-                      <Button variant="primary" size="small" onClick={handleOpenAnnotation}>
                         Edit Labels
                       </Button>
-                      <Button variant="success" size="small" onClick={handleMarkReviewed}>
-                        {selectedRecord.reviewed ? "Unmark Reviewed" : "Mark Reviewed"}
+                      <Button
+                        variant={selectedRecord.reviewed ? "success" : "primary"}
+                        size="small"
+                        onClick={handleMarkReviewed}
+                      >
+                        {selectedRecord.reviewed ? <FontAwesomeIcon icon={faCheck} /> : null}
+                        <span className={styles["record-navigation__review-text"]}>
+                          {selectedRecord.reviewed ? "Reviewed" : "Mark as Reviewed"}
+                        </span>
                       </Button>
                     </div>
                   </div>
@@ -621,7 +607,6 @@ const DatasetRecords: React.FC = () => {
             ) : (
               <div className={styles["record-text-panel"]}>
                 <div className={styles["empty-state"]}>
-                  <div className={styles["empty-state__icon"]}>👈</div>
                   <p className={styles["empty-state__text"]}>Select a record to view details</p>
                 </div>
               </div>
@@ -649,10 +634,11 @@ const DatasetRecords: React.FC = () => {
           hasNextRecord={hasNextRecord}
           onMarkReviewed={handleMarkReviewedInSidebar}
           isReviewed={selectedRecord?.reviewed ?? false}
+          readOnly={selectedRecord?.reviewed ?? false}
         />
       </div>
     </Layout>
   );
 };
 
-export default DatasetRecords;
+export default DatasetTermExtraction;

@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import type { ConceptHierarchy } from "types";
-import * as api from "api";
-import LoadingSpinner from "components/LoadingSpinner";
-import Button from "components/Button";
+
+import LoadingSpinner from "@components/LoadingSpinner";
+import Button from "@components/Button";
+import * as api from "@/api";
+
+import type { ConceptHierarchy } from "@/types";
+
 import styles from "./styles.module.css";
 
 interface ConceptDetailModalProps {

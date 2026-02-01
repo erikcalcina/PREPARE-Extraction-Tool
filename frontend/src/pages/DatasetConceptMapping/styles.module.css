@@ -10,105 +10,6 @@
    Toolbar
    ================================================ */
 
-.toolbarSection {
-  margin-bottom: 24px;
-  width: 100%;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
-  align-items: center;
-  flex-wrap: wrap;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.toolbarFilters {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  flex: 1;
-}
-
-.filterSection {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  width: 100%;
-  margin-bottom: 20px;
-}
-
-.labelFilter,
-.vocabularyFilter,
-.filterInput,
-.searchInput {
-  padding: 10px 14px;
-  background: #ffffff;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.labelFilter {
-  flex: 1;
-  min-width: 300px;
-}
-
-.vocabularyFilter {
-  min-width: 250px;
-  max-height: 38px;
-}
-
-.filterInput {
-  min-width: 250px;
-}
-
-.searchInput {
-  flex: 1;
-  min-width: 200px;
-  background: #f9fafb;
-}
-
-.labelFilter:focus,
-.vocabularyFilter:focus,
-.filterInput:focus,
-.searchInput:focus {
-  outline: none;
-  border-color: #11415e;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.checkboxLabel input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.checkboxLabel:hover {
-  background: #f9fafb;
-}
-
 .toolbarButtons {
   display: flex;
   gap: 12px;
@@ -119,11 +20,6 @@
 /* ================================================
    Stats Cards
    ================================================ */
-
-.stats {
-  grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
-  gap: 12px;
-}
 
 .statsContainer {
   display: flex;
@@ -151,10 +47,6 @@
 }
 
 /* Label Dropdown Row */
-.labelDropdownRow {
-  margin-bottom: 16px;
-}
-
 .labelDropdownSelect {
   min-width: 180px;
 }
@@ -375,63 +267,9 @@
   border-color: #11415e;
 }
 
-/* Legacy support - will be removed */
-.mappingsTableSection {
-  background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  max-height: 350px;
-  overflow: auto;
-}
-
-.mappingsTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-
-.mappingsTable thead {
-  position: sticky;
-  top: 0;
-  background: #f0f0f0;
-  z-index: 10;
-}
-
-.mappingsTable th {
-  padding: 4px 8px;
-  text-align: left;
-  font-weight: 600;
-  color: #000;
-  border-bottom: 1px solid #d0d0d0;
-  border-right: 1px solid #e0e0e0;
-  white-space: nowrap;
-  font-size: 11px;
-}
-
-.mappingsTable td {
-  padding: 3px 8px;
-  border-bottom: 1px solid #e8e8e8;
-  border-right: 1px solid #f0f0f0;
-  color: #000;
-  font-size: 11px;
-}
-
-.mappingsTable tbody tr {
-  cursor: pointer;
-  background: #fff;
-}
-
-.mappingsTable tbody tr:hover {
-  background: #e8f4f8;
-}
-
-.mappingsTable tbody tr.selectedRow {
-  background: #d4e9f7;
-}
-
-.mappingsTable tbody tr.selectedRow:hover {
-  background: #c0ddf5;
-}
+/* ================================================
+   Badges
+   ================================================ */
 
 .labelBadge {
   padding: 2px 10px;
@@ -442,34 +280,64 @@
   letter-spacing: 0.5px;
 }
 
-.labelBadge.condition {
+.labelBadge--condition {
   background: #fef3c7;
   color: #92400e;
 }
 
-.labelBadge.medication {
+.labelBadge--medication {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.labelBadge.labtest {
+.labelBadge--labtest {
   background: #e0e7ff;
   color: #4338ca;
 }
 
-.labelBadge.procedure {
+.labelBadge--procedure {
   background: #fce7f3;
   color: #831843;
 }
 
-.labelBadge.bodypart {
+.labelBadge--bodypart {
   background: #d1fae5;
   color: #065f46;
 }
 
-.labelBadge.default {
+.labelBadge--default {
   background: #f3f4f6;
   color: #374151;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statusBadge--unmapped {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.statusBadge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge--approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge--rejected {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .clusterTitle {
@@ -485,332 +353,6 @@
   font-size: 12px;
   color: #6b7280;
   margin-bottom: 8px;
-}
-
-.statusBadge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.statusBadge.unmapped {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.statusBadge.pending {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.statusBadge.approved {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.statusBadge.rejected {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-/* ================================================
-   Middle Section - Two Column Layout
-   ================================================ */
-
-.middleSection {
-  display: grid;
-  grid-template-columns: 40% 60%;
-  gap: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  border-top: 1px solid #d0d0d0;
-}
-
-.leftColumn {
-  border-right: 1px solid #d0d0d0;
-  background: #fff;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.rightColumn {
-  background: #fff;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Source Code Section */
-.sourceCodeSection {
-  border-bottom: 1px solid #d0d0d0;
-  padding: 8px;
-}
-
-.sectionHeader {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #000;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.infoTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-
-.infoTable td {
-  padding: 4px 8px;
-  border: 1px solid #e0e0e0;
-}
-
-.infoLabel {
-  background: #f5f5f5;
-  font-weight: 600;
-  width: 120px;
-}
-
-.noSelection {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  font-size: 11px;
-}
-
-/* Target Concepts Section */
-.targetConceptsSection {
-  padding: 8px;
-  flex: 1;
-}
-
-.targetTableWrapper {
-  margin-bottom: 8px;
-  overflow-x: auto;
-}
-
-.targetTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-
-.targetTable th,
-.targetTable td {
-  padding: 4px 6px;
-  text-align: left;
-  border: 1px solid #d0d0d0;
-}
-
-.targetTable th {
-  background: #f0f0f0;
-  font-weight: 600;
-  color: #000;
-}
-
-.noTarget {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  font-size: 11px;
-}
-
-/* Search Section */
-.searchSection {
-  border-bottom: 1px solid #d0d0d0;
-  padding: 8px;
-}
-
-.querySection {
-  margin-bottom: 12px;
-}
-
-.queryLabel {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #000;
-}
-
-.radioOption {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  margin-bottom: 4px;
-  cursor: pointer;
-}
-
-.radioOption input[type="radio"] {
-  cursor: pointer;
-}
-
-.queryInput {
-  width: 100%;
-  padding: 4px 6px;
-  border: 1px solid #c0c0c0;
-  font-size: 11px;
-  margin-top: 4px;
-  font-family: inherit;
-}
-
-.filtersSection {
-  margin-bottom: 8px;
-}
-
-.checkboxOption {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  margin-bottom: 4px;
-  cursor: pointer;
-}
-
-.checkboxOption input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.filterDropdown {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 6px;
-}
-
-.filterDropdown label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #000;
-}
-
-.filterSelect {
-  padding: 3px 6px;
-  border: 1px solid #c0c0c0;
-  font-size: 11px;
-  font-family: inherit;
-}
-
-/* Results Section */
-.resultsSection {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  overflow: hidden;
-}
-
-.resultsTableWrapper {
-  flex: 1;
-  overflow-y: auto;
-  border: 1px solid #d0d0d0;
-  margin-bottom: 8px;
-}
-
-.resultsTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-
-.resultsTable thead {
-  position: sticky;
-  top: 0;
-  background: #f0f0f0;
-  z-index: 5;
-}
-
-.resultsTable th {
-  padding: 4px 6px;
-  text-align: left;
-  font-weight: 600;
-  color: #000;
-  border: 1px solid #d0d0d0;
-  white-space: nowrap;
-}
-
-.resultsTable td {
-  padding: 3px 6px;
-  border: 1px solid #e0e0e0;
-  color: #000;
-}
-
-.resultsTable tbody tr.resultRow {
-  cursor: pointer;
-  background: #fff;
-}
-
-.resultsTable tbody tr.resultRow:hover {
-  background: #e8f4f8;
-}
-
-.resultsActions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.btnReplaceConcept,
-.btnAddConcept {
-  padding: 4px 12px;
-  background: #f0f0f0;
-  border: 1px solid #c0c0c0;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  font-family: inherit;
-}
-
-.btnReplaceConcept:hover,
-.btnAddConcept:hover:not(:disabled) {
-  background: #e0e0e0;
-}
-
-.btnReplaceConcept:disabled,
-.btnAddConcept:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Bottom Bar */
-.bottomBar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px;
-  background: #f5f5f5;
-  border-top: 1px solid #d0d0d0;
-}
-
-.commentContainer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
-
-.commentContainer label {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.commentContainer .commentInput {
-  flex: 1;
-  padding: 4px 6px;
-  border: 1px solid #c0c0c0;
-  font-size: 11px;
-  font-family: inherit;
-}
-
-.approvalInfo {
-  font-size: 11px;
-  color: #666;
 }
 
 .vocabularyBadge,
@@ -839,25 +381,6 @@
   color: #4338ca;
 }
 
-.mappingActions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Keep for backwards compatibility */
-.clusterTitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: #11415e;
-}
-
-.clusterStats {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
 .unmappedState {
   padding: 20px;
   text-align: center;
@@ -880,29 +403,6 @@
   color: #999;
   padding: 40px 20px;
   font-style: italic;
-}
-
-/* Keep checkboxLabel for toolbar */
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.checkboxLabel input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.checkboxLabel:hover {
-  background: #f9fafb;
 }
 
 /* ================================================

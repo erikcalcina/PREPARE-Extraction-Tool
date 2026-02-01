@@ -7,9 +7,9 @@ import ProtectedRoute from "components/ProtectedRoute";
 const Login = lazy(() => import("pages/Login"));
 const Datasets = lazy(() => import("pages/Datasets"));
 const DatasetOverview = lazy(() => import("pages/DatasetOverview"));
-const DatasetRecords = lazy(() => import("pages/DatasetRecords"));
-const DatasetClusters = lazy(() => import("pages/DatasetClusters"));
-const DatasetMapping = lazy(() => import("pages/DatasetMapping"));
+const DatasetTermExtraction = lazy(() => import("pages/DatasetTermExtraction"));
+const DatasetTermClustering = lazy(() => import("pages/DatasetTermClustering"));
+const DatasetConceptMapping = lazy(() => import("pages/DatasetConceptMapping"));
 const DatasetUpload = lazy(() => import("pages/DatasetUpload"));
 const Vocabularies = lazy(() => import("pages/Vocabularies"));
 const VocabularyDetail = lazy(() => import("pages/VocabularyDetail"));
@@ -55,7 +55,7 @@ function App() {
               path="/datasets/:datasetId/records"
               element={
                 <ProtectedRoute>
-                  <DatasetRecords />
+                  <DatasetTermExtraction />
                 </ProtectedRoute>
               }
             />
@@ -63,7 +63,7 @@ function App() {
               path="/datasets/:datasetId/clusters"
               element={
                 <ProtectedRoute>
-                  <DatasetClusters />
+                  <DatasetTermClustering />
                 </ProtectedRoute>
               }
             />
@@ -71,7 +71,7 @@ function App() {
               path="/datasets/:datasetId/mapping"
               element={
                 <ProtectedRoute>
-                  <DatasetMapping />
+                  <DatasetConceptMapping />
                 </ProtectedRoute>
               }
             />

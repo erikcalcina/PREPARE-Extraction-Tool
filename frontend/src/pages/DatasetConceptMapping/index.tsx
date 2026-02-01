@@ -1,22 +1,26 @@
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import Layout from "components/Layout";
-import { usePageTitle } from "@/hooks/usePageTitle";
-import { useToast } from "@/hooks/useToast";
-import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "types";
-import * as api from "api";
+
+import Layout from "@components/Layout";
+import Button from "@components/Button";
+import StatCard from "@components/StatCard";
+import ConfirmDialog from "@components/ConfirmDialog";
+import { ToastContainer } from "@components/Toast/ToastContainer";
+import WorkflowPageHeader from "@components/WorkflowPageHeader";
+import { usePageTitle } from "@hooks/usePageTitle";
+import { useToast } from "@hooks/useToast";
+import * as api from "@/api";
+
 import ConceptDetailModal from "./ConceptDetailModal";
-import { ToastContainer } from "components/Toast/ToastContainer";
-import ConfirmDialog from "components/ConfirmDialog";
-import Button from "components/Button";
-import StatCard from "components/StatCard";
-import WorkflowPageHeader from "@/components/WorkflowPageHeader";
 import SourceTermsTable from "./SourceTermsTable";
 import SearchFiltersPanel from "./SearchFiltersPanel";
 import TargetConceptsList from "./TargetConceptsList";
+
+import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "@/types";
+
 import styles from "./styles.module.css";
 
-export default function DatasetMapping() {
+export default function DatasetConceptMapping() {
   const { datasetId } = useParams<{ datasetId: string }>();
 
   const [datasetName, setDatasetName] = useState<string>("");
@@ -55,9 +59,9 @@ export default function DatasetMapping() {
   const [isMapping, setIsMapping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // TODO: Wire up concept detail modal trigger from TargetConceptsList
   const [selectedConcept, setSelectedConcept] = useState<ConceptSearchResult | null>(null);
   const [showConceptModal, setShowConceptModal] = useState(false);
-  // Silence unused warning - will be used for concept detail modal
   void setSelectedConcept;
 
   const toast = useToast();
@@ -67,7 +71,7 @@ export default function DatasetMapping() {
     message: string;
     onConfirm: () => void;
     variant?: "danger" | "warning" | "info";
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => { } });
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   usePageTitle(datasetName ? `Concept Mapping - ${datasetName}` : "Concept Mapping");
 
@@ -390,6 +394,19 @@ export default function DatasetMapping() {
             to: `/datasets/${datasetId}`,
             title: "Go to Overview",
           }}
+          helpContent={
+            <>
+              <p>Map clustered source terms to standard vocabulary concepts (OMOP CDM).</p>
+              <strong>How to use:</strong>
+              <ul>
+                <li>Select a source term from the Source Terms table to search for matching concepts</li>
+                <li>Use filters to narrow results by vocabulary, domain, or concept class</li>
+                <li>Click on a target concept to assign it, then click Accept to approve</li>
+                <li>Click Auto-Map All Terms to automatically map all unmapped clusters</li>
+                <li>Download Mappings to export results when done</li>
+              </ul>
+            </>
+          }
         />
 
         {/* Stats Section with Actions */}
@@ -402,17 +419,12 @@ export default function DatasetMapping() {
           </div>
 
           <div className={styles.toolbarButtons}>
-            <Button
-              variant="success"
-              size="small"
-              onClick={handleAutoMapAll}
-              disabled={isLoading || vocabularies.length === 0}
-            >
-              Auto-Map All
+            <Button variant="success" onClick={handleAutoMapAll} disabled={isLoading || vocabularies.length === 0}>
+              Auto-Map All Terms
             </Button>
 
-            <Button variant="primary" size="small" onClick={handleExport}>
-              Export
+            <Button variant="primary" onClick={handleExport}>
+              Download Mappings
             </Button>
           </div>
         </div>

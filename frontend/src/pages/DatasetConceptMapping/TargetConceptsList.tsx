@@ -1,7 +1,10 @@
 import React, { useMemo } from "react";
-import type { ClusterMapping, ConceptSearchResult, PaginationMetadata } from "types";
-import Table, { type Column, type SortState } from "components/Table";
-import Pagination from "components/Pagination";
+
+import Table, { type Column, type SortState } from "@components/Table";
+import Pagination from "@components/Pagination";
+
+import type { ClusterMapping, ConceptSearchResult, PaginationMetadata } from "@/types";
+
 import styles from "./styles.module.css";
 
 interface TargetConceptsListProps {
@@ -23,7 +26,7 @@ const SORT_KEY_MAP: Record<string, "relevance" | "name" | "domain"> = {
   domain_id: "domain",
 };
 
-export const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
+const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
   selectedMapping,
   searchResults,
   isSearching,

@@ -23,7 +23,7 @@ import type { ClusterData, ClusteredTerm } from "@/types";
 
 import styles from "./styles.module.css";
 
-export default function DatasetClusters() {
+export default function DatasetTermClustering() {
   const { datasetId } = useParams<{ datasetId: string }>();
   const [clusters, setClusters] = useState<ClusterData[]>([]);
   const [unclusteredTerms, setUnclusteredTerms] = useState<ClusteredTerm[]>([]);
@@ -131,7 +131,7 @@ export default function DatasetClusters() {
     if (!datasetId) return;
     try {
       setIsDownloadingClusters(true);
-      await api.downloadClusters(parseInt(datasetId, 10), selectedLabel || undefined);
+      await api.downloadClusters(parseInt(datasetId, 10));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to download clusters");
     } finally {
@@ -692,17 +692,18 @@ export default function DatasetClusters() {
             <div className={styles["stats-grid"]}>
               <StatCard label="Clusters" value={stats.totalClusters} />
               <StatCard label="Terms" value={stats.totalTerms} color="blue" />
-              <StatCard label="Avg/Cluster" value={stats.avgTermsPerCluster} color="green" />
-              <StatCard label="Unclustered" value={stats.unclusteredCount} color="orange" />
+              <StatCard label="Avg Terms per Cluster" value={stats.avgTermsPerCluster} color="green" />
+              <StatCard label="Unclustered Terms" value={stats.unclusteredCount} color="orange" />
             </div>
             <div className={styles["page-actions"]}>
               <Button
+                variant="outline"
                 onClick={handleDownloadClusters}
                 disabled={isDownloadingClusters || (clusters.length === 0 && unclusteredTerms.length === 0)}
                 className={styles["download-button"]}
-                title="Download current clusters as JSON"
+                title="Download term clusters in JSON format"
               >
-                {isDownloadingClusters ? "Downloading..." : "Download"}
+                {isDownloadingClusters ? "Downloading..." : "Download Term Clusters"}
               </Button>
             </div>
           </div>
@@ -725,19 +726,24 @@ export default function DatasetClusters() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={styles["search-input"]}
               />
-              <Button variant="outline" onClick={handleCreateCluster}>
-                <FontAwesomeIcon icon={faPlus} /> New Cluster
-              </Button>
-              <Button variant="primary" onClick={handleAutoClustering} disabled={isAutoClustering || !selectedLabel}>
-                {isAutoClustering ? "Clustering..." : "Auto-Cluster Terms"}
-              </Button>
+              {!labelReviewed && (
+                <>
+                  <Button variant="outline" onClick={handleCreateCluster}>
+                    <FontAwesomeIcon icon={faPlus} /> New Cluster
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleAutoClustering}
+                    disabled={isAutoClustering || !selectedLabel}
+                  >
+                    {isAutoClustering ? "Clustering..." : "Auto-Cluster Terms"}
+                  </Button>
+                </>
+              )}
               <Button
                 variant={labelReviewed ? "success" : "primary"}
                 onClick={handleToggleReview}
                 disabled={isTogglingReview || clusters.length === 0 || !selectedLabel}
-                className={classNames(styles["review-button"], {
-                  [styles["review-button--reviewed"]]: labelReviewed,
-                })}
                 title={labelReviewed ? "Unmark label as reviewed" : "Mark all clusters for this label as reviewed"}
               >
                 {isTogglingReview ? (
@@ -804,13 +810,16 @@ export default function DatasetClusters() {
                       onDelete={() => handleDelete(cluster.id)}
                       onRemoveTerm={handleRemoveTerm}
                       isDraggingCluster={activeDragCluster !== null}
+                      readOnly={labelReviewed}
                     />
                   ))}
                 </div>
               )}
             </div>
           )}
-          {unclusteredTerms.length > 0 && <DroppableUnclusteredArea terms={unclusteredTerms} />}
+          {unclusteredTerms.length > 0 && (
+            <DroppableUnclusteredArea terms={unclusteredTerms} readOnly={labelReviewed} />
+          )}
           <DragOverlay>
             {activeDragTerm ? <TermOverlay term={activeDragTerm} /> : null}
             {activeDragCluster ? <ClusterOverlay cluster={activeDragCluster} /> : null}

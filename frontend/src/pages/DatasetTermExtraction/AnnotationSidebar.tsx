@@ -31,6 +31,7 @@ export interface AnnotationSidebarProps {
   hasNextRecord?: boolean;
   onMarkReviewed?: () => void;
   isReviewed?: boolean;
+  readOnly?: boolean;
 }
 
 const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
@@ -52,6 +53,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
   hasNextRecord = true,
   onMarkReviewed,
   isReviewed = false,
+  readOnly = false,
 }) => {
   // Handle label selection - either update selected annotation or select for new annotations
   const handleLabelSelection = useCallback(
@@ -76,13 +78,13 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
       }
 
       const key = parseInt(e.key, 10);
-      if (key >= 1 && key <= 9 && key <= labels.length) {
+      if (!readOnly && key >= 1 && key <= 9 && key <= labels.length) {
         e.preventDefault();
         handleLabelSelection(labels[key - 1]);
       }
 
       // Delete selected annotation with Delete or Backspace
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedAnnotation !== null) {
+      if (!readOnly && (e.key === "Delete" || e.key === "Backspace") && selectedAnnotation !== null) {
         e.preventDefault();
         onDeleteAnnotation(selectedAnnotation);
         onSelectAnnotation(null);
@@ -117,6 +119,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
       hasPreviousRecord,
       hasNextRecord,
       onMarkReviewed,
+      readOnly,
     ]
   );
 
@@ -129,37 +132,43 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
   return (
     <Sidebar isOpen={isOpen} onClose={onClose} title="Annotation Panel" width="75vw">
-      <div className={styles['annotation-sidebar']}>
+      <div className={styles["annotation-sidebar"]}>
         {/* Left side - Text to annotate */}
         <div>
           {/* Label selector */}
-          <div className={styles['label-section']}>
-            <h3 className={styles['section-title']}>Labels</h3>
-            <div className={styles['label-section__buttons']}>
+          <div className={styles["label-section"]}>
+            <h3 className={styles["section-title"]}>Labels</h3>
+            <div className={styles["label-section__buttons"]}>
               {labels.map((label, index) => (
                 <button
                   key={label}
-                  className={classNames(styles['label-button'], styles[`label${index + 1}`], {
-                    [styles['label-button--active']]: selectedLabel === label,
+                  className={classNames(styles["label-button"], styles[`label${index + 1}`], {
+                    [styles["label-button--active"]]: selectedLabel === label,
                   })}
                   onClick={() => handleLabelSelection(label)}
+                  disabled={readOnly}
                 >
-                  <span className={styles['label-button__shortcut']}>{index + 1}</span>
+                  <span className={styles["label-button__shortcut"]}>{index + 1}</span>
                   {label}
                 </button>
               ))}
             </div>
-            {labels.length === 0 && <p className={styles['label-section__empty']}>No labels defined for this dataset.</p>}
+            {labels.length === 0 && (
+              <p className={styles["label-section__empty"]}>No labels defined for this dataset.</p>
+            )}
           </div>
-          <div className={styles['annotation-text']}>
-            <div className={styles['annotation-text__header']}>
-              <h3 className={styles['section-title']}>Medical Record</h3>
-              <span className={styles['annotation-text__help']}>
+          <div className={styles["annotation-text"]}>
+            <div className={styles["annotation-text__header"]}>
+              <h3 className={styles["section-title"]}>Medical Record</h3>
+              <span className={styles["annotation-text__help"]}>
                 {selectedLabel ? (
                   <>
                     Highlight text to annotate as{" "}
                     <span
-                      className={classNames(styles['inline-label-badge'], styles[getLabelColorClass(selectedLabel, labels)])}
+                      className={classNames(
+                        styles["inline-label-badge"],
+                        styles[getLabelColorClass(selectedLabel, labels)]
+                      )}
                     >
                       {selectedLabel}
                     </span>
@@ -169,7 +178,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 )}
               </span>
             </div>
-            <div className={styles['annotation-text__content']}>
+            <div className={styles["annotation-text__content"]}>
               <AnnotatableText
                 text={text}
                 labels={labels}
@@ -178,7 +187,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 selectedAnnotation={selectedAnnotation}
                 onCreateAnnotation={onCreateAnnotation}
                 onSelectAnnotation={onSelectAnnotation}
-                isAnnotating={true}
+                isAnnotating={!readOnly}
               />
             </div>
           </div>
@@ -186,10 +195,10 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
         {/* Right side - Controls */}
 
-        <div className={styles['annotation-controls']}>
+        <div className={styles["annotation-controls"]}>
           {/* Navigation and review buttons */}
-          <div className={styles['record-navigation']}>
-            <div className={styles['record-navigation__buttons']}>
+          <div className={styles["record-navigation"]}>
+            <div className={styles["record-navigation__buttons"]}>
               <Button
                 variant="outline"
                 onClick={onPreviousRecord}
@@ -197,7 +206,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 title="Previous record"
               >
                 <FontAwesomeIcon icon={faChevronLeft} />
-                <span className={styles['record-navigation__button-text']}>Previous</span>
+                <span className={styles["record-navigation__button-text"]}>Previous</span>
               </Button>
               <Button
                 variant="outline"
@@ -205,7 +214,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                 disabled={!onNextRecord || !hasNextRecord}
                 title="Next record"
               >
-                <span className={styles['record-navigation__button-text']}>Next</span>
+                <span className={styles["record-navigation__button-text"]}>Next</span>
                 <FontAwesomeIcon icon={faChevronRight} />
               </Button>
             </div>
@@ -216,63 +225,88 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
               title={isReviewed ? "Marked as reviewed" : "Mark as reviewed"}
             >
               {isReviewed ? <FontAwesomeIcon icon={faCheck} /> : null}
-              <span className={styles['record-navigation__review-text']}>{isReviewed ? "Reviewed" : "Mark Reviewed"}</span>
+              <span className={styles["record-navigation__review-text"]}>
+                {isReviewed ? "Reviewed" : "Mark as Reviewed"}
+              </span>
             </Button>
           </div>
 
           {/* Instructions */}
-          <div className={styles['annotation-instructions']}>
-            <p>
-              <strong>Creating annotations:</strong> Select a label below, then highlight text in the medical record to
-              annotate it.
-            </p>
-            <p>
-              <strong>Changing labels:</strong> Click an annotation to select it, then click a label or press{" "}
-              <kbd>1</kbd>-<kbd>9</kbd> to change its label.
-            </p>
-            <p>
-              <strong>Deleting:</strong> Click an annotation to select it, then press <kbd>Delete</kbd> or{" "}
-              <kbd>Backspace</kbd> to remove.
-            </p>
-            <p>
-              <strong>Keyboard shortcuts:</strong>
-            </p>
-            <ul className={styles['annotation-instructions__shortcuts']}>
-              <li>
-                <kbd>1</kbd>-<kbd>9</kbd> Select / change label
-              </li>
-              <li>
-                <kbd>Delete</kbd> Delete annotation
-              </li>
-              <li>
-                <kbd>←</kbd> / <kbd>→</kbd> Prev / next record
-              </li>
-              <li>
-                <kbd>Enter</kbd> Mark as reviewed
-              </li>
-            </ul>
+          <div className={styles["annotation-instructions"]}>
+            {readOnly ? (
+              <>
+                <p>
+                  <strong>Read-only mode:</strong> This record is marked as reviewed. Unmark it to edit annotations.
+                </p>
+                <p>
+                  <strong>Keyboard shortcuts:</strong>
+                </p>
+                <ul className={styles["annotation-instructions__shortcuts"]}>
+                  <li>
+                    <kbd>←</kbd> / <kbd>→</kbd> Prev / next record
+                  </li>
+                  <li>
+                    <kbd>Enter</kbd> Toggle reviewed status
+                  </li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <p>
+                  <strong>Creating annotations:</strong> Select a label below, then highlight text in the medical record
+                  to annotate it.
+                </p>
+                <p>
+                  <strong>Changing labels:</strong> Click an annotation to select it, then click a label or press{" "}
+                  <kbd>1</kbd>-<kbd>9</kbd> to change its label.
+                </p>
+                <p>
+                  <strong>Deleting:</strong> Click an annotation to select it, then press <kbd>Delete</kbd> or{" "}
+                  <kbd>Backspace</kbd> to remove.
+                </p>
+                <p>
+                  <strong>Keyboard shortcuts:</strong>
+                </p>
+                <ul className={styles["annotation-instructions__shortcuts"]}>
+                  <li>
+                    <kbd>1</kbd>-<kbd>9</kbd> Select / change label
+                  </li>
+                  <li>
+                    <kbd>Delete</kbd> Delete annotation
+                  </li>
+                  <li>
+                    <kbd>←</kbd> / <kbd>→</kbd> Prev / next record
+                  </li>
+                  <li>
+                    <kbd>Enter</kbd> Mark as reviewed
+                  </li>
+                </ul>
+              </>
+            )}
           </div>
 
           {/* Current annotations */}
-          <div className={styles['annotation-section']}>
-            <h3 className={styles['section-title']}>Annotations ({annotations.length})</h3>
+          <div className={styles["annotation-section"]}>
+            <h3 className={styles["section-title"]}>Annotations ({annotations.length})</h3>
             {annotations.length === 0 ? (
-              <p className={styles['annotation-section__empty']}>No annotations yet. Select text to create one.</p>
+              <p className={styles["annotation-section__empty"]}>No annotations yet. Select text to create one.</p>
             ) : (
-              <div className={styles['annotation-section__list']}>
+              <div className={styles["annotation-section__list"]}>
                 {annotations.map((annotation) => (
                   <div
                     key={annotation.id}
-                    className={classNames(styles['annotation-item'], {
-                      [styles['annotation-item--selected']]: selectedAnnotation === annotation.id,
+                    className={classNames(styles["annotation-item"], {
+                      [styles["annotation-item--selected"]]: selectedAnnotation === annotation.id,
                     })}
-                    onClick={() => onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)}
+                    onClick={() =>
+                      !readOnly && onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)
+                    }
                   >
-                    <div className={styles['annotation-item__content']}>
-                      <span className={styles['annotation-item__value']}>"{annotation.value}"</span>
+                    <div className={styles["annotation-item__content"]}>
+                      <span className={styles["annotation-item__value"]}>"{annotation.value}"</span>
                       <span
                         className={classNames(
-                          styles['annotation-item__label'],
+                          styles["annotation-item__label"],
                           styles[getLabelColorClass(annotation.label, labels)]
                         )}
                       >
@@ -283,12 +317,13 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                       variant="ghost"
                       size="icon"
                       colorScheme="danger"
-                      className={styles['annotation-item__delete']}
+                      className={styles["annotation-item__delete"]}
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteAnnotation(annotation.id);
                       }}
                       title="Delete annotation"
+                      disabled={readOnly}
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path

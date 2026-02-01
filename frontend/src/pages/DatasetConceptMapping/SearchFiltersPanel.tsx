@@ -1,6 +1,9 @@
 import React from "react";
-import type { Vocabulary } from "types";
-import { Select } from "components/Select";
+
+import { Select } from "@components/Select";
+
+import type { Vocabulary } from "@/types";
+
 import styles from "./styles.module.css";
 
 interface SearchFiltersPanelProps {
@@ -39,7 +42,7 @@ interface SearchFiltersPanelProps {
   conceptClasses: string[];
 }
 
-export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
+const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
   useSourceTerm,
   onUseSourceTermChange,
   searchQuery,

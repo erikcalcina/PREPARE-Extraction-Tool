@@ -23,12 +23,12 @@ const RecordItem: React.FC<RecordItemProps> = ({ record, isSelected, onClick }) 
         {record.text.length > 150 ? "..." : ""}
       </div>
       <div className={styles['record-item__status']}>
+        {record.reviewed && <span className={classNames(styles['status-badge'], styles['status-badge--reviewed'])}>Reviewed</span>}
         <span className={styles['record-item__term-count']}>
           {record.source_term_count > 0
             ? `${record.source_term_count} term${record.source_term_count !== 1 ? "s" : ""}`
             : "No terms"}
         </span>
-        {record.reviewed && <span className={classNames(styles['status-badge'], styles['status-badge--reviewed'])}>Reviewed</span>}
       </div>
     </div>
   );

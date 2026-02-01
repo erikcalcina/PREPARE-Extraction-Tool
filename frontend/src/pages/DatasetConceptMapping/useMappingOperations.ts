@@ -1,6 +1,8 @@
 import { useCallback } from "react";
-import type { ClusterMapping, AutoMapRequest, ConceptSearchResult } from "types";
-import * as api from "api";
+
+import * as api from "@/api";
+
+import type { ClusterMapping, AutoMapRequest, ConceptSearchResult } from "@/types";
 
 interface UseMappingOperationsProps {
   datasetId: string | undefined;
