@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from '@/hooks/useAuth';
-import { usePageTitle } from '@/hooks/usePageTitle';
-import Button from "components/Button";
-import styles from "./styles.module.css";
 
-// ================================================
-// Component
-// ================================================
+import { useAuth } from "@/hooks/useAuth";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import Button from "@components/Button";
+import Logo from "@components/Logo";
+
+import styles from "./styles.module.css";
 
 const Login = () => {
   usePageTitle("Login");
@@ -69,13 +68,14 @@ const Login = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>{isRegister ? "Create Account" : "Sign in"}</h1>
+    <div className={styles.login}>
+      <Logo size="large" className={styles["login__logo"]} />
+      <div className={styles["login__card"]}>
+        <h1 className={styles["login__title"]}>{isRegister ? "Create Account" : "Sign in"}</h1>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.field}>
-            <label htmlFor="username" className={styles.label}>
+        <form onSubmit={handleSubmit} className={styles["login__form"]}>
+          <div className={styles["login__field"]}>
+            <label htmlFor="username" className={styles["login__label"]}>
               Username
             </label>
             <input
@@ -83,15 +83,15 @@ const Login = () => {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className={styles.input}
+              className={styles["login__input"]}
               placeholder="Enter your username"
               disabled={isLoading}
               autoComplete="username"
             />
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="password" className={styles.label}>
+          <div className={styles["login__field"]}>
+            <label htmlFor="password" className={styles["login__label"]}>
               Password
             </label>
             <input
@@ -99,7 +99,7 @@ const Login = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={styles.input}
+              className={styles["login__input"]}
               placeholder="Enter your password"
               disabled={isLoading}
               autoComplete={isRegister ? "new-password" : "current-password"}
@@ -107,8 +107,8 @@ const Login = () => {
           </div>
 
           {isRegister && (
-            <div className={styles.field}>
-              <label htmlFor="confirmPassword" className={styles.label}>
+            <div className={styles["login__field"]}>
+              <label htmlFor="confirmPassword" className={styles["login__label"]}>
                 Confirm Password
               </label>
               <input
@@ -116,7 +116,7 @@ const Login = () => {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={styles.input}
+                className={styles["login__input"]}
                 placeholder="Confirm your password"
                 disabled={isLoading}
                 autoComplete="new-password"
@@ -124,15 +124,15 @@ const Login = () => {
             </div>
           )}
 
-          {error && <div className={styles.error}>{error}</div>}
+          {error && <div className={styles["login__error"]}>{error}</div>}
 
-          <Button variant="primary" type="submit" disabled={isLoading} className={styles.submitButton}>
+          <Button variant="primary" type="submit" disabled={isLoading} className={styles["login__submit"]}>
             {isLoading ? "Please wait..." : isRegister ? "Create Account" : "Sign in"}
           </Button>
         </form>
 
-        <div className={styles.switchMode}>
-          <span className={styles.switchText}>
+        <div className={styles["login__switch"]}>
+          <span className={styles["login__switch-text"]}>
             {isRegister ? "Already have an account?" : "Don't have an account?"}
           </span>
           <Button variant="ghost" colorScheme="primary" onClick={toggleMode} disabled={isLoading}>
