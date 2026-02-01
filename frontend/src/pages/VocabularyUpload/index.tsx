@@ -6,6 +6,8 @@ import Button from 'components/Button';
 import ProgressBar from 'components/ProgressBar';
 import { useVocabularies } from '@/hooks/useVocabularies';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import styles from './styles.module.css';
 
 // Note: File parsing is handled by the backend
@@ -85,9 +87,9 @@ const VocabularyUpload = () => {
 
     const sidebar = (
         <div className={styles.sidebarContent}>
-            <Link to="/vocabularies" className={styles.backLink}>
-                ← Back to vocabularies
-            </Link>
+            <Button variant="outline" onClick={() => navigate('/vocabularies')} title="Back to vocabularies">
+                <FontAwesomeIcon icon={faArrowLeft} /> Vocabularies
+            </Button>
         </div>
     );
 
