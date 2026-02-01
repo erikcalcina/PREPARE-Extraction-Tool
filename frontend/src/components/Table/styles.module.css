@@ -1,4 +1,4 @@
-.tableWrapper {
+.table__wrapper {
   position: relative;
   overflow-x: auto;
   background-color: #ffffff;
@@ -42,22 +42,20 @@
   background-color: #f9fafb;
 }
 
-.table tbody tr.clickable {
+.table__row--clickable {
   cursor: pointer;
 }
 
-.table tbody tr.clickable:hover {
+.table tbody tr.table__row--clickable:hover {
   background-color: #f3f4f6;
 }
 
-.emptyCell {
+.table__empty-cell {
   text-align: center;
   padding: 32px 16px !important;
   color: #9ca3af;
-  font-style: italic;
 }
 
-/* Row selection */
 .table__row--selected {
   background-color: #eff6ff !important;
 }
@@ -66,7 +64,6 @@
   background-color: #dbeafe !important;
 }
 
-/* Sortable headers */
 .table__header--sortable {
   cursor: pointer;
   user-select: none;
@@ -82,28 +79,25 @@
   background-color: #eff6ff;
 }
 
-.table__sortIcon {
+.table__sort-icon {
   margin-left: 4px;
   font-size: 10px;
   display: inline-block;
   min-width: 10px;
 }
 
-/* Sticky header */
 .table__head--sticky {
   position: sticky;
   top: 0;
   z-index: 5;
 }
 
-/* Loading (body replacement) */
 .table__loading {
   text-align: center;
   padding: 40px 16px !important;
   color: #6b7280;
 }
 
-/* Loading overlay */
 .table__overlay {
   position: absolute;
   inset: 0;

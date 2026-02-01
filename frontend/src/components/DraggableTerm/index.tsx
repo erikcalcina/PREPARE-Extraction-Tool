@@ -13,12 +13,14 @@ interface DraggableTermProps {
   term: ClusteredTerm;
   clusterId: number | null;
   onRemove?: (termId: number) => void;
+  readOnly?: boolean;
 }
 
-const DraggableTerm: React.FC<DraggableTermProps> = ({ term, clusterId, onRemove }) => {
+const DraggableTerm: React.FC<DraggableTermProps> = ({ term, clusterId, onRemove, readOnly = false }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `term-${term.term_id}`,
     data: { termId: term.term_id, sourceClusterId: clusterId, term },
+    disabled: readOnly,
   });
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -36,9 +38,11 @@ const DraggableTerm: React.FC<DraggableTermProps> = ({ term, clusterId, onRemove
         [styles["term-item--no-remove"]]: !onRemove,
       })}
     >
-      <div className={styles["term__drag-handle"]} {...listeners} {...attributes}>
-        <FontAwesomeIcon icon={faGripVertical} />
-      </div>
+      {!readOnly && (
+        <div className={styles["term__drag-handle"]} {...listeners} {...attributes}>
+          <FontAwesomeIcon icon={faGripVertical} />
+        </div>
+      )}
       <span className={styles["term__text"]}>{term.text}</span>
       <div className={styles["term__stats"]}>
         <span className={styles["term__frequency"]}>{term.frequency}</span>
@@ -49,7 +53,7 @@ const DraggableTerm: React.FC<DraggableTermProps> = ({ term, clusterId, onRemove
           />
         </div>
       </div>
-      {onRemove && (
+      {onRemove && !readOnly && (
         <Button
           variant="ghost"
           size="icon"

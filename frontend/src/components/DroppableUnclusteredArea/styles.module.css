@@ -1,15 +1,15 @@
-.unclustered-section {
+.droppable-unclustered-area {
   margin-top: 24px;
 }
 
-.unclustered-section h2 {
+.droppable-unclustered-area h2 {
   font-size: 16px;
   font-weight: 600;
   color: #11415e;
   margin-bottom: 12px;
 }
 
-.unclustered-area {
+.droppable-unclustered-area__drop-zone {
   background: #ffffff;
   border: 2px dashed #d1d5db;
   border-radius: 12px;
@@ -21,7 +21,7 @@
   transition: all 0.2s ease;
 }
 
-.unclustered-area:empty::after {
+.droppable-unclustered-area__drop-zone:empty::after {
   content: "Drag terms here to uncluster them";
   color: #9ca3af;
   font-style: italic;
@@ -30,7 +30,7 @@
   padding: 40px;
 }
 
-.unclustered-area--drag-over {
+.droppable-unclustered-area__drop-zone--drag-over {
   border-color: #11415e;
   border-style: solid;
   background: #fafcfd;

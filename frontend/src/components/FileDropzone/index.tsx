@@ -1,10 +1,9 @@
 import { useCallback, useState, useRef } from "react";
-import Button from "components/Button";
-import styles from "./styles.module.css";
+import classNames from "classnames";
 
-// ================================================
-// Interface
-// ================================================
+import Button from "@components/Button";
+
+import styles from "./styles.module.css";
 
 export interface FileDropzoneProps {
   onFileSelect: (file: File) => void;
@@ -12,10 +11,6 @@ export interface FileDropzoneProps {
   maxSize?: number; // in bytes
   disabled?: boolean;
 }
-
-// ================================================
-// Component
-// ================================================
 
 const FileDropzone = ({
   onFileSelect,
@@ -30,12 +25,10 @@ const FileDropzone = ({
 
   const validateFile = useCallback(
     (file: File): string | null => {
-      // Check file size
       if (file.size > maxSize) {
         return `File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`;
       }
 
-      // Check file type if accept is specified
       if (accept) {
         const acceptedTypes = accept.split(",").map((t) => t.trim().toLowerCase());
         const fileExtension = `.${file.name.split(".").pop()?.toLowerCase()}`;
@@ -140,7 +133,11 @@ const FileDropzone = ({
 
   return (
     <div
-      className={`${styles.dropzone} ${isDragging ? styles.dragging : ""} ${disabled ? styles.disabled : ""} ${selectedFile ? styles.hasFile : ""}`}
+      className={classNames(styles.dropzone, {
+        [styles["dropzone--dragging"]]: isDragging,
+        [styles["dropzone--disabled"]]: disabled,
+        [styles["dropzone--has-file"]]: selectedFile,
+      })}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -152,12 +149,12 @@ const FileDropzone = ({
         type="file"
         accept={accept}
         onChange={handleInputChange}
-        className={styles.hiddenInput}
+        className={styles["dropzone__hidden-input"]}
         disabled={disabled}
       />
 
-      <div className={styles.content}>
-        <div className={styles.icon}>
+      <div className={styles["dropzone__content"]}>
+        <div className={styles["dropzone__icon"]}>
           <svg
             width="48"
             height="48"
@@ -175,21 +172,21 @@ const FileDropzone = ({
         </div>
 
         {selectedFile ? (
-          <div className={styles.selectedInfo}>
-            <span className={styles.fileName}>{selectedFile.name}</span>
-            <span className={styles.fileSize}>({formatFileSize(selectedFile.size)})</span>
+          <div className={styles["dropzone__selected-info"]}>
+            <span className={styles["dropzone__file-name"]}>{selectedFile.name}</span>
+            <span className={styles["dropzone__file-size"]}>({formatFileSize(selectedFile.size)})</span>
           </div>
         ) : (
           <>
-            <span className={styles.text}>Drag and drop</span>
-            <span className={styles.or}>or</span>
+            <span className={styles["dropzone__text"]}>Drag and drop</span>
+            <span className={styles["dropzone__or"]}>or</span>
             <Button variant="primary" type="button">
               Browse for file
             </Button>
           </>
         )}
 
-        {error && <span className={styles.error}>{error}</span>}
+        {error && <span className={styles["dropzone__error"]}>{error}</span>}
       </div>
     </div>
   );

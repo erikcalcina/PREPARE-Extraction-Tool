@@ -30,9 +30,17 @@ interface ClusterCardProps {
   onDelete: () => void;
   onRemoveTerm: (termId: number) => void;
   isDraggingCluster: boolean;
+  readOnly?: boolean;
 }
 
-const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, onRemoveTerm, isDraggingCluster }) => {
+const ClusterCard: React.FC<ClusterCardProps> = ({
+  cluster,
+  onRename,
+  onDelete,
+  onRemoveTerm,
+  isDraggingCluster,
+  readOnly = false,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(cluster.title);
 
@@ -44,11 +52,13 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
   } = useDraggable({
     id: `drag-cluster-${cluster.id}`,
     data: { type: "cluster", clusterId: cluster.id, cluster },
+    disabled: readOnly,
   });
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `cluster-${cluster.id}`,
     data: { clusterId: cluster.id },
+    disabled: readOnly,
   });
 
   const setNodeRef = (node: HTMLElement | null) => {
@@ -82,17 +92,19 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
       data-cluster-id={cluster.id}
     >
       <div className={styles["cluster-card__header"]}>
-        <div
-          className={styles["cluster-card__drag-handle"]}
-          {...dragListeners}
-          {...dragAttributes}
-          title="Drag to merge with another cluster"
-        >
-          <FontAwesomeIcon icon={faGripVertical} />
-        </div>
+        {!readOnly && (
+          <div
+            className={styles["cluster-card__drag-handle"]}
+            {...dragListeners}
+            {...dragAttributes}
+            title="Drag to merge with another cluster"
+          >
+            <FontAwesomeIcon icon={faGripVertical} />
+          </div>
+        )}
 
         <div className={styles["cluster-card__name"]}>
-          {isEditing ? (
+          {isEditing && !readOnly ? (
             <div className={styles["cluster-card__name-edit"]}>
               <input
                 type="text"
@@ -112,7 +124,7 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
                 variant="ghost"
                 size="icon"
                 onClick={handleRename}
-                className={styles["btn-edit-action"]}
+                className={styles["cluster-card__btn-edit-action"]}
                 title="Save"
               >
                 <FontAwesomeIcon icon={faCheck} />
@@ -124,7 +136,7 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
                   setEditTitle(cluster.title);
                   setIsEditing(false);
                 }}
-                className={classNames(styles["btn-edit-action"], styles["btn-edit-cancel"])}
+                className={classNames(styles["cluster-card__btn-edit-action"], styles["cluster-card__btn-edit-cancel"])}
                 title="Cancel"
               >
                 <FontAwesomeIcon icon={faXmark} />
@@ -133,15 +145,17 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
           ) : (
             <div className={styles["cluster-card__name-display"]}>
               <h3>{cluster.title}</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(true)}
-                className={styles["btn-edit-name"]}
-                title="Edit cluster name"
-              >
-                <FontAwesomeIcon icon={faPencil} />
-              </Button>
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsEditing(true)}
+                  className={styles["cluster-card__btn-edit-name"]}
+                  title="Edit cluster name"
+                >
+                  <FontAwesomeIcon icon={faPencil} />
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -153,23 +167,34 @@ const ClusterCard: React.FC<ClusterCardProps> = ({ cluster, onRename, onDelete, 
         </div>
 
         <span
-          className={classNames(styles["label-badge"], styles[getLabelColorClass(cluster.label, cluster.label_color)])}
+          className={classNames(
+            styles["cluster-card__label-badge"],
+            styles[getLabelColorClass(cluster.label, cluster.label_color)]
+          )}
           style={labelStyle}
         >
           {cluster.label}
         </span>
 
-        <div className={styles["cluster-card__header-actions"]}>
-          <Button variant="outline" size="small" colorScheme="danger" onClick={onDelete}>
-            Delete
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className={styles["cluster-card__header-actions"]}>
+            <Button variant="outline" size="small" colorScheme="danger" onClick={onDelete}>
+              Delete
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className={styles["cluster-card__body"]}>
         <div className={styles["cluster-card__terms-list"]}>
           {cluster.terms.map((term) => (
-            <DraggableTerm key={term.term_id} term={term} clusterId={cluster.id} onRemove={onRemoveTerm} />
+            <DraggableTerm
+              key={term.term_id}
+              term={term}
+              clusterId={cluster.id}
+              onRemove={onRemoveTerm}
+              readOnly={readOnly}
+            />
           ))}
         </div>
       </div>

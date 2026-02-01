@@ -1,4 +1,4 @@
-.card {
+.workflow-card {
   background: #ffffff;
   border-radius: 4px;
   padding: 24px;
@@ -10,14 +10,14 @@
   transition: all 0.2s ease;
 }
 
-.card__header {
+.workflow-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.card__icon {
+.workflow-card__icon {
   font-size: 28px;
   line-height: 0.5;
   flex-shrink: 0;
@@ -25,14 +25,14 @@
   opacity: 1;
 }
 
-.card__title {
+.workflow-card__title {
   margin: 0 0 4px 0;
   font-size: 18px;
   font-weight: 700;
   color: #11415e;
 }
 
-.card__description {
+.workflow-card__description {
   margin: 0;
   font-size: 13px;
   color: #6b7280;
@@ -40,13 +40,13 @@
 }
 
 /* Stats */
-.card__stats {
+.workflow-card__stats {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.card__stat {
+.workflow-card__stat {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -54,36 +54,36 @@
   border-bottom: 1px solid #f3f4f6;
 }
 
-.card__stat:last-child {
+.workflow-card__stat:last-child {
   border-bottom: none;
 }
 
-.card__stat-label {
+.workflow-card__stat-label {
   font-size: 13px;
   color: #6b7280;
   font-weight: 500;
 }
 
-.card__stat-value {
+.workflow-card__stat-value {
   font-size: 16px;
   font-weight: 700;
   color: #11415e;
 }
 
 /* Progress */
-.card__progress {
+.workflow-card__progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.card__progress-header {
+.workflow-card__progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.card__progress-label {
+.workflow-card__progress-label {
   font-size: 13px;
   font-weight: 600;
   color: #6b7280;
@@ -91,20 +91,20 @@
   letter-spacing: 0.5px;
 }
 
-.card__progress-text {
+.workflow-card__progress-text {
   font-size: 13px;
   font-weight: 600;
   color: #11415e;
 }
 
-.card__progress-bar {
+.workflow-card__progress-bar {
   height: 8px;
   background: #e5e7eb;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.card__progress-fill {
+.workflow-card__progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #269b6f 0%, #269b6f 100%);
   transition: width 0.3s ease;
@@ -112,12 +112,12 @@
 }
 
 /* Actions */
-.card__actions {
+.workflow-card__actions {
   display: flex;
   gap: 8px;
   margin-top: auto;
 }
 
-.card__button {
+.workflow-card__button {
   flex: 1;
 }

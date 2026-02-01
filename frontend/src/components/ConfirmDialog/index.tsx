@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from "react";
-import Button from "components/Button";
+import Button from "@components/Button";
 import styles from "./styles.module.css";
 
 export type DialogVariant = "danger" | "warning" | "info";
@@ -83,22 +83,22 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <>
-      <div className={styles.backdrop} onClick={onCancel} aria-hidden="true" />
+      <div className={styles["confirm-dialog__backdrop"]} onClick={onCancel} aria-hidden="true" />
       <div
         ref={dialogRef}
-        className={styles.dialog}
+        className={styles["confirm-dialog"]}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-message"
       >
-        <h2 id="confirm-dialog-title" className={styles.title}>
+        <h2 id="confirm-dialog-title" className={styles["confirm-dialog__title"]}>
           {title}
         </h2>
-        <p id="confirm-dialog-message" className={styles.message}>
+        <p id="confirm-dialog-message" className={styles["confirm-dialog__message"]}>
           {message}
         </p>
-        <div className={styles.actions}>
+        <div className={styles["confirm-dialog__actions"]}>
           <Button variant="outline" onClick={onCancel}>
             {cancelText}
           </Button>

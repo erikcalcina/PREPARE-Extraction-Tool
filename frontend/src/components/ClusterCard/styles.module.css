@@ -98,7 +98,7 @@
   text-overflow: ellipsis;
 }
 
-.btn-edit-name {
+.cluster-card__btn-edit-name {
   background: none;
   border: none;
   color: #9ca3af;
@@ -110,7 +110,7 @@
   flex-shrink: 0;
 }
 
-.btn-edit-name:hover {
+.cluster-card__btn-edit-name:hover {
   color: #327dae;
   background: #fafcfd;
 }
@@ -140,7 +140,7 @@
   box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
 }
 
-.btn-edit-action {
+.cluster-card__btn-edit-action {
   background: #327dae;
   border: none;
   color: white;
@@ -152,16 +152,16 @@
   flex-shrink: 0;
 }
 
-.btn-edit-action:hover {
+.cluster-card__btn-edit-action:hover {
   background: #11415e;
 }
 
-.btn-edit-cancel {
+.cluster-card__btn-edit-cancel {
   background: #f3f4f6;
   color: #6b7280;
 }
 
-.btn-edit-cancel:hover {
+.cluster-card__btn-edit-cancel:hover {
   background: #e5e7eb;
   color: #374151;
 }
@@ -207,7 +207,7 @@
 
 /* Label Badge */
 
-.label-badge {
+.cluster-card__label-badge {
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -216,38 +216,38 @@
   align-self: center;
 }
 
-.label-badge.condition {
+.cluster-card__label-badge.condition {
   background: #fee2e2;
   color: #7f1d1d;
 }
 
-.label-badge.medication {
+.cluster-card__label-badge.medication {
   background: #ede9fe;
   color: #4c1d95;
 }
 
-.label-badge.labtest {
+.cluster-card__label-badge.labtest {
   background: #fed7aa;
   color: #7c2d12;
 }
 
-.label-badge.procedure {
+.cluster-card__label-badge.procedure {
   background: #dbeafe;
   color: #13425e;
 }
 
-.label-badge.bodypart {
+.cluster-card__label-badge.bodypart {
   background: #d1fae5;
   color: #16593f;
 }
 
-.label-badge.default {
+.cluster-card__label-badge.default {
   background: #f3f4f6;
   color: #1e293b;
 }
 
 /* Custom label styles */
-.label-badge.custom-label {
+.cluster-card__label-badge.custom-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -259,7 +259,7 @@
   transition: all 0.2s ease;
 }
 
-.label-badge.custom-label:hover {
+.cluster-card__label-badge.custom-label:hover {
   opacity: 0.9;
   transform: translateY(-1px);
 }
@@ -281,7 +281,7 @@
     order: 0;
   }
 
-  .label-badge {
+  .cluster-card__label-badge {
     order: 2;
   }
 

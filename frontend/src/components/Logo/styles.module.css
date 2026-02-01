@@ -11,13 +11,13 @@
 }
 
 .logo--small svg {
-  width: 100px;
+  width: 170px;
 }
 
 .logo--medium svg {
-  width: 120px;
+  width: 200px;
 }
 
 .logo--large svg {
-  width: 200px;
+  width: 300px;
 }

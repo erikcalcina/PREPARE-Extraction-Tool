@@ -1,5 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Button from "@/components/Button";
+
+import Button from "@components/Button";
+
 import styles from "./styles.module.css";
 
 interface WorkflowCardProps {
@@ -15,45 +17,48 @@ const WorkflowCard = ({ title, description, icon, stats, progress, actions }: Wo
   const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
 
   return (
-    <div className={styles.card}>
-      <div className={styles.card__header}>
+    <div className={styles["workflow-card"]}>
+      <div className={styles["workflow-card__header"]}>
         <div>
-          <h3 className={styles.card__title}>{title}</h3>
-          <p className={styles.card__description}>{description}</p>
+          <h3 className={styles["workflow-card__title"]}>{title}</h3>
+          <p className={styles["workflow-card__description"]}>{description}</p>
         </div>
-        {icon && <FontAwesomeIcon icon={icon} className={styles.card__icon} />}
+        {icon && <FontAwesomeIcon icon={icon} className={styles["workflow-card__icon"]} />}
       </div>
 
-      <div className={styles.card__stats}>
+      <div className={styles["workflow-card__stats"]}>
         {stats.map((stat, idx) => (
-          <div key={idx} className={styles.card__stat}>
-            <span className={styles["card__stat-label"]}>{stat.label}</span>
-            <span className={styles["card__stat-value"]}>{stat.value}</span>
+          <div key={idx} className={styles["workflow-card__stat"]}>
+            <span className={styles["workflow-card__stat-label"]}>{stat.label}</span>
+            <span className={styles["workflow-card__stat-value"]}>{stat.value}</span>
           </div>
         ))}
       </div>
 
       {progress && (
-        <div className={styles.card__progress}>
-          <div className={styles["card__progress-header"]}>
-            <span className={styles["card__progress-label"]}>Progress</span>
-            <span className={styles["card__progress-text"]}>
+        <div className={styles["workflow-card__progress"]}>
+          <div className={styles["workflow-card__progress-header"]}>
+            <span className={styles["workflow-card__progress-label"]}>Progress</span>
+            <span className={styles["workflow-card__progress-text"]}>
               {progress.current} / {progress.total} ({Math.round(progressPercentage)}%)
             </span>
           </div>
-          <div className={styles["card__progress-bar"]}>
-            <div className={styles["card__progress-fill"]} style={{ width: `${Math.min(100, progressPercentage)}%` }} />
+          <div className={styles["workflow-card__progress-bar"]}>
+            <div
+              className={styles["workflow-card__progress-fill"]}
+              style={{ width: `${Math.min(100, progressPercentage)}%` }}
+            />
           </div>
         </div>
       )}
 
-      <div className={styles.card__actions}>
+      <div className={styles["workflow-card__actions"]}>
         {actions.map((action, idx) => (
           <Button
             key={idx}
             onClick={action.onClick}
             variant={action.variant === "primary" ? "primary" : "outline"}
-            className={styles.card__button}
+            className={styles["workflow-card__button"]}
           >
             {action.label}
           </Button>

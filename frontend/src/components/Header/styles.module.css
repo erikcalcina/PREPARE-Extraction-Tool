@@ -1,45 +1,44 @@
 .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 24px;
-    background-color: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
-    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.left {
-    flex: 0 0 auto;
+.header__left {
+  flex: 0 0 auto;
 }
 
-.nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.header__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.navLink {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #374151;
-    text-decoration: none;
-    transition: all 0.2s ease;
+.header__nav-link {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
-.navLink:hover {
-    background-color: #f3f4f6;
-    color: #1e3a5f;
+.header__nav-link:hover {
+  background-color: #f3f4f6;
+  color: #1e3a5f;
 }
 
-.navLink.active {
-    background-color: #e8f4fc;
-    color: #1e3a5f;
-    font-weight: 600;
+.header__nav-link--active {
+  background-color: #e8f4fc;
+  color: #1e3a5f;
+  font-weight: 600;
 }
 
-.right {
-    flex: 0 0 auto;
+.header__right {
+  flex: 0 0 auto;
 }
-

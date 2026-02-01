@@ -35,18 +35,18 @@
   border: 1px solid #93c5fd;
 }
 
-.icon {
+.toast__icon {
   font-size: 1.125rem;
   flex-shrink: 0;
 }
 
-.message {
+.toast__message {
   flex: 1;
   font-size: 0.875rem;
   line-height: 1.25rem;
 }
 
-.closeButton {
+.toast__close-button {
   background: none;
   border: none;
   font-size: 1.25rem;
@@ -57,11 +57,11 @@
   color: inherit;
 }
 
-.closeButton:hover {
+.toast__close-button:hover {
   opacity: 1;
 }
 
-.toastContainer {
+.toast-container {
   position: fixed;
   top: 1rem;
   right: 1rem;
@@ -72,7 +72,7 @@
   pointer-events: none;
 }
 
-.toastContainer > * {
+.toast-container > * {
   pointer-events: auto;
 }
 

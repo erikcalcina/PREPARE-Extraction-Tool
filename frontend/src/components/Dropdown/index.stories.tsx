@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 
 import Dropdown from "./index";
-import Button from "../Button";
+import Button from "@components/Button";
 
 const meta = {
   title: "Components/Dropdown",

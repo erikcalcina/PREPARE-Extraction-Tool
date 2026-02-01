@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleQuestion, faArrowLeft, faArrowRight, faFolderBlank } from "@fortawesome/free-solid-svg-icons";
 
-import Button from "@/components/Button";
+import Button from "@components/Button";
 
 import styles from "./styles.module.css";
 

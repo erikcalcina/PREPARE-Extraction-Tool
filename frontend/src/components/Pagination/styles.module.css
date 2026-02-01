@@ -5,7 +5,7 @@
   font-family: "Nunito Sans", sans-serif;
 }
 
-.button {
+.pagination__button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,28 +22,28 @@
   transition: all 0.15s ease;
 }
 
-.button:hover:not(:disabled) {
+.pagination__button:hover:not(:disabled) {
   background-color: #f3f4f6;
   border-color: #9ca3af;
 }
 
-.button--active {
+.pagination__button--active {
   background-color: #144d70;
   border-color: #144d70;
   color: #ffffff;
 }
 
-.button--active:hover:not(:disabled) {
+.pagination__button--active:hover:not(:disabled) {
   background-color: #0f3a54;
   border-color: #0f3a54;
 }
 
-.button--disabled {
+.pagination__button--disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.ellipsis {
+.pagination__ellipsis {
   display: flex;
   align-items: center;
   justify-content: center;

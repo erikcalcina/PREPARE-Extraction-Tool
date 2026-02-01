@@ -1,39 +1,25 @@
-import Header from 'components/Header';
-import styles from './styles.module.css';
+import Header from "@components/Header";
 
-// ================================================
-// Interface
-// ================================================
+import styles from "./styles.module.css";
 
 export interface LayoutProps {
-    children: React.ReactNode;
-    sidebar?: React.ReactNode;
+  children: React.ReactNode;
+  sidebar?: React.ReactNode;
 }
 
-// ================================================
-// Component
-// ================================================
-
 const Layout = ({ children, sidebar }: LayoutProps) => {
-    return (
-        <div className={styles.layout}>
-            <Header />
-            <div className={styles.container}>
-                {sidebar && (
-                    <aside className={styles.sidebar}>
-                        {sidebar}
-                    </aside>
-                )}
-                <main className={styles.main}>
-                    {children}
-                </main>
-            </div>
-            <footer className={styles.footer}>
-                <span>© 2023-2027 PREPARE Project.</span>
-            </footer>
-        </div>
-    );
+  return (
+    <div className={styles.layout}>
+      <Header />
+      <div className={styles["layout__container"]}>
+        {sidebar && <aside className={styles["layout__sidebar"]}>{sidebar}</aside>}
+        <main className={styles["layout__main"]}>{children}</main>
+      </div>
+      <footer className={styles["layout__footer"]}>
+        <span>&copy; 2023-2027 PREPARE Project.</span>
+      </footer>
+    </div>
+  );
 };
 
 export default Layout;
-

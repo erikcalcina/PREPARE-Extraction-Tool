@@ -3,10 +3,6 @@ import classNames from "classnames";
 
 import styles from "./styles.module.css";
 
-// ====================================
-// Interface
-// ====================================
-
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Visual style variant */
   variant?: "primary" | "secondary" | "success" | "danger" | "warning" | "info" | "ghost" | "outline";
@@ -19,10 +15,6 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   /** Color scheme modifier for ghost/outline variants */
   colorScheme?: "default" | "danger" | "primary";
 }
-
-// ====================================
-// Component
-// ====================================
 
 /** Primary UI component for user interaction */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(

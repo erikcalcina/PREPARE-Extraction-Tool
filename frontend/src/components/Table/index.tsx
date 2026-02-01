@@ -1,10 +1,8 @@
 import classNames from "classnames";
-import LoadingSpinner from "components/LoadingSpinner";
-import styles from "./styles.module.css";
 
-// ================================================
-// Interfaces
-// ================================================
+import LoadingSpinner from "@components/LoadingSpinner";
+
+import styles from "./styles.module.css";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -36,10 +34,6 @@ export interface TableProps<T> {
   ariaLabel?: string;
   className?: string;
 }
-
-// ================================================
-// Component
-// ================================================
 
 function Table<T>({
   columns,
@@ -77,10 +71,10 @@ function Table<T>({
   const renderSortIcon = (column: Column<T>) => {
     if (!column.sortable) return null;
     if (!sort || sort.key !== String(column.key)) {
-      return <span className={styles.table__sortIcon} aria-hidden="true" />;
+      return <span className={styles["table__sort-icon"]} aria-hidden="true" />;
     }
     return (
-      <span className={styles.table__sortIcon} aria-hidden="true">
+      <span className={styles["table__sort-icon"]} aria-hidden="true">
         {sort.direction === "asc" ? "▲" : "▼"}
       </span>
     );
@@ -94,9 +88,9 @@ function Table<T>({
   };
 
   return (
-    <div className={classNames(styles.tableWrapper, className)}>
+    <div className={classNames(styles["table__wrapper"], className)}>
       {isLoadingOverlay && (
-        <div className={styles.table__overlay}>
+        <div className={styles["table__overlay"]}>
           <LoadingSpinner size="small" />
         </div>
       )}
@@ -136,13 +130,13 @@ function Table<T>({
         <tbody>
           {isLoading ? (
             <tr>
-              <td colSpan={columns.length} className={styles.table__loading}>
+              <td colSpan={columns.length} className={styles["table__loading"]}>
                 {loadingContent || <LoadingSpinner size="small" text="Loading..." />}
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className={styles.emptyCell}>
+              <td colSpan={columns.length} className={styles["table__empty-cell"]}>
                 {emptyMessage}
               </td>
             </tr>
@@ -153,7 +147,7 @@ function Table<T>({
                 onClick={() => onRowClick?.(item)}
                 onKeyDown={(e) => handleRowKeyDown(e, item)}
                 className={classNames({
-                  [styles.clickable]: !!onRowClick,
+                  [styles["table__row--clickable"]]: !!onRowClick,
                   [styles["table__row--selected"]]: isRowSelected?.(item),
                 })}
                 tabIndex={onRowClick ? 0 : undefined}

@@ -1,10 +1,9 @@
 import { useEffect } from "react";
-import Button from "@/components/Button";
-import styles from "./styles.module.css";
+import classNames from "classnames";
 
-// ================================================
-// Interface
-// ================================================
+import Button from "@components/Button";
+
+import styles from "./styles.module.css";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -14,12 +13,7 @@ export interface SidebarProps {
   children: React.ReactNode;
 }
 
-// ================================================
-// Component
-// ================================================
-
 const Sidebar = ({ isOpen, onClose, title, width = "400px", children }: SidebarProps) => {
-  // Close sidebar on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -31,7 +25,6 @@ const Sidebar = ({ isOpen, onClose, title, width = "400px", children }: SidebarP
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Prevent body scroll when sidebar is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -45,16 +38,18 @@ const Sidebar = ({ isOpen, onClose, title, width = "400px", children }: SidebarP
 
   return (
     <>
-      {/* Backdrop */}
       <div
-        className={`${styles["sidebar__backdrop"]} ${isOpen ? styles["sidebar__backdrop--visible"] : ""}`}
+        className={classNames(styles["sidebar__backdrop"], {
+          [styles["sidebar__backdrop--visible"]]: isOpen,
+        })}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Sidebar panel */}
       <aside
-        className={`${styles.sidebar} ${isOpen ? styles["sidebar--open"] : ""}`}
+        className={classNames(styles.sidebar, {
+          [styles["sidebar--open"]]: isOpen,
+        })}
         style={{ width }}
         role="dialog"
         aria-modal="true"
