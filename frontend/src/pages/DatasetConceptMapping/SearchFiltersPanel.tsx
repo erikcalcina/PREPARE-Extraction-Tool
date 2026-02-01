@@ -93,22 +93,22 @@ const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
   }));
 
   return (
-    <div className={styles.searchFiltersPanel}>
+    <div className={styles["search-filters-panel"]}>
       {/* Query Mode */}
-      <div className={styles.filterSection}>
-        <div className={styles.filterTitle}>Query Mode</div>
-        <label className={styles.filterOption}>
+      <div className={styles["search-filters-panel__section"]}>
+        <div className={styles["search-filters-panel__title"]}>Query Mode</div>
+        <label className={styles["search-filters-panel__option"]}>
           <input type="radio" name="queryMode" checked={useSourceTerm} onChange={() => onUseSourceTermChange(true)} />
           <span>Use source term</span>
         </label>
-        <label className={styles.filterOption}>
+        <label className={styles["search-filters-panel__option"]}>
           <input type="radio" name="queryMode" checked={!useSourceTerm} onChange={() => onUseSourceTermChange(false)} />
           <span>Custom query</span>
         </label>
         {!useSourceTerm && (
           <input
             type="text"
-            className={styles.filterInputField}
+            className={styles["search-filters-panel__input"]}
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
             onKeyDown={handleSearchKeyDown}
@@ -119,13 +119,13 @@ const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
       </div>
 
       {/* Concept Filters */}
-      <div className={styles.filterSection}>
-        <div className={styles.filterTitle}>Filters</div>
-        <label className={styles.filterOption}>
+      <div className={styles["search-filters-panel__section"]}>
+        <div className={styles["search-filters-panel__title"]}>Filters</div>
+        <label className={styles["search-filters-panel__option"]}>
           <input type="checkbox" checked={standardOnly} onChange={(e) => onStandardOnlyChange(e.target.checked)} />
           <span>Standard concepts only</span>
         </label>
-        <label className={styles.filterOption}>
+        <label className={styles["search-filters-panel__option"]}>
           <input
             type="checkbox"
             checked={includeSourceTerms}
@@ -136,7 +136,7 @@ const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
       </div>
 
       {/* Vocabulary Filter - Multi-select */}
-      <div className={styles.filterSection}>
+      <div className={styles["search-filters-panel__section"]}>
         <Select
           label="Vocabulary"
           enabled={vocabularyFilterEnabled}
@@ -150,7 +150,7 @@ const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
       </div>
 
       {/* Domain Filter - Single-select */}
-      <div className={styles.filterSection}>
+      <div className={styles["search-filters-panel__section"]}>
         <Select
           label="Domain"
           enabled={domainFilterEnabled}
@@ -164,7 +164,7 @@ const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
       </div>
 
       {/* Concept Class Filter - Single-select */}
-      <div className={styles.filterSection}>
+      <div className={styles["search-filters-panel__section"]}>
         <Select
           label="Concept Class"
           enabled={conceptClassFilterEnabled}

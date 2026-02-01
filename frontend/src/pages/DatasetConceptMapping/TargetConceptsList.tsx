@@ -113,12 +113,12 @@ const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
       : "No matching concepts found";
 
   return (
-    <div className={styles.targetConceptsListPanel}>
-      <div className={styles.panelHeader}>
-        <h3 className={styles.panelTitle}>Target Concepts</h3>
+    <div className={styles["target-concepts-list-panel"]}>
+      <div className={styles["target-concepts-list-panel__header"]}>
+        <h3 className={styles["target-concepts-list-panel__title"]}>Target Concepts</h3>
         {pagination && <span>{pagination.total} results</span>}
       </div>
-      <div className={styles.panelContent}>
+      <div className={styles["target-concepts-list-panel__content"]}>
         <Table
           columns={columns}
           data={searchResults}
@@ -133,7 +133,7 @@ const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
           emptyMessage={emptyMessage}
         />
         {pagination && pagination.total_pages > 1 && (
-          <div className={styles.paginationWrapper}>
+          <div className={styles["target-concepts-list-panel__pagination-wrapper"]}>
             <Pagination currentPage={currentPage} totalPages={pagination.total_pages} onPageChange={onPageChange} />
           </div>
         )}

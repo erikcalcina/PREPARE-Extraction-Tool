@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faXmark, faMagnifyingGlass, faQuestion } from "@fortawesome/free-solid-svg-icons";
+import classNames from "classnames";
 
 import Table, { type Column } from "@components/Table";
 import LoadingSpinner from "@components/LoadingSpinner";
@@ -111,7 +112,13 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       {
         key: "cluster_label",
         header: "Label",
-        render: (mapping: ClusterMapping) => <span className={styles.labelBadge}>{mapping.cluster_label}</span>,
+        render: (mapping: ClusterMapping) => (
+          <span
+            className={classNames(styles["label-badge"], styles[`label-badge--${mapping.cluster_label.toLowerCase()}`])}
+          >
+            {mapping.cluster_label}
+          </span>
+        ),
       },
       {
         key: "concept_id",
@@ -138,10 +145,10 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
   );
 
   return (
-    <div className={styles.sourceTermsSection}>
+    <div className={styles["source-terms-section"]}>
       {/* Search and Controls Header */}
-      <div className={styles.tableHeader}>
-        <div className={styles.tableHeaderLeft}>
+      <div className={styles["source-terms-section__header"]}>
+        <div className={styles["source-terms-section__header-left"]}>
           <Select
             options={labels.map((l) => ({ value: l, label: l }))}
             value={selectedLabel}
@@ -149,20 +156,20 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
             placeholder="All Categories"
             aria-label="Filter by category"
             fullWidth={false}
-            className={styles.labelDropdownSelect}
+            className={styles["source-terms-section__label-select"]}
           />
-          <div className={styles.tableSearch}>
+          <div className={styles["source-terms-section__search"]}>
             <input
               type="text"
               placeholder="Search source terms..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className={styles.tableSearchInput}
+              className={styles["source-terms-section__search-input"]}
               aria-label="Search source terms"
             />
             {searchQuery && (
               <button
-                className={styles.clearSearchBtn}
+                className={styles["source-terms-section__clear-btn"]}
                 onClick={() => handleSearchChange("")}
                 aria-label="Clear search"
               >
@@ -171,7 +178,7 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
             )}
           </div>
         </div>
-        <div className={styles.tableInfo}>
+        <div className={styles["source-terms-section__info"]}>
           Showing {filteredMappings.length === 0 ? 0 : startIndex + 1}–{Math.min(endIndex, filteredMappings.length)} of{" "}
           {filteredMappings.length}
           {searchQuery && ` (filtered from ${mappings.length})`}
@@ -179,7 +186,7 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       </div>
 
       {/* Table */}
-      <div className={styles.tableWrapper}>
+      <div className={styles["source-terms-section__table-wrapper"]}>
         <Table
           columns={columns}
           data={paginatedMappings}
@@ -196,8 +203,8 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
 
       {/* Pagination Controls */}
       {!isLoading && filteredMappings.length > 0 && (
-        <div className={styles.paginationBar}>
-          <div className={styles.pageSizeSelector}>
+        <div className={styles["source-terms-section__pagination-bar"]}>
+          <div className={styles["source-terms-section__page-size-selector"]}>
             <label htmlFor="page-size">Rows per page:</label>
             <Select
               id="page-size"
@@ -206,7 +213,7 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
               onValueChange={(v) => handlePageSizeChange(Number(v))}
               size="small"
               fullWidth={false}
-              className={styles.pageSizeSelect}
+              className={styles["source-terms-section__page-size-select"]}
             />
           </div>
 

@@ -410,15 +410,15 @@ export default function DatasetConceptMapping() {
         />
 
         {/* Stats Section with Actions */}
-        <div className={styles.statsSection}>
-          <div className={styles.statsContainer}>
+        <div className={styles["page__stats-section"]}>
+          <div className={styles["page__stats-container"]}>
             <StatCard label="Total" value={stats.total} />
             <StatCard label="Mapped" value={`${stats.mapped} (${stats.mappedPercentage}%)`} color="blue" />
             <StatCard label="Approved" value={stats.approved} color="green" />
             <StatCard label="Unmapped" value={stats.unmapped} color="orange" />
           </div>
 
-          <div className={styles.toolbarButtons}>
+          <div className={styles["page__toolbar-buttons"]}>
             <Button variant="success" onClick={handleAutoMapAll} disabled={isLoading || vocabularies.length === 0}>
               Auto-Map All Terms
             </Button>
@@ -430,7 +430,7 @@ export default function DatasetConceptMapping() {
         </div>
 
         {error && (
-          <div className={styles.error}>
+          <div className={styles["page__error"]}>
             {error}
             <Button variant="ghost" size="icon" onClick={() => setError(null)}>
               ×
@@ -439,7 +439,7 @@ export default function DatasetConceptMapping() {
         )}
 
         {/* Main Content */}
-        <div className={styles.mainLayout}>
+        <div className={styles["page__main-layout"]}>
           {/* Source Terms Table */}
           <SourceTermsTable
             mappings={mappings}
@@ -452,24 +452,24 @@ export default function DatasetConceptMapping() {
           />
 
           {/* Selection Bar */}
-          <div className={styles.selectionBar}>
-            <div className={styles.selectionInfo}>
-              <span className={styles.selectionLabel}>Selected:</span>
+          <div className={styles["selection-bar"]}>
+            <div className={styles["selection-bar__info"]}>
+              <span className={styles["selection-bar__label"]}>Selected:</span>
               {selectedMapping ? (
                 <>
-                  <span className={styles.selectionValue}>{selectedMapping.cluster_title}</span>
-                  <span className={styles.selectionArrow}>→</span>
+                  <span className={styles["selection-bar__value"]}>{selectedMapping.cluster_title}</span>
+                  <span className={styles["selection-bar__arrow"]}>→</span>
                   {selectedMapping.concept_name ? (
-                    <span className={styles.selectionTarget}>{selectedMapping.concept_name}</span>
+                    <span className={styles["selection-bar__target"]}>{selectedMapping.concept_name}</span>
                   ) : (
-                    <span className={styles.noSelection}>No concept mapped</span>
+                    <span className={styles["selection-bar__no-selection"]}>No concept mapped</span>
                   )}
                 </>
               ) : (
-                <span className={styles.noSelection}>No source term selected</span>
+                <span className={styles["selection-bar__no-selection"]}>No source term selected</span>
               )}
             </div>
-            <div className={styles.selectionActions}>
+            <div className={styles["selection-bar__actions"]}>
               {selectedMapping?.concept_id && (
                 <Button variant="outline" size="small" onClick={handleDeleteMapping}>
                   Remove
@@ -491,14 +491,14 @@ export default function DatasetConceptMapping() {
           </div>
 
           {/* Comment Row */}
-          <div className={styles.commentRow}>
-            <label className={styles.commentLabel} htmlFor="mapping-comment">
+          <div className={styles["comment-row"]}>
+            <label className={styles["comment-row__label"]} htmlFor="mapping-comment">
               Comment:
             </label>
             <input
               id="mapping-comment"
               type="text"
-              className={styles.commentInputField}
+              className={styles["comment-row__input"]}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Add a comment for the selected mapping"
@@ -506,7 +506,7 @@ export default function DatasetConceptMapping() {
           </div>
 
           {/* Bottom Section: Search Filters above Target Concepts */}
-          <div className={styles.bottomSection}>
+          <div className={styles["bottom-section"]}>
             <SearchFiltersPanel
               useSourceTerm={useSourceTerm}
               onUseSourceTermChange={setUseSourceTerm}

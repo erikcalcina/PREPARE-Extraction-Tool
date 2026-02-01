@@ -85,76 +85,76 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
   }, [handleKeyDown]);
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose} aria-hidden="true">
+    <div className={styles["modal-overlay"]} onClick={onClose} aria-hidden="true">
       <div
         ref={modalRef}
-        className={styles.modalContent}
+        className={styles["modal-content"]}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="concept-detail-title"
       >
-        <div className={styles.modalHeader}>
+        <div className={styles["modal-content__header"]}>
           <h2 id="concept-detail-title">Concept Details</h2>
           <Button
             ref={closeButtonRef}
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className={styles.modalCloseBtn}
+            className={styles["modal-content__close-btn"]}
             aria-label="Close dialog"
           >
             x
           </Button>
         </div>
 
-        <div className={styles.modalBody}>
+        <div className={styles["modal-content__body"]}>
           {isLoading ? (
-            <div className={styles.loading}>
+            <div className={styles["page__loading"]}>
               <LoadingSpinner text="Loading concept details..." />
             </div>
           ) : error ? (
-            <div className={styles.error} role="alert">
+            <div className={styles["page__error"]} role="alert">
               {error}
             </div>
           ) : hierarchy ? (
             <>
-              <div className={styles.conceptDetailSection}>
+              <div className={styles["modal-content__detail-section"]}>
                 <h3>Concept Information</h3>
-                <div className={styles.detailGrid}>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>ID:</span>
+                <div className={styles["modal-content__detail-grid"]}>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>ID:</span>
                     <span>{hierarchy.concept.vocab_term_id}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Name:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Name:</span>
                     <span>{hierarchy.concept.vocab_term_name}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Code:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Code:</span>
                     <span>{hierarchy.concept.concept_code || "N/A"}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Domain:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Domain:</span>
                     <span>{hierarchy.concept.domain_id}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Class:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Class:</span>
                     <span>{hierarchy.concept.concept_class_id}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Standard:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Standard:</span>
                     <span>{hierarchy.concept.standard_concept || "Non-standard"}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Valid Range:</span>
+                  <div className={styles["modal-content__detail-row"]}>
+                    <span className={styles["modal-content__detail-label"]}>Valid Range:</span>
                     <span>
                       {hierarchy.concept.valid_start_date} to {hierarchy.concept.valid_end_date}
                     </span>
                   </div>
                   {hierarchy.concept.invalid_reason && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Invalid Reason:</span>
+                    <div className={styles["modal-content__detail-row"]}>
+                      <span className={styles["modal-content__detail-label"]}>Invalid Reason:</span>
                       <span>{hierarchy.concept.invalid_reason}</span>
                     </div>
                   )}
@@ -162,13 +162,13 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
               </div>
 
               {hierarchy.parents.length > 0 && (
-                <div className={styles.conceptDetailSection}>
+                <div className={styles["modal-content__detail-section"]}>
                   <h3>Parent Concepts ({hierarchy.parents.length})</h3>
-                  <div className={styles.conceptList}>
+                  <div className={styles["modal-content__concept-list"]}>
                     {hierarchy.parents.map((parent) => (
-                      <div key={parent.id} className={styles.conceptListItem}>
-                        <span className={styles.conceptListId}>{parent.vocab_term_id}</span>
-                        <span className={styles.conceptListName}>{parent.vocab_term_name}</span>
+                      <div key={parent.id} className={styles["modal-content__concept-item"]}>
+                        <span className={styles["modal-content__concept-id"]}>{parent.vocab_term_id}</span>
+                        <span className={styles["modal-content__concept-name"]}>{parent.vocab_term_name}</span>
                       </div>
                     ))}
                   </div>
@@ -176,13 +176,13 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
               )}
 
               {hierarchy.children.length > 0 && (
-                <div className={styles.conceptDetailSection}>
+                <div className={styles["modal-content__detail-section"]}>
                   <h3>Child Concepts ({hierarchy.children.length})</h3>
-                  <div className={styles.conceptList}>
+                  <div className={styles["modal-content__concept-list"]}>
                     {hierarchy.children.map((child) => (
-                      <div key={child.id} className={styles.conceptListItem}>
-                        <span className={styles.conceptListId}>{child.vocab_term_id}</span>
-                        <span className={styles.conceptListName}>{child.vocab_term_name}</span>
+                      <div key={child.id} className={styles["modal-content__concept-item"]}>
+                        <span className={styles["modal-content__concept-id"]}>{child.vocab_term_id}</span>
+                        <span className={styles["modal-content__concept-name"]}>{child.vocab_term_name}</span>
                       </div>
                     ))}
                   </div>
@@ -190,13 +190,13 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
               )}
 
               {hierarchy.related_concepts.length > 0 && (
-                <div className={styles.conceptDetailSection}>
+                <div className={styles["modal-content__detail-section"]}>
                   <h3>Related Concepts ({hierarchy.related_concepts.length})</h3>
-                  <div className={styles.conceptList}>
+                  <div className={styles["modal-content__concept-list"]}>
                     {hierarchy.related_concepts.map((related) => (
-                      <div key={related.id} className={styles.conceptListItem}>
-                        <span className={styles.conceptListId}>{related.vocab_term_id}</span>
-                        <span className={styles.conceptListName}>{related.vocab_term_name}</span>
+                      <div key={related.id} className={styles["modal-content__concept-item"]}>
+                        <span className={styles["modal-content__concept-id"]}>{related.vocab_term_id}</span>
+                        <span className={styles["modal-content__concept-name"]}>{related.vocab_term_name}</span>
                       </div>
                     ))}
                   </div>
@@ -206,7 +206,7 @@ export default function ConceptDetailModal({ conceptId, onClose, onMap }: Concep
           ) : null}
         </div>
 
-        <div className={styles.modalFooter}>
+        <div className={styles["modal-content__footer"]}>
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
