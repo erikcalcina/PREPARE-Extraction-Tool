@@ -295,7 +295,7 @@ const DatasetRecords: React.FC = () => {
     }
   }, [deleteExtractedTermsForDataset]);
 
-  const handleDownloadGliner = useCallback(async () => {
+  const handleTermDownload = useCallback(async () => {
     try {
       await downloadDatasetAPI(parsedDatasetId, "gliner");
     } catch (err) {
@@ -359,14 +359,6 @@ const DatasetRecords: React.FC = () => {
             <StatCard label="Total" value={stats?.total_records ?? 0} />
             <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
             <StatCard label="Reviewed" value={reviewedValue} color="green" />
-            <button
-              className={styles.downloadButton}
-              onClick={handleDownloadGliner}
-              disabled={totalRecords === 0}
-              title="Download all annotated records in GLiNER JSON format"
-            >
-              Download
-            </button>
           </div>
           <div className={styles["stats-section__actions"]}>
             {isExtractingDataset ? (
@@ -406,7 +398,15 @@ const DatasetRecords: React.FC = () => {
                     !dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"
                   }
                 >
-                  Extract All Terms
+                  Auto-Detect Terms in All Records
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleTermDownload}
+                  disabled={totalRecords === 0}
+                  title={totalRecords === 0 ? "No records in this dataset" : "Download all extracted terms in JSON format (used for NER training)"}
+                >
+                  Download Term Dataset
                 </Button>
                 <Button
                   variant="danger"
@@ -417,6 +417,7 @@ const DatasetRecords: React.FC = () => {
                 </Button>
               </>
             )}
+
           </div>
         </div>
 
