@@ -465,6 +465,63 @@ def delete_vocabulary_background(vocabulary_id: int):
 
 
 @router.get(
+    "/{vocabulary_id}/concepts/search",
+    response_model=ConceptsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Search concepts in a vocabulary",
+    description="Searches concepts in a vocabulary using Elasticsearch hybrid search",
+    response_description="List of matching concepts with pagination",
+)
+def search_vocabulary_concepts(
+    vocabulary_id: int,
+    query: str,
+    domain_id: str = None,
+    concept_class_id: str = None,
+    standard_concept: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
+    """Search concepts in a vocabulary using Elasticsearch."""
+    vocabulary = db.get(Vocabulary, vocabulary_id)
+    if vocabulary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
+        )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
+
+    # Search using Elasticsearch
+    es_results, total_hits = indexer.search_concepts(
+        query_text=query,
+        vocab_ids=[vocabulary_id],
+        limit=pagination.limit,
+        offset=pagination.offset,
+        domain_id=domain_id,
+        concept_class_id=concept_class_id,
+        standard_concept=standard_concept,
+    )
+
+    # Get concept details from database
+    concept_ids = [r["concept_id"] for r in es_results]
+    if concept_ids:
+        concepts = db.exec(
+            select(Concept).where(Concept.id.in_(concept_ids))
+        ).all()
+        # Preserve ES ordering
+        concept_map = {c.id: c for c in concepts}
+        concepts = [concept_map[cid] for cid in concept_ids if cid in concept_map]
+    else:
+        concepts = []
+
+    return ConceptsOutput(
+        concepts=concepts,
+        pagination=create_pagination_metadata(
+            total_hits, pagination.limit, pagination.offset
+        ),
+    )
+
+
+@router.get(
     "/{vocabulary_id}/concepts",
     response_model=ConceptsOutput,
     status_code=status.HTTP_200_OK,
@@ -484,10 +541,6 @@ def get_concepts(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    # TODO: Search over Elasticsearch index if query parameters are provided
-    # (query parameters must be added to the endpoint)
-    # query parameters: text (for searching over concept names and alternatives), vocabulary_id (for searching over concepts in a specific vocabulary)
 
     # Get total count
     total = db.exec(

@@ -504,10 +504,11 @@ class ConceptSearchResult(BaseModel):
 
 
 class ConceptSearchResults(BaseModel):
-    """List of concept search results"""
+    """List of concept search results with pagination"""
 
     results: List[ConceptSearchResult]
     total: int
+    pagination: Optional[PaginationMetadata] = None
 
 
 class ClusterMappingResponse(BaseModel):
@@ -548,6 +549,7 @@ class AutoMapRequest(BaseModel):
     domain_id: Optional[str] = None
     concept_class_id: Optional[str] = None
     standard_concept: Optional[str] = None
+    search_type: str = "hybrid"  # "vector" or "hybrid"
 
 
 class MapClusterRequest(BaseModel):
@@ -563,6 +565,7 @@ class AutoMapAllRequest(BaseModel):
     vocabulary_ids: List[int]
     label: Optional[str] = None
     use_cluster_terms: bool = True
+    search_type: str = "vector"  # "vector" or "hybrid"
 
 
 class AutoMapAllResponse(BaseModel):

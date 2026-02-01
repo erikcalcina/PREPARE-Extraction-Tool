@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { Vocabulary, Concept, PaginationMetadata } from "types";
-import { getVocabulary, getVocabularyConcepts, downloadVocabulary as downloadVocabularyAPI } from "api";
+import type { Vocabulary, Concept, PaginationMetadata } from "@/types";
+import {
+  getVocabulary,
+  getVocabularyConcepts,
+  searchVocabularyConcepts,
+  downloadVocabulary as downloadVocabularyAPI,
+} from "@/api";
 
 // ================================================
 // Types
@@ -62,13 +67,28 @@ export function useVocabularyConcepts(vocabularyId: number) {
     }
   }, [vocabularyId]);
 
-  // Fetch concepts
+  // Fetch concepts (either paginated list or ES search)
   const fetchConcepts = useCallback(
-    async (page = 1, limit = 50) => {
+    async (page = 1, limit = 50, searchQuery?: string, searchFilters?: Omit<Filters, "searchQuery">) => {
       if (!vocabularyId) return;
       setIsLoadingConcepts(true);
       try {
-        const response = await getVocabularyConcepts(vocabularyId, page, limit);
+        let response;
+        if (searchQuery && searchQuery.trim()) {
+          // Use Elasticsearch search
+          response = await searchVocabularyConcepts({
+            vocabularyId,
+            query: searchQuery.trim(),
+            page,
+            limit,
+            domain_id: searchFilters?.domain || undefined,
+            concept_class_id: searchFilters?.conceptClass || undefined,
+            standard_concept: searchFilters?.standardConcept || undefined,
+          });
+        } else {
+          // Use regular pagination
+          response = await getVocabularyConcepts(vocabularyId, page, limit);
+        }
         setConcepts(response.concepts);
         setPagination(response.pagination);
         setCurrentPage(page);
@@ -92,6 +112,19 @@ export function useVocabularyConcepts(vocabularyId: number) {
     loadData();
   }, [fetchVocabulary, fetchConcepts]);
 
+  // Refetch when search query or filters change
+  useEffect(() => {
+    // Skip initial render (handled by initial fetch)
+    if (!vocabulary) return;
+
+    const searchFilters = {
+      domain: filters.domain,
+      conceptClass: filters.conceptClass,
+      standardConcept: filters.standardConcept,
+    };
+    fetchConcepts(1, 50, debouncedSearchQuery, searchFilters);
+  }, [fetchConcepts, debouncedSearchQuery, filters.domain, filters.conceptClass, filters.standardConcept]);
+
   // Compute unique filter options from loaded concepts
   const filterOptions = useMemo<FilterOptions>(() => {
     const domains = new Set<string>();
@@ -111,18 +144,17 @@ export function useVocabularyConcepts(vocabularyId: number) {
     };
   }, [concepts]);
 
-  // Filter concepts client-side
+  // Filter concepts client-side (only when not using ES search)
   const filteredConcepts = useMemo(() => {
-    return concepts.filter((concept) => {
-      // Text search across name, id, and code
-      if (debouncedSearchQuery) {
-        const query = debouncedSearchQuery.toLowerCase();
-        const matchesName = concept.vocab_term_name?.toLowerCase().includes(query);
-        const matchesId = concept.vocab_term_id?.toLowerCase().includes(query);
-        const matchesCode = concept.concept_code?.toLowerCase().includes(query);
-        if (!matchesName && !matchesId && !matchesCode) return false;
-      }
+    // When using ES search, server handles filtering - just apply non-search filters client-side
+    if (debouncedSearchQuery) {
+      // ES handles search query, but we still filter by domain/class/standard if not passed to ES
+      // Since we now pass filters to ES, return concepts as-is
+      return concepts;
+    }
 
+    // When not searching, apply client-side filters for pagination browsing
+    return concepts.filter((concept) => {
       // Domain filter
       if (filters.domain && concept.domain_id !== filters.domain) return false;
 
@@ -160,9 +192,21 @@ export function useVocabularyConcepts(vocabularyId: number) {
   // Pagination
   const goToPage = useCallback(
     (page: number) => {
-      fetchConcepts(page, pagination?.limit || 50);
+      const searchFilters = {
+        domain: filters.domain,
+        conceptClass: filters.conceptClass,
+        standardConcept: filters.standardConcept,
+      };
+      fetchConcepts(page, pagination?.limit || 50, debouncedSearchQuery, searchFilters);
     },
-    [fetchConcepts, pagination?.limit]
+    [
+      fetchConcepts,
+      pagination?.limit,
+      debouncedSearchQuery,
+      filters.domain,
+      filters.conceptClass,
+      filters.standardConcept,
+    ]
   );
 
   return {

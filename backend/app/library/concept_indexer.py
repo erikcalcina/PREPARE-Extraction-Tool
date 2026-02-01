@@ -1,6 +1,4 @@
-from math import ceil
-
-from typing import List, Union, Optional, Dict, Any
+from typing import List, Union, Optional, Dict, Any, Tuple
 from collections import defaultdict
 
 from elasticsearch.exceptions import NotFoundError
@@ -8,7 +6,7 @@ from elasticsearch.helpers import bulk
 
 from app.core.elastic import es_client
 from app.core.model_registry import model_registry
-from app.models_db import SourceTerm, Concept, Cluster
+from app.models_db import Concept, Cluster
 
 # ================================================
 # Concept indexer in elasticsearch
@@ -36,7 +34,7 @@ class ConceptIndexer:
             The embedding model instance used for generating embeddings.
         """
         if self._model is None:
-            self._model = model_registry.get_model("embedding_model2vec")
+            self._model = model_registry.get_model("embedding_sentence")
         return self._model
 
     @property
@@ -101,18 +99,15 @@ class ConceptIndexer:
         """
         return self.model.embed(text)
 
-
-    def _group_concepts_by_vocab(self, concepts: List[Concept]) -> defaultdict[int, List[Concept]]:
+    def _group_concepts_by_vocab(
+        self, concepts: List[Concept]
+    ) -> defaultdict[int, List[Concept]]:
         grouped = defaultdict(list)
         for c in concepts:
             grouped[c.vocabulary_id].append(c)
         return grouped
 
-    def add_bulk_to_index(
-        self,
-        concepts: List[Concept],
-        embed_batch_size: int = 512
-    ):
+    def add_bulk_to_index(self, concepts: List[Concept], embed_batch_size: int = 512):
         grouped_concepts = self._group_concepts_by_vocab(concepts)
 
         for vocab_id, concepts in grouped_concepts.items():
@@ -126,17 +121,19 @@ class ConceptIndexer:
 
                 actions = []
                 for c, emb in zip(embed_batch, embeddings):
-                    actions.append({
-                        "_index": index_name,
-                        "_id": c.id,
-                        "_source": {
-                            "vocab_term_id": c.vocab_term_id,
-                            "vocab_term_name": c.vocab_term_name,
-                            "embedding": [float(x) for x in emb],
-                        },
-                    })
+                    actions.append(
+                        {
+                            "_index": index_name,
+                            "_id": c.id,
+                            "_source": {
+                                "vocab_term_id": c.vocab_term_id,
+                                "vocab_term_name": c.vocab_term_name,
+                                "embedding": [float(x) for x in emb],
+                            },
+                        }
+                    )
 
-                success, errors = bulk(
+                _, errors = bulk(
                     es_client,
                     actions,
                     raise_on_error=False,
@@ -207,38 +204,20 @@ class ConceptIndexer:
         cluster_text = cluster_db.title
         cluster_embedding = self._calculate_embedding(cluster_text)
 
+        # Use kNN with text boost for hybrid search (compatible with ES 8.x)
         query = {
             "size": 10,
+            "knn": {
+                "field": "embedding",
+                "query_vector": cluster_embedding,
+                "k": 50,
+                "num_candidates": 100,
+            },
             "query": {
-                "rrf": {
-                    "queries": [
-                        # text search: 1/3
-                        {
-                            "multi_match": {
-                                "query": cluster_text,
-                                "fields": ["vocab_term_name"],
-                            }
-                        },
-                        # vector search: 2/3
-                        {
-                            "knn": {
-                                "field": "embedding",
-                                "query_vector": cluster_embedding,
-                                "k": 50,  # returns top 50 results
-                                "num_candidates": 100,  # finds 100 most similar
-                            }
-                        },
-                        {
-                            "knn": {
-                                "field": "embedding",
-                                "query_vector": cluster_embedding,
-                                "k": 50,
-                                "num_candidates": 100,
-                            }
-                        },
-                    ],
-                    "rank_constant": 60,  # 1 / (rank_constant + rank)
-                    "window_size": 100,  # how many to consider from each category
+                "multi_match": {
+                    "query": cluster_text,
+                    "fields": ["vocab_term_name"],
+                    "boost": 0.3,
                 }
             },
         }
@@ -249,33 +228,127 @@ class ConceptIndexer:
 
         return concept_ids
 
-    def search_concepts(
+    def search_concepts_vector(
         self,
         query_text: str,
         vocab_ids: List[int],
         limit: int = 10,
+        offset: int = 0,
         domain_id: Optional[str] = None,
         concept_class_id: Optional[str] = None,
-        standard_concept: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """Search for concepts across multiple vocabularies with filters.
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """Search for concepts using vector similarity only.
 
-        Performs hybrid search (text + semantic) and returns results with scores.
-        Results are from Elasticsearch only - database filtering happens in the route.
+        Performs pure semantic search using embeddings without text matching.
+        Ideal for cross-lingual search where text matching is not useful.
+
+        Note: domain_id and concept_class_id filters are not applied in ES.
+        Filtering should be done at the route level after fetching concept
+        details from the database.
 
         Args:
             query_text: The search query text.
             vocab_ids: List of vocabulary IDs to search across.
             limit: Maximum number of results to return.
-            domain_id: Optional domain filter (applied in DB layer).
-            concept_class_id: Optional concept class filter (applied in DB layer).
-            standard_concept: Optional standard concept filter (applied in DB layer).
+            offset: Number of results to skip for pagination.
+            domain_id: Domain filter (applied at route level).
+            concept_class_id: Concept class filter (applied at route level).
 
         Returns:
-            A list of dictionaries with 'concept_id', 'score', and 'vocab_id'.
+            A tuple of (results list, total hits count).
         """
+        # Filters passed for API compatibility - applied at route level
+        del domain_id, concept_class_id
         if not vocab_ids:
-            return []
+            return [], 0
+
+        relevant_indices = [f"concepts_{id}" for id in vocab_ids]
+
+        existing_indices = []
+        for idx in relevant_indices:
+            if es_client.indices.exists(index=idx):
+                existing_indices.append(idx)
+
+        if not existing_indices:
+            return [], 0
+
+        query_embedding = self._calculate_embedding(query_text)
+
+        # Pure kNN vector search - no text matching
+        query = {
+            "size": limit,
+            "from": offset,
+            "track_total_hits": True,
+            "knn": {
+                "field": "embedding",
+                "query_vector": query_embedding,
+                "k": max(limit + offset, 50),
+                "num_candidates": 100,
+            },
+        }
+
+        try:
+            response = es_client.search(index=existing_indices, body=query)
+
+            total_hits = response["hits"]["total"]
+            if isinstance(total_hits, dict):
+                total_hits = total_hits["value"]
+
+            results = []
+            for hit in response["hits"]["hits"]:
+                vocab_id = int(hit["_index"].split("_")[1])
+                results.append(
+                    {
+                        "concept_id": int(hit["_id"]),
+                        "score": float(hit["_score"]) if hit["_score"] else 0.0,
+                        "vocab_id": vocab_id,
+                    }
+                )
+
+            return results, total_hits
+        except Exception as e:
+            print(f"Error in vector search: {e}")
+            return [], 0
+
+    def search_concepts(
+        self,
+        query_text: str,
+        vocab_ids: List[int],
+        limit: int = 10,
+        offset: int = 0,
+        sort_by: str = "relevance",
+        sort_order: str = "desc",
+        domain_id: Optional[str] = None,
+        concept_class_id: Optional[str] = None,
+        standard_concept: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """Search for concepts across multiple vocabularies with filters.
+
+        Performs hybrid search (text + semantic) and returns results with scores.
+
+        Note: domain_id, concept_class_id, and standard_concept filters are not
+        currently applied in ES. Would require adding these fields to the index.
+
+        Args:
+            query_text: The search query text.
+            vocab_ids: List of vocabulary IDs to search across.
+            limit: Maximum number of results to return.
+            offset: Number of results to skip for pagination.
+            sort_by: Field to sort by ('relevance', 'name', 'domain').
+            sort_order: Sort direction ('asc' or 'desc').
+            domain_id: Reserved for future ES filtering (currently unused).
+            concept_class_id: Reserved for future ES filtering (currently unused).
+            standard_concept: Reserved for future ES filtering (currently unused).
+
+        Returns:
+            A tuple of (results list, total hits count).
+        """
+        # These filters are accepted for API compatibility but not yet implemented in ES
+        # Would require adding these fields to the ES index mapping
+        del domain_id, concept_class_id, standard_concept
+
+        if not vocab_ids:
+            return [], 0
 
         relevant_indices = [f"concepts_{id}" for id in vocab_ids]
 
@@ -286,50 +359,55 @@ class ConceptIndexer:
                 existing_indices.append(idx)
 
         if not existing_indices:
-            return []
+            return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
 
-        # Use RRF (Reciprocal Rank Fusion) for hybrid search
+        # Build query - use kNN with text boost for hybrid search
+        # This approach works with ES 8.x without requiring RRF support
         query = {
-            "size": limit * 2,  # Get more to account for DB filtering
+            "size": limit,
+            "from": offset,
+            "track_total_hits": True,
+            "knn": {
+                "field": "embedding",
+                "query_vector": query_embedding,
+                "k": max(limit + offset, 50),
+                "num_candidates": 100,
+            },
             "query": {
-                "rrf": {
-                    "queries": [
-                        # Text search
-                        {
-                            "multi_match": {
-                                "query": query_text,
-                                "fields": ["vocab_term_name^2", "vocab_term_id"],
-                                "type": "best_fields",
-                            }
-                        },
-                        # Vector search (weighted more heavily)
-                        {
-                            "knn": {
-                                "field": "embedding",
-                                "query_vector": query_embedding,
-                                "k": 50,
-                                "num_candidates": 100,
-                            }
-                        },
-                        {
-                            "knn": {
-                                "field": "embedding",
-                                "query_vector": query_embedding,
-                                "k": 50,
-                                "num_candidates": 100,
-                            }
-                        },
-                    ],
-                    "rank_constant": 60,
-                    "window_size": 100,
+                "multi_match": {
+                    "query": query_text,
+                    "fields": ["vocab_term_name^2", "vocab_term_id"],
+                    "type": "best_fields",
+                    "boost": 0.3,
                 }
             },
         }
 
+        # Add sorting if not by relevance
+        if sort_by == "name":
+            query["sort"] = [
+                {
+                    "vocab_term_name.keyword": {
+                        "order": sort_order,
+                        "unmapped_type": "keyword",
+                    }
+                }
+            ]
+        elif sort_by == "domain":
+            query["sort"] = [
+                {"domain_id.keyword": {"order": sort_order, "unmapped_type": "keyword"}}
+            ]
+        # For relevance, ES uses _score by default
+
         try:
             response = es_client.search(index=existing_indices, body=query)
+
+            # Get total hits
+            total_hits = response["hits"]["total"]
+            if isinstance(total_hits, dict):
+                total_hits = total_hits["value"]
 
             results = []
             for hit in response["hits"]["hits"]:
@@ -338,15 +416,15 @@ class ConceptIndexer:
                 results.append(
                     {
                         "concept_id": int(hit["_id"]),
-                        "score": float(hit["_score"]),
+                        "score": float(hit["_score"]) if hit["_score"] else 0.0,
                         "vocab_id": vocab_id,
                     }
                 )
 
-            return results
+            return results, total_hits
         except Exception as e:
             print(f"Error searching concepts: {e}")
-            return []
+            return [], 0
 
 
 # ================================================

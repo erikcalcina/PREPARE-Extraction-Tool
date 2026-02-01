@@ -353,6 +353,7 @@ export interface ConceptSearchResult {
 export interface ConceptSearchResults {
   results: ConceptSearchResult[];
   total: number;
+  pagination?: PaginationMetadata;
 }
 
 export interface ConceptHierarchy {
@@ -368,6 +369,7 @@ export interface AutoMapRequest {
   domain_id?: string;
   concept_class_id?: string;
   standard_concept?: string;
+  search_type?: "vector" | "hybrid";
 }
 
 export interface MapClusterRequest {
@@ -379,6 +381,7 @@ export interface AutoMapAllRequest {
   vocabulary_ids: number[];
   label?: string;
   use_cluster_terms?: boolean;
+  search_type?: "vector" | "hybrid";
 }
 
 export interface AutoMapAllResponse {
@@ -393,7 +396,11 @@ export interface ConceptSearchParams {
   domain_id?: string;
   concept_class_id?: string;
   standard_concept?: string;
+  search_type?: "vector" | "hybrid";
   limit?: number;
+  offset?: number;
+  sort_by?: "relevance" | "name" | "domain";
+  sort_order?: "asc" | "desc";
 }
 
 // ================================================
