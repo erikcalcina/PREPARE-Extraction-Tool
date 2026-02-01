@@ -130,7 +130,7 @@ def generate_merge_suggestions(
     if not all_texts:
         return MessageOutput(message="No source terms to embed")
 
-    embedding_model = model_registry.get_model("embedding_model2vec")
+    embedding_model = model_registry.get_model("embedding_sentence")
     if hasattr(embedding_model, "embed"):
         emb = embedding_model.embed(all_texts)
     else:
