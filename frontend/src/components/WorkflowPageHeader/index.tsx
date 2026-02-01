@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleQuestion } from "@fortawesome/free-solid-svg-icons";
+import { faCircleQuestion, faArrowLeft, faArrowRight, faFolderBlank } from "@fortawesome/free-solid-svg-icons";
 
 import Button from "@/components/Button";
 
@@ -35,7 +35,7 @@ const WorkflowPageHeader: React.FC<WorkflowPageHeaderProps> = ({
   return (
     <div className={styles["header"]}>
       <Button variant="outline" onClick={() => navigate(backButton.to)} title={backButton.title}>
-        &larr; {backButton.label}
+        <FontAwesomeIcon icon={faArrowLeft} /> {backButton.label}
       </Button>
 
       <div className={styles["header__info"]}>
@@ -49,17 +49,17 @@ const WorkflowPageHeader: React.FC<WorkflowPageHeaderProps> = ({
           )}
         </h1>
         <Button
-          variant="ghost"
+          variant="outline"
           className={styles["header__dataset-link"]}
           onClick={() => navigate(`/datasets/${datasetId}`)}
           title="Go to Dataset Overview"
         >
-          Dataset: {datasetName || "Loading..."}
+          <FontAwesomeIcon icon={faFolderBlank} /> {datasetName || "Loading..."}
         </Button>
       </div>
 
       <Button variant="outline" onClick={() => navigate(forwardButton.to)} title={forwardButton.title}>
-        {forwardButton.label} &rarr;
+        {forwardButton.label} <FontAwesomeIcon icon={faArrowRight} />
       </Button>
     </div>
   );

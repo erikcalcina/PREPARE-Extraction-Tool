@@ -8,8 +8,11 @@ import * as api from "@/api";
 import Button from "@/components/Button";
 import StatCard from "@/components/StatCard";
 import WorkflowCard from "@/components/WorkflowCard";
-import { faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faObjectGroup, faMapLocationDot, faFilePen, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+
 import styles from "./styles.module.css";
+
 
 // ================================================
 // Helper functions
@@ -186,7 +189,7 @@ const DatasetOverview = () => {
         <div className={styles.header}>
           <div className={styles["header__title-section"]}>
             <Button variant="outline" size="icon" onClick={() => navigate("/datasets")} aria-label="Back to Datasets">
-              ←
+              <FontAwesomeIcon icon={faArrowLeft} />
             </Button>
             <div>
               <h1 className={styles.header__title}>{overview.dataset.name}</h1>
@@ -214,10 +217,6 @@ const DatasetOverview = () => {
           <div className={styles.metadata__item}>
             <span className={styles.metadata__label}>Uploaded:</span>
             <span className={styles.metadata__value}>{formatDate(overview.dataset.uploaded)}</span>
-          </div>
-          <div className={styles.metadata__item}>
-            <span className={styles.metadata__label}>Last Modified:</span>
-            <span className={styles.metadata__value}>{formatDate(overview.dataset.last_modified)}</span>
           </div>
         </div>
 

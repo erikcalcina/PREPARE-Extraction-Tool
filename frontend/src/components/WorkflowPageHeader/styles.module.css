@@ -24,20 +24,7 @@
 }
 
 .header__dataset-link {
-  margin: 0;
-  padding: 0;
   font-size: 14px;
-  color: #6b7280;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.header__dataset-link:hover {
-  color: #11415e;
-  text-decoration: underline;
 }
 
 /* Info Tooltip */
