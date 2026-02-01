@@ -396,6 +396,12 @@ class ClusterMerge(BaseModel):
     new_title: str
 
 
+class ClusterReviewLabelRequest(BaseModel):
+    """Request body for bulk review/unreview by label."""
+
+    label: str
+
+
 class ClustersOutput(BaseModel):
     clusters: List[Cluster]
 
@@ -428,6 +434,7 @@ class ClustersStatisticsOutput(BaseModel):
     unclustered_terms: List[ClusteredTerm]
     total_number_terms: int
     labels: List[str]
+    label_reviewed: bool = False
 
 
 class ClusterShort(BaseModel):

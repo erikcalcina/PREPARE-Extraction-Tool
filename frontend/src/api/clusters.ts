@@ -59,6 +59,20 @@ export async function updateClusterLabel(clusterId: number, label: string, color
   }
 }
 
+export async function reviewLabel(datasetId: number, label: string): Promise<MessageOutput> {
+  return apiRequest<MessageOutput>(`/datasets/${datasetId}/clusters/review-label`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+export async function unreviewLabel(datasetId: number, label: string): Promise<MessageOutput> {
+  return apiRequest<MessageOutput>(`/datasets/${datasetId}/clusters/unreview-label`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
 export async function downloadClusters(datasetId: number, label?: string): Promise<void> {
   const token = getToken();
   const headers: HeadersInit = {};

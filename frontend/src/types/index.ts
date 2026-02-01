@@ -292,6 +292,7 @@ export interface ClustersOutput {
   unclustered_terms: ClusteredTerm[];
   total_terms: number;
   labels: string[];
+  label_reviewed: boolean;
 }
 
 export interface ClusterCreateRequest {

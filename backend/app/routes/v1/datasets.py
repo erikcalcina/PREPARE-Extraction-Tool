@@ -41,6 +41,7 @@ from app.schemas import (
     ClustersStatisticsOutput,
     ClusterResponse,
     ClusterMerge,
+    ClusterReviewLabelRequest,
     create_pagination_metadata,
 )
 
@@ -992,12 +993,80 @@ def get_clusters_of_dataset(
         unclustered_terms
     )
 
+    # label_reviewed: True if a label is selected and ALL its clusters are reviewed
+    label_reviewed = (
+        bool(label)
+        and len(clusters) > 0
+        and all(c.reviewed for c in clusters)
+    )
+
     return ClustersStatisticsOutput(
         clusters=cluster_responses,
         unclustered_terms=unclustered_terms,
         total_number_terms=total_number_terms,
         labels=all_labels,
+        label_reviewed=label_reviewed,
     )
+
+
+@router.post(
+    "/{dataset_id}/clusters/review-label",
+    response_model=MessageOutput,
+)
+def review_label(
+    dataset_id: int,
+    body: ClusterReviewLabelRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Mark all clusters for a given label as reviewed."""
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == body.label)
+    ).all()
+
+    for cluster in clusters:
+        cluster.reviewed = True
+        db.add(cluster)
+
+    db.commit()
+    return MessageOutput(message=f"Marked {len(clusters)} clusters as reviewed")
+
+
+@router.post(
+    "/{dataset_id}/clusters/unreview-label",
+    response_model=MessageOutput,
+)
+def unreview_label(
+    dataset_id: int,
+    body: ClusterReviewLabelRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Unmark all clusters for a given label as reviewed."""
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == body.label)
+    ).all()
+
+    for cluster in clusters:
+        cluster.reviewed = False
+        db.add(cluster)
+
+    db.commit()
+    return MessageOutput(message=f"Unmarked {len(clusters)} clusters as reviewed")
 
 
 def _normalize_term(text: str) -> str:

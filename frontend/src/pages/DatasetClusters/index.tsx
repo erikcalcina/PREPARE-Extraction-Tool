@@ -4,7 +4,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import classNames from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowUp, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { faArrowUp, faCheck, faPlus } from "@fortawesome/free-solid-svg-icons";
 
 import Layout from "@components/Layout";
 import Button from "@components/Button";
@@ -38,6 +38,8 @@ export default function DatasetClusters() {
   const [activeDragCluster, setActiveDragCluster] = useState<ClusterData | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isDownloadingClusters, setIsDownloadingClusters] = useState(false);
+  const [labelReviewed, setLabelReviewed] = useState(false);
+  const [isTogglingReview, setIsTogglingReview] = useState(false);
 
   usePageTitle(datasetName ? `Term Clustering - ${datasetName}` : "Term Clustering");
 
@@ -97,6 +99,7 @@ export default function DatasetClusters() {
       const data = await api.getClusters(parseInt(datasetId), selectedLabel);
       setClusters(data.clusters);
       setUnclusteredTerms(data.unclustered_terms);
+      setLabelReviewed(data.label_reviewed);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load clusters");
     } finally {
@@ -134,6 +137,24 @@ export default function DatasetClusters() {
       setIsDownloadingClusters(false);
     }
   }, [datasetId, selectedLabel]);
+
+  const handleToggleReview = useCallback(async () => {
+    if (!datasetId || !selectedLabel) return;
+    try {
+      setIsTogglingReview(true);
+      if (labelReviewed) {
+        await api.unreviewLabel(parseInt(datasetId), selectedLabel);
+        setLabelReviewed(false);
+      } else {
+        await api.reviewLabel(parseInt(datasetId), selectedLabel);
+        setLabelReviewed(true);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update review status");
+    } finally {
+      setIsTogglingReview(false);
+    }
+  }, [datasetId, selectedLabel, labelReviewed]);
 
   // Helper function to recalculate cluster stats
   const recalculateClusterStats = (cluster: ClusterData): ClusterData => {
@@ -636,9 +657,6 @@ export default function DatasetClusters() {
               >
                 {isDownloadingClusters ? "Downloading..." : "Download"}
               </Button>
-              <Button variant="primary" onClick={handleAutoClustering} disabled={isAutoClustering || !selectedLabel}>
-                {isAutoClustering ? "Clustering..." : "Auto-Cluster"}
-              </Button>
             </div>
           </div>
 
@@ -662,6 +680,28 @@ export default function DatasetClusters() {
               />
               <Button variant="outline" onClick={handleCreateCluster}>
                 <FontAwesomeIcon icon={faPlus} /> New Cluster
+              </Button>
+              <Button variant="primary" onClick={handleAutoClustering} disabled={isAutoClustering || !selectedLabel}>
+                {isAutoClustering ? "Clustering..." : "Auto-Cluster Terms"}
+              </Button>
+              <Button
+                variant={labelReviewed ? "success" : "primary"}
+                onClick={handleToggleReview}
+                disabled={isTogglingReview || clusters.length === 0 || !selectedLabel}
+                className={classNames(styles["review-button"], {
+                  [styles["review-button--reviewed"]]: labelReviewed,
+                })}
+                title={labelReviewed ? "Unmark label as reviewed" : "Mark all clusters for this label as reviewed"}
+              >
+                {isTogglingReview ? (
+                  "Updating..."
+                ) : labelReviewed ? (
+                  <>
+                    <FontAwesomeIcon icon={faCheck} /> Reviewed
+                  </>
+                ) : (
+                  "Mark as Reviewed"
+                )}
               </Button>
             </div>
 

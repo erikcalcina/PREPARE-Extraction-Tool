@@ -176,6 +176,9 @@ class Cluster(SQLModel, table=True):
     # human-readable cluster name (default = first term in cluster)
     title: str
 
+    # whether the cluster has been reviewed (clustering step complete)
+    reviewed: bool = Field(default=False)
+
     # dataset this cluster belongs to
     dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
     dataset: Optional["Dataset"] = Relationship(back_populates="clusters")
