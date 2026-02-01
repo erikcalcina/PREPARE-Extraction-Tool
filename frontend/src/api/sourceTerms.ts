@@ -2,8 +2,8 @@ import type { SourceTermsOutput, SourceTermOutput, SourceTermCreate, SourceTermU
 
 import { apiRequest } from "./client";
 
-export async function getRecordSourceTerms(datasetId: number, recordId: number): Promise<SourceTermsOutput> {
-  return apiRequest<SourceTermsOutput>(`/datasets/${datasetId}/records/${recordId}/source-terms`);
+export async function getRecordSourceTerms(datasetId: number, recordId: number, limit = 50): Promise<SourceTermsOutput> {
+  return apiRequest<SourceTermsOutput>(`/datasets/${datasetId}/records/${recordId}/source-terms?limit=${limit}`);
 }
 
 export async function createSourceTerm(

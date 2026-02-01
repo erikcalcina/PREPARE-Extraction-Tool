@@ -23,7 +23,8 @@
 .statsGrid {
   display: flex;
   gap: 12px;
-  flex-wrap: nowrap;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
 .pageActions {

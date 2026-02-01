@@ -6,10 +6,8 @@ import Layout from "@/components/Layout";
 import Button from "@/components/Button";
 import StatCard from "@/components/StatCard";
 import WorkflowPageHeader from "@/components/WorkflowPageHeader";
-import ProgressBar from "@/components/ProgressBar";
 import { useRecords } from "@/hooks/useRecords";
 import { usePageTitle } from "@/hooks/usePageTitle";
-import { formatCompactNumber } from "@/utils/formatters";
 import { getLabelColorClass } from "@/utils/labelColors";
 import HighlightedText from "./HighlightedText";
 import RecordItem from "./RecordItem";
@@ -18,6 +16,8 @@ import AnnotationSidebar from "./AnnotationSidebar";
 import type { SourceTermCreate } from "@/types";
 
 import styles from "./styles.module.css";
+import ProgressBar from "@/components/ProgressBar";
+import { downloadDataset as downloadDatasetAPI } from "@/api";
 
 const DatasetRecords: React.FC = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
@@ -295,6 +295,15 @@ const DatasetRecords: React.FC = () => {
     }
   }, [deleteExtractedTermsForDataset]);
 
+  const handleDownloadGliner = useCallback(async () => {
+    try {
+      await downloadDatasetAPI(parsedDatasetId, "gliner");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to download GLiNER file";
+      alert(`Error: ${errorMessage}`);
+    }
+  }, [parsedDatasetId]);
+
   if (!parsedDatasetId) {
     return (
       <Layout>
@@ -349,15 +358,15 @@ const DatasetRecords: React.FC = () => {
           <div className={styles["stats-section__grid"]}>
             <StatCard label="Total" value={stats?.total_records ?? 0} />
             <StatCard label="Terms" value={stats?.extracted_terms_count ?? 0} color="blue" />
-            <StatCard
-              label="Reviewed"
-              value={
-                displayMode === "percentage"
-                  ? `${reviewedValue}% (${formatCompactNumber(reviewedRecords)}/${formatCompactNumber(totalRecords)})`
-                  : reviewedValue
-              }
-              color="green"
-            />
+            <StatCard label="Reviewed" value={reviewedValue} color="green" />
+            <button
+              className={styles.downloadButton}
+              onClick={handleDownloadGliner}
+              disabled={totalRecords === 0}
+              title="Download all annotated records in GLiNER JSON format"
+            >
+              Download
+            </button>
           </div>
           <div className={styles["stats-section__actions"]}>
             {isExtractingDataset ? (

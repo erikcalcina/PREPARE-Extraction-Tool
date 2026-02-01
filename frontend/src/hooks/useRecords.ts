@@ -16,6 +16,7 @@ import { useExtractionPolling } from "@/hooks/useExtractionPolling";
 // ================================================
 
 export function useRecords(datasetId: number) {
+  const SOURCE_TERMS_LIMIT = 500;
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
@@ -112,7 +113,7 @@ export function useRecords(datasetId: number) {
       setSelectedRecord(record);
       setIsLoadingTerms(true);
       try {
-        const response = await getRecordSourceTerms(datasetId, record.id);
+        const response = await getRecordSourceTerms(datasetId, record.id, SOURCE_TERMS_LIMIT);
         setSelectedRecordTerms(response.source_terms);
       } catch {
         setSelectedRecordTerms([]);
@@ -173,7 +174,7 @@ export function useRecords(datasetId: number) {
     // Also refresh the selected record's source terms so the detail panel stays in sync
     if (selectedRecord) {
       try {
-        const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id);
+        const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id, SOURCE_TERMS_LIMIT);
         setSelectedRecordTerms(termsResponse.source_terms);
       } catch {
         // Non-critical
