@@ -1,10 +1,10 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "components/Layout";
-import FileDropzone from "components/FileDropzone";
-import Button from "components/Button";
-import ProgressBar from "components/ProgressBar";
-import TagInput from "components/TagInput";
+import Layout from "@components/Layout";
+import FileDropzone from "@components/FileDropzone";
+import Button from "@components/Button";
+import ProgressBar from "@components/ProgressBar";
+import TagInput from "@components/TagInput";
 import { useDatasets } from "@/hooks/useDatasets";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -91,7 +91,7 @@ const DatasetUpload = () => {
   };
 
   const sidebar = (
-    <div className={styles.sidebarContent}>
+    <div className={styles["upload__sidebar"]}>
       <Button variant="outline" onClick={() => navigate("/datasets")} title="Back to datasets">
         <FontAwesomeIcon icon={faArrowLeft} /> Datasets
       </Button>
@@ -100,14 +100,14 @@ const DatasetUpload = () => {
 
   return (
     <Layout sidebar={sidebar}>
-      <div className={styles.page}>
-        <h1 className={styles.title}>Upload Dataset</h1>
+      <div className={styles.upload}>
+        <h1 className={styles["upload__title"]}>Upload Dataset</h1>
 
-        <div className={styles.content}>
-          <div className={styles.uploadSection}>
+        <div className={styles["upload__content"]}>
+          <div className={styles["upload__section"]}>
             <form onSubmit={handleSubmit}>
-              <div className={styles.field}>
-                <label htmlFor="datasetName" className={styles.label}>
+              <div className={styles["upload__field"]}>
+                <label htmlFor="datasetName" className={styles["upload__label"]}>
                   Dataset name
                 </label>
                 <input
@@ -115,14 +115,14 @@ const DatasetUpload = () => {
                   type="text"
                   value={datasetName}
                   onChange={(e) => setDatasetName(e.target.value)}
-                  className={styles.input}
+                  className={styles["upload__input"]}
                   placeholder="Enter dataset name"
                   disabled={isUploading}
                 />
               </div>
 
-              <div className={styles.field}>
-                <label htmlFor="labels" className={styles.label}>
+              <div className={styles["upload__field"]}>
+                <label htmlFor="labels" className={styles["upload__label"]}>
                   Labels
                 </label>
                 <TagInput
@@ -134,8 +134,8 @@ const DatasetUpload = () => {
                 />
               </div>
 
-              <div className={styles.dropzoneWrapper}>
-                <p className={styles.dropzoneLabel}>Upload dataset file</p>
+              <div className={styles["upload__dropzone"]}>
+                <p className={styles["upload__dropzone-label"]}>Upload dataset file</p>
                 <FileDropzone
                   onFileSelect={handleFileSelect}
                   accept=".csv"
@@ -145,15 +145,15 @@ const DatasetUpload = () => {
               </div>
 
               {isUploading && (
-                <div className={styles.progressWrapper}>
-                  <p className={styles.progressLabel}>Uploading...</p>
+                <div className={styles["upload__progress"]}>
+                  <p className={styles["upload__progress-label"]}>Uploading...</p>
                   <ProgressBar progress={uploadProgress} />
                 </div>
               )}
 
-              {error && <div className={styles.error}>{error}</div>}
+              {error && <div className={styles["upload__error"]}>{error}</div>}
 
-              <div className={styles.submitWrapper}>
+              <div className={styles["upload__submit"]}>
                 <Button
                   variant="primary"
                   type="submit"
@@ -165,8 +165,8 @@ const DatasetUpload = () => {
           </div>
 
           <aside className={styles.instructions}>
-            <h2 className={styles.instructionsTitle}>Instructions</h2>
-            <div className={styles.instructionsContent}>
+            <h2 className={styles["instructions__title"]}>Instructions</h2>
+            <div className={styles["instructions__content"]}>
               <p>
                 Upload your dataset file in CSV format. The file should contain the text records you want to process
                 along with patient identifiers.
