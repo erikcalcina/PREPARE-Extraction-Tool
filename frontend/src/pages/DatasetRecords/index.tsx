@@ -360,50 +360,56 @@ const DatasetRecords: React.FC = () => {
             />
           </div>
           <div className={styles["stats-section__actions"]}>
-            <Button
-              variant="outline"
-              onClick={handleExtractTermsForDataset}
-              disabled={isExtractingDataset || !dataset?.labels?.length}
-              title={!dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"}
-            >
-              {isExtractingDataset ? "Extracting..." : "Extract All Terms"}
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleDeleteExtractedTerms}
-              disabled={isExtractingDataset}
-              title="Delete all automatically extracted terms"
-            >
-              Delete Extracted Terms
-            </Button>
+            {isExtractingDataset ? (
+              <div className={styles["stats-section__extraction"]}>
+                <span className={styles["stats-section__extraction-label"]}>Extraction in progress</span>
+                {extractionProgress && extractionProgress.total > 0 && (
+                  <span className={styles["stats-section__extraction-count"]}>
+                    {extractionProgress.completed} / {extractionProgress.total} records
+                  </span>
+                )}
+                <div className={styles["stats-section__extraction-progress"]}>
+                  <ProgressBar
+                    progress={
+                      extractionProgress && extractionProgress.total > 0
+                        ? (extractionProgress.completed / extractionProgress.total) * 100
+                        : 0
+                    }
+                    showPercentage
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="small"
+                  onClick={cancelDatasetExtraction}
+                  disabled={isCancellingExtraction}
+                >
+                  {isCancellingExtraction ? "Cancelling…" : "Cancel"}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleExtractTermsForDataset}
+                  disabled={!dataset?.labels?.length}
+                  title={
+                    !dataset?.labels?.length ? "No labels defined for this dataset" : "Extract terms from all records"
+                  }
+                >
+                  Extract All Terms
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleDeleteExtractedTerms}
+                  title="Delete all automatically extracted terms"
+                >
+                  Delete Extracted Terms
+                </Button>
+              </>
+            )}
           </div>
         </div>
-
-        {isExtractingDataset && (
-          <div className={styles["extraction-banner"]}>
-            <div className={styles["extraction-banner__info"]}>
-              <span className={styles["extraction-banner__label"]}>Extraction in progress</span>
-              {extractionProgress && extractionProgress.total > 0 && (
-                <span className={styles["extraction-banner__count"]}>
-                  {extractionProgress.completed} / {extractionProgress.total} records
-                </span>
-              )}
-            </div>
-            <div className={styles["extraction-banner__progress"]}>
-              <ProgressBar
-                progress={
-                  extractionProgress && extractionProgress.total > 0
-                    ? (extractionProgress.completed / extractionProgress.total) * 100
-                    : 0
-                }
-                showPercentage
-              />
-            </div>
-            <Button variant="outline" size="small" onClick={cancelDatasetExtraction} disabled={isCancellingExtraction}>
-              {isCancellingExtraction ? "Cancelling…" : "Cancel"}
-            </Button>
-          </div>
-        )}
 
         {error && <div className={styles.error}>{error}</div>}
 
