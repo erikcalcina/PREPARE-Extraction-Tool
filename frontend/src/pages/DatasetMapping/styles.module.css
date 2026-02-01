@@ -266,23 +266,6 @@
   overflow: hidden;
 }
 
-.panelContentWrapper {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-}
-
-.searchOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  color: #11415e;
-}
-
 .panelHeader {
   padding: 12px 16px;
   border-bottom: 1px solid #e5e7eb;
@@ -767,11 +750,6 @@
   background: #e8f4f8;
 }
 
-.scoreCell {
-  font-weight: 600;
-  color: #000;
-}
-
 .resultsActions {
   display: flex;
   gap: 8px;
@@ -1080,113 +1058,6 @@
   height: 24px;
 }
 
-/* ================================================
-   Concept Results Table (for bottom section)
-   ================================================ */
-
-.conceptResultsTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.conceptResultsTable thead {
-  position: sticky;
-  top: 0;
-  background: #f9fafb;
-  z-index: 5;
-}
-
-.conceptResultsTable th {
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
-}
-
-.conceptResultsTable td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #374151;
-}
-
-.conceptResultsTable tbody tr {
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.conceptResultsTable tbody tr:hover {
-  background: #f9fafb;
-}
-
-.conceptResultRow.selected {
-  background: #eff6ff;
-}
-
-.conceptResultRow--matched {
-  background: #f3f4f6;
-}
-
-.conceptResultRow--matched:hover {
-  background: #e5e7eb;
-}
-
-.conceptActions {
-  display: flex;
-  gap: 6px;
-}
-
-/* Source Terms Table (refactored) */
-.sourceTermsTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.sourceTermsTable thead {
-  position: sticky;
-  top: 0;
-  background: #f9fafb;
-  z-index: 10;
-}
-
-.sourceTermsTable th {
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
-.sourceTermsTable td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #374151;
-  font-size: 13px;
-}
-
-.sourceTermsTable tbody tr {
-  cursor: pointer;
-  background: #fff;
-  transition: background 0.15s ease;
-}
-
-.sourceTermsTable tbody tr:hover {
-  background: #f9fafb;
-}
-
-.sourceTermsTable tbody tr.selectedRow {
-  background: #eff6ff;
-}
-
-.sourceTermsTable tbody tr.selectedRow:hover {
-  background: #e0f2fe;
-}
-
 /* Table Header with Search */
 .tableHeader {
   display: flex;
@@ -1316,30 +1187,6 @@
   padding: 0 12px;
   font-size: 13px;
   color: #374151;
-}
-
-/* ================================================
-   Sortable Headers & Pagination
-   ================================================ */
-
-.sortableHeader {
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.15s ease;
-}
-
-.sortableHeader:hover {
-  background: #f3f4f6;
-}
-
-.sortableHeader--active {
-  color: #11415e;
-  background: #eff6ff;
-}
-
-.sortIcon {
-  margin-left: 4px;
-  font-size: 10px;
 }
 
 .paginationWrapper {

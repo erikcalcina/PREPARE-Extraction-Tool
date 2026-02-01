@@ -4,10 +4,13 @@ import Table from "components/Table";
 import Button from "components/Button";
 import { Select } from "components/Select";
 import Pagination from "components/Pagination";
-import { useVocabularyConcepts } from '@/hooks/useVocabularyConcepts';
-import { usePageTitle } from '@/hooks/usePageTitle';
+import { useVocabularyConcepts } from "@/hooks/useVocabularyConcepts";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import type { Concept } from "types";
 import styles from "./styles.module.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import StatCard from "@/components/StatCard";
 
 // ================================================
 // Helper functions
@@ -28,24 +31,6 @@ function formatStandardConcept(value: string | null): string {
   if (value === "S") return "Standard";
   if (value === "C") return "Classification";
   return value;
-}
-
-// ================================================
-// Stat Card Component
-// ================================================
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-}
-
-function StatCard({ label, value }: StatCardProps) {
-  return (
-    <div className={styles.statCard}>
-      <div className={styles.statValue}>{typeof value === "number" ? value.toLocaleString() : value}</div>
-      <div className={styles.statLabel}>{label}</div>
-    </div>
-  );
 }
 
 // ================================================
@@ -144,7 +129,7 @@ const VocabularyDetail = () => {
         {/* Header */}
         <div className={styles.header}>
           <Button variant="outline" onClick={() => navigate("/vocabularies")}>
-            ← Back to Vocabularies
+            <FontAwesomeIcon icon={faArrowLeft} /> Back to Vocabularies
           </Button>
           <div className={styles.headerInfo}>
             <h1 className={styles.title}>{vocabulary?.name || "Loading..."}</h1>
@@ -223,21 +208,19 @@ const VocabularyDetail = () => {
         {isLoading ? (
           <div className={styles.loading}>Loading vocabulary...</div>
         ) : (
-          <>
-            <div className={styles.tableWrapper}>
-              {isLoadingConcepts && <div className={styles.loadingOverlay}>Loading concepts...</div>}
-              <Table
-                columns={columns}
-                data={concepts}
-                keyExtractor={(item) => item.id}
-                emptyMessage={hasActiveFilters ? "No concepts match the filters" : "No concepts in this vocabulary"}
-              />
-            </div>
+          <div className={styles.tableWrapper}>
+            <Table
+              columns={columns}
+              data={concepts}
+              keyExtractor={(item) => item.id}
+              emptyMessage={hasActiveFilters ? "No concepts match the filters" : "No concepts in this vocabulary"}
+              isLoadingOverlay={isLoadingConcepts}
+            />
 
             {pagination && (
               <Pagination currentPage={currentPage} totalPages={pagination.total_pages} onPageChange={goToPage} />
             )}
-          </>
+          </div>
         )}
       </div>
     </Layout>

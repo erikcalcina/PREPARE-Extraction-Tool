@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import type { ClusterMapping } from "types";
+import Table, { type Column } from "components/Table";
 import LoadingSpinner from "components/LoadingSpinner";
 import { Select } from "components/Select";
 import Pagination from "components/Pagination";
@@ -92,6 +93,66 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
+  const columns: Column<ClusterMapping>[] = useMemo(
+    () => [
+      {
+        key: "status",
+        header: "Status",
+        render: (mapping: ClusterMapping) => (
+          <span
+            className={`${styles.statusBadge} ${styles[getStatusColorClass(mapping.status)]}`}
+            role="status"
+            aria-label={`Status: ${mapping.status}`}
+          >
+            {mapping.status.charAt(0).toUpperCase()}
+          </span>
+        ),
+      },
+      {
+        key: "cluster_id",
+        header: "Source Code",
+      },
+      {
+        key: "cluster_title",
+        header: "Source Term",
+      },
+      {
+        key: "cluster_total_occurrences",
+        header: "Freq",
+      },
+      {
+        key: "cluster_label",
+        header: "Label",
+        render: (mapping: ClusterMapping) => (
+          <span className={`${styles.labelBadge} ${styles[getLabelColorClass(mapping.cluster_label)]}`}>
+            {mapping.cluster_label}
+          </span>
+        ),
+      },
+      {
+        key: "concept_id",
+        header: "Concept ID",
+        render: (mapping: ClusterMapping) => mapping.concept_id || "—",
+      },
+      {
+        key: "concept_name",
+        header: "Concept Name",
+        render: (mapping: ClusterMapping) => mapping.concept_name || "—",
+      },
+      {
+        key: "concept_domain",
+        header: "Domain",
+        render: (mapping: ClusterMapping) => mapping.concept_domain || "—",
+      },
+      {
+        key: "vocabulary_name",
+        header: "Vocabulary",
+        render: (mapping: ClusterMapping) => mapping.vocabulary_name || "—",
+      },
+    ],
+    []
+  );
+
   return (
     <div className={styles.sourceTermsSection}>
       {/* Search and Controls Header */}
@@ -135,73 +196,18 @@ export const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
 
       {/* Table */}
       <div className={styles.tableWrapper}>
-        <table className={styles.sourceTermsTable} role="grid" aria-label="Source terms">
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Source Code</th>
-              <th>Source Term</th>
-              <th>Freq</th>
-              <th>Label</th>
-              <th>Concept ID</th>
-              <th>Concept Name</th>
-              <th>Domain</th>
-              <th>Vocabulary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={9} className={styles.loading}>
-                  <LoadingSpinner size="small" text="Loading source terms..." />
-                </td>
-              </tr>
-            ) : paginatedMappings.length === 0 ? (
-              <tr>
-                <td colSpan={9} className={styles.emptyCell}>
-                  {searchQuery ? "No matching source terms found" : "No source terms found"}
-                </td>
-              </tr>
-            ) : (
-              paginatedMappings.map((mapping) => (
-                <tr
-                  key={mapping.cluster_id}
-                  className={selectedMapping?.cluster_id === mapping.cluster_id ? styles.selectedRow : ""}
-                  onClick={() => onSelectMapping(mapping)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelectMapping(mapping);
-                    }
-                  }}
-                >
-                  <td>
-                    <span
-                      className={`${styles.statusBadge} ${styles[getStatusColorClass(mapping.status)]}`}
-                      role="status"
-                      aria-label={`Status: ${mapping.status}`}
-                    >
-                      {mapping.status.charAt(0).toUpperCase()}
-                    </span>
-                  </td>
-                  <td>{mapping.cluster_id}</td>
-                  <td>{mapping.cluster_title}</td>
-                  <td>{mapping.cluster_total_occurrences}</td>
-                  <td>
-                    <span className={`${styles.labelBadge} ${styles[getLabelColorClass(mapping.cluster_label)]}`}>
-                      {mapping.cluster_label}
-                    </span>
-                  </td>
-                  <td>{mapping.concept_id || "—"}</td>
-                  <td>{mapping.concept_name || "—"}</td>
-                  <td>{mapping.concept_domain || "—"}</td>
-                  <td>{mapping.vocabulary_name || "—"}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <Table
+          columns={columns}
+          data={paginatedMappings}
+          keyExtractor={(mapping) => mapping.cluster_id}
+          onRowClick={onSelectMapping}
+          isRowSelected={(mapping) => selectedMapping?.cluster_id === mapping.cluster_id}
+          isLoading={isLoading}
+          loadingContent={<LoadingSpinner size="small" text="Loading source terms..." />}
+          stickyHeader
+          ariaLabel="Source terms"
+          emptyMessage={searchQuery ? "No matching source terms found" : "No source terms found"}
+        />
       </div>
 
       {/* Pagination Controls */}

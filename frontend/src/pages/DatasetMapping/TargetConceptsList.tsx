@@ -1,6 +1,7 @@
-import React from "react";
-import type { ClusterMapping, ConceptSearchResult } from "types";
-import LoadingSpinner from "components/LoadingSpinner";
+import React, { useMemo } from "react";
+import type { ClusterMapping, ConceptSearchResult, PaginationMetadata } from "types";
+import Table, { type Column, type SortState } from "components/Table";
+import Pagination from "components/Pagination";
 import styles from "./styles.module.css";
 
 interface TargetConceptsListProps {
@@ -8,87 +9,131 @@ interface TargetConceptsListProps {
   searchResults: ConceptSearchResult[];
   isSearching: boolean;
   onMapConcept: (conceptId: number) => void;
+  pagination: PaginationMetadata | null;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  sortBy: "relevance" | "name" | "domain";
+  sortOrder: "asc" | "desc";
+  onSortChange: (field: "relevance" | "name" | "domain") => void;
 }
+
+const SORT_KEY_MAP: Record<string, "relevance" | "name" | "domain"> = {
+  score: "relevance",
+  vocab_term_name: "name",
+  domain_id: "domain",
+};
 
 export const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
   selectedMapping,
   searchResults,
   isSearching,
   onMapConcept,
+  pagination,
+  currentPage,
+  onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
+  const columns: Column<ConceptSearchResult>[] = useMemo(
+    () => [
+      {
+        key: "score",
+        header: "Score",
+        sortable: true,
+        render: (result: ConceptSearchResult) => result.score.toFixed(2),
+      },
+      {
+        key: "concept_id",
+        header: "Concept ID",
+        render: (result: ConceptSearchResult) => result.concept.id,
+      },
+      {
+        key: "vocab_term_name",
+        header: "Concept Name",
+        sortable: true,
+        render: (result: ConceptSearchResult) => result.concept.vocab_term_name,
+      },
+      {
+        key: "domain_id",
+        header: "Domain",
+        sortable: true,
+        render: (result: ConceptSearchResult) => result.concept.domain_id,
+      },
+      {
+        key: "concept_class_id",
+        header: "Concept Class",
+        render: (result: ConceptSearchResult) => result.concept.concept_class_id,
+      },
+      {
+        key: "vocabulary_name",
+        header: "Vocabulary",
+        render: (result: ConceptSearchResult) => result.vocabulary_name,
+      },
+      {
+        key: "concept_code",
+        header: "Concept Code",
+        render: (result: ConceptSearchResult) => result.concept.concept_code,
+      },
+      {
+        key: "standard_concept",
+        header: "Standard",
+        render: (result: ConceptSearchResult) =>
+          result.concept.standard_concept === "S" ? "S" : result.concept.standard_concept === "C" ? "C" : "—",
+      },
+    ],
+    []
+  );
+
+  // Map sortBy prop to the column key used in the Table
+  const REVERSE_SORT_MAP: Record<string, string> = {
+    relevance: "score",
+    name: "vocab_term_name",
+    domain: "domain_id",
+  };
+
+  const sort: SortState = {
+    key: REVERSE_SORT_MAP[sortBy] || sortBy,
+    direction: sortOrder,
+  };
+
+  const handleSortChange = (key: string) => {
+    const mappedField = SORT_KEY_MAP[key];
+    if (mappedField) {
+      onSortChange(mappedField);
+    }
+  };
+
+  const emptyMessage =
+    !selectedMapping && searchResults.length === 0
+      ? "Select a source term to search for concepts"
+      : "No matching concepts found";
+
   return (
     <div className={styles.targetConceptsListPanel}>
       <div className={styles.panelHeader}>
         <h3 className={styles.panelTitle}>Target Concepts</h3>
-        {searchResults.length > 0 && <span>{searchResults.length} results</span>}
+        {pagination && <span>{pagination.total} results</span>}
       </div>
       <div className={styles.panelContent}>
-        <table className={styles.conceptResultsTable} role="grid" aria-label="Target concepts">
-          <thead>
-            <tr>
-              <th>Score</th>
-              <th>Concept ID</th>
-              <th>Concept Name</th>
-              <th>Domain</th>
-              <th>Vocabulary</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!selectedMapping ? (
-              <tr>
-                <td colSpan={6} className={styles.emptyCell}>
-                  Select a source term to search for concepts
-                </td>
-              </tr>
-            ) : isSearching ? (
-              <tr>
-                <td colSpan={6} className={styles.loading}>
-                  <LoadingSpinner size="small" text="Searching..." />
-                </td>
-              </tr>
-            ) : searchResults.length === 0 ? (
-              <tr>
-                <td colSpan={6} className={styles.emptyCell}>
-                  No matching concepts found
-                </td>
-              </tr>
-            ) : (
-              searchResults.map((result, idx) => (
-                <tr
-                  key={`${result.concept.id}-${idx}`}
-                  className={styles.conceptResultRow}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onMapConcept(result.concept.id);
-                    }
-                  }}
-                >
-                  <td className={styles.scoreCell}>{result.score.toFixed(2)}</td>
-                  <td>{result.concept.id}</td>
-                  <td>{result.concept.vocab_term_name}</td>
-                  <td>{result.concept.domain_id}</td>
-                  <td>{result.vocabulary_name}</td>
-                  <td>
-                    <div className={styles.conceptActions}>
-                      <button
-                        className={styles.btnMapConcept}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMapConcept(result.concept.id);
-                        }}
-                      >
-                        Map
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <Table
+          columns={columns}
+          data={searchResults}
+          keyExtractor={(result, idx) => `${result.concept.id}-${idx}`}
+          onRowClick={(result) => onMapConcept(result.concept.id)}
+          isRowSelected={(result) => selectedMapping?.concept_id === result.concept.id}
+          isLoadingOverlay={isSearching}
+          sort={sort}
+          onSortChange={handleSortChange}
+          stickyHeader
+          ariaLabel="Target concepts"
+          emptyMessage={emptyMessage}
+        />
+        {pagination && pagination.total_pages > 1 && (
+          <div className={styles.paginationWrapper}>
+            <Pagination currentPage={currentPage} totalPages={pagination.total_pages} onPageChange={onPageChange} />
+          </div>
+        )}
       </div>
     </div>
   );
