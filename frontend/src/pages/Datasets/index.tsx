@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import Layout from "components/Layout";
 import Table from "components/Table";
 import Button from "components/Button";
-import { useDatasets } from '@/hooks/useDatasets';
-import { usePageTitle } from '@/hooks/usePageTitle';
+import { useDatasets } from "@/hooks/useDatasets";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import type { Dataset } from "types";
 import styles from "./styles.module.css";
 
@@ -40,7 +40,7 @@ const Datasets = () => {
       header: "Name",
       width: "40%",
       render: (item: Dataset) => (
-        <Link to={`/datasets/${item.id}`} className={styles.datasetLink} onClick={(e) => e.stopPropagation()}>
+        <Link to={`/datasets/${item.id}`} title={item.name} className={styles.datasets__link} onClick={(e) => e.stopPropagation()}>
           {item.name}
         </Link>
       ),
@@ -62,10 +62,12 @@ const Datasets = () => {
       header: "Actions",
       width: "15%",
       render: (item: Dataset) => (
-        <div className={styles.actions}>
+        <div className={styles.datasets__actions}>
           <Button
             variant="ghost"
             size="small"
+            title="Download dataset"
+            className={styles["datasets__action-button"]}
             onClick={(e) => {
               e.stopPropagation();
               downloadDataset(item.id);
@@ -76,7 +78,9 @@ const Datasets = () => {
           <Button
             variant="ghost"
             size="small"
+            title="Delete dataset"
             colorScheme="danger"
+            className={styles["datasets__action-button"]}
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
@@ -90,7 +94,7 @@ const Datasets = () => {
   ];
 
   const sidebar = (
-    <div className={styles.sidebarContent}>
+    <div className={styles.datasets__sidebar}>
       <Link to="/datasets/upload">
         <Button variant="primary" label="+ Upload dataset" />
       </Link>
@@ -99,13 +103,13 @@ const Datasets = () => {
 
   return (
     <Layout sidebar={sidebar}>
-      <div className={styles.page}>
-        <h1 className={styles.title}>Datasets</h1>
+      <div className={styles.datasets}>
+        <h1 className={styles.datasets__title}>Datasets</h1>
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div className={styles.datasets__error}>{error}</div>}
 
         {isLoading ? (
-          <div className={styles.loading}>Loading datasets...</div>
+          <div className={styles.datasets__loading}>Loading datasets...</div>
         ) : (
           <Table
             columns={columns}

@@ -1,21 +1,21 @@
-.page {
+.datasets {
   font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.title {
+.datasets__title {
   margin: 0 0 24px;
   font-size: 28px;
   font-weight: 700;
   color: #11415e;
 }
 
-.sidebarContent {
+.datasets__sidebar {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.error {
+.datasets__error {
   padding: 12px 16px;
   margin-bottom: 16px;
   font-size: 14px;
@@ -25,26 +25,30 @@
   border-radius: 8px;
 }
 
-.loading {
+.datasets__loading {
   padding: 40px;
   text-align: center;
   color: #6b7280;
   font-size: 14px;
 }
 
-.actions {
+.datasets__actions {
   display: flex;
   gap: 12px;
 }
 
-.datasetLink {
+.datasets__action-button {
+  padding: 0;
+}
+
+.datasets__link {
   color: #11415e;
   font-weight: 500;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.datasetLink:hover {
+.datasets__link:hover {
   color: #11415e;
   text-decoration: underline;
 }
