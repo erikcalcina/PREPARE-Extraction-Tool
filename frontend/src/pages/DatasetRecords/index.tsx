@@ -270,8 +270,12 @@ const DatasetRecords: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await extractTermsForDataset();
-      alert("Terms extracted successfully for all records");
+      const result = await extractTermsForDataset();
+      if (result.status === "cancelled") {
+        alert("Extraction was cancelled by the user");
+      } else {
+        alert("Terms extracted successfully for all records");
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to extract terms";
       alert(`Error: ${errorMessage}`);
@@ -372,20 +376,20 @@ const DatasetRecords: React.FC = () => {
             >
               Delete Extracted Terms
             </Button>
-            {isExtractingDataset && (
-              <Button variant="primary" onClick={cancelDatasetExtraction} disabled={isCancellingExtraction}>
-                {isCancellingExtraction ? "Cancelling…" : "Cancel Extraction"}
-              </Button>
-            )}
           </div>
-          {isExtractingDataset && (
-            <div className={styles["stats-section__progress"]}>
-              <span className={styles["stats-section__progress-label"]}>
-                Extraction in progress…
-                {extractionProgress && extractionProgress.total > 0
-                  ? ` ${extractionProgress.completed}/${extractionProgress.total}`
-                  : ""}
-              </span>
+        </div>
+
+        {isExtractingDataset && (
+          <div className={styles["extraction-banner"]}>
+            <div className={styles["extraction-banner__info"]}>
+              <span className={styles["extraction-banner__label"]}>Extraction in progress</span>
+              {extractionProgress && extractionProgress.total > 0 && (
+                <span className={styles["extraction-banner__count"]}>
+                  {extractionProgress.completed} / {extractionProgress.total} records
+                </span>
+              )}
+            </div>
+            <div className={styles["extraction-banner__progress"]}>
               <ProgressBar
                 progress={
                   extractionProgress && extractionProgress.total > 0
@@ -395,8 +399,11 @@ const DatasetRecords: React.FC = () => {
                 showPercentage
               />
             </div>
-          )}
-        </div>
+            <Button variant="outline" size="small" onClick={cancelDatasetExtraction} disabled={isCancellingExtraction}>
+              {isCancellingExtraction ? "Cancelling…" : "Cancel"}
+            </Button>
+          </div>
+        )}
 
         {error && <div className={styles.error}>{error}</div>}
 
