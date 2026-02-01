@@ -1,23 +1,17 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import Layout from "components/Layout";
 import Button from "components/Button";
 import { Select } from "components/Select";
+import WorkflowPageHeader from "@/components/WorkflowPageHeader";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import type { ClusterData, ClusteredTerm } from "types";
 import * as api from "api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import classNames from "classnames";
-import {
-  faGripVertical,
-  faPencil,
-  faCheck,
-  faXmark,
-  faCircleQuestion,
-  faArrowUp,
-} from "@fortawesome/free-solid-svg-icons";
+import { faGripVertical, faPencil, faCheck, faXmark, faArrowUp } from "@fortawesome/free-solid-svg-icons";
 import StatCard from "components/StatCard";
 import styles from "./styles.module.css";
 
@@ -337,7 +331,6 @@ function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingClus
 
 export default function DatasetClusters() {
   const { datasetId } = useParams<{ datasetId: string }>();
-  const navigate = useNavigate();
   const [clusters, setClusters] = useState<ClusterData[]>([]);
   const [unclusteredTerms, setUnclusteredTerms] = useState<ClusteredTerm[]>([]);
   const [labels, setLabels] = useState<string[]>([]);
@@ -891,50 +884,33 @@ export default function DatasetClusters() {
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className={styles.page}>
           {/* Header with Navigation */}
-          <div className={styles.header}>
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/datasets/${datasetId}/records`)}
-              title="Back to Term Extraction"
-            >
-              ← Back to Extraction
-            </Button>
-
-            <div className={styles.pageInfo}>
-              <h1 className={styles.pageTitle}>
-                Term Clustering
-                <span className={styles.infoTooltip}>
-                  <FontAwesomeIcon icon={faCircleQuestion} className={styles.infoIcon} />
-                  <span className={styles.tooltipContent}>
-                    <p>Group similar terms together to simplify mapping to standard vocabularies in the next step.</p>
-                    <strong>How to use:</strong>
-                    <ul>
-                      <li>Drag terms between clusters to reorganize them</li>
-                      <li>Drag one cluster onto another to merge them</li>
-                      <li>Click on a cluster name to rename it</li>
-                      <li>Click Auto-Cluster to automatically group similar terms</li>
-                    </ul>
-                  </span>
-                </span>
-              </h1>
-              <Button
-                variant="ghost"
-                className={styles.datasetLink}
-                onClick={() => navigate(`/datasets/${datasetId}`)}
-                title="Go to Dataset Overview"
-              >
-                Dataset: {datasetName || "Loading..."}
-              </Button>
-            </div>
-
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/datasets/${datasetId}/mapping`)}
-              title="Go to Concept Mapping"
-            >
-              Mapping →
-            </Button>
-          </div>
+          <WorkflowPageHeader
+            title="Term Clustering"
+            datasetId={datasetId!}
+            datasetName={datasetName}
+            backButton={{
+              label: "Back to Extraction",
+              to: `/datasets/${datasetId}/records`,
+              title: "Back to Term Extraction",
+            }}
+            forwardButton={{
+              label: "Mapping",
+              to: `/datasets/${datasetId}/mapping`,
+              title: "Go to Concept Mapping",
+            }}
+            helpContent={
+              <>
+                <p>Group similar terms together to simplify mapping to standard vocabularies in the next step.</p>
+                <strong>How to use:</strong>
+                <ul>
+                  <li>Drag terms between clusters to reorganize them</li>
+                  <li>Drag one cluster onto another to merge them</li>
+                  <li>Click on a cluster name to rename it</li>
+                  <li>Click Auto-Cluster to automatically group similar terms</li>
+                </ul>
+              </>
+            }
+          />
 
           {/* Statistics and Actions */}
           <div className={styles.statsSection}>
