@@ -1,333 +1,27 @@
-import { useParams } from "react-router-dom";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
+import { useParams } from "react-router-dom";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import Layout from "components/Layout";
-import Button from "components/Button";
-import { Select } from "components/Select";
-import WorkflowPageHeader from "@/components/WorkflowPageHeader";
-import { usePageTitle } from "@/hooks/usePageTitle";
-import type { ClusterData, ClusteredTerm } from "types";
-import * as api from "api";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import classNames from "classnames";
-import { faGripVertical, faPencil, faCheck, faXmark, faArrowUp } from "@fortawesome/free-solid-svg-icons";
-import StatCard from "components/StatCard";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowUp, faPlus } from "@fortawesome/free-solid-svg-icons";
+
+import Layout from "@components/Layout";
+import Button from "@components/Button";
+import { Select } from "@components/Select";
+import StatCard from "@components/StatCard";
+import WorkflowPageHeader from "@components/WorkflowPageHeader";
+import ClusterCard from "@components/ClusterCard";
+import ClusterOverlay from "@components/ClusterOverlay";
+import DroppableUnclusteredArea from "@components/DroppableUnclusteredArea";
+import TermOverlay from "@components/TermOverlay";
+
+import { usePageTitle } from "@/hooks/usePageTitle";
+import * as api from "@/api";
+
+import type { ClusterData, ClusteredTerm } from "@/types";
+
 import styles from "./styles.module.css";
-
-// ================================================
-// Helper functions
-// ================================================
-
-function getLabelColorClass(label: string, customColor?: string): string {
-  if (customColor) {
-    return "custom-label";
-  }
-  const labelMap: Record<string, string> = {
-    Condition: "condition",
-    Medication: "medication",
-    "Lab Test": "labtest",
-    Procedure: "procedure",
-    "Body Part": "bodypart",
-  };
-  return labelMap[label] || "default";
-}
-
-// ================================================
-// Draggable Term Component
-// ================================================
-
-interface DraggableTermProps {
-  term: ClusteredTerm;
-  clusterId: number | null;
-  onRemove?: (termId: number) => void;
-}
-
-function DraggableTerm({ term, clusterId, onRemove }: DraggableTermProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `term-${term.term_id}`,
-    data: { termId: term.term_id, sourceClusterId: clusterId, term },
-  });
-
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onRemove) {
-      onRemove(term.term_id);
-    }
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`${styles.termItem} ${isDragging ? styles.termItemDragging : ""} ${onRemove ? "" : styles.termItemNoRemoveBtn}`}
-    >
-      <div className={styles.termDragHandle} {...listeners} {...attributes}>
-        <FontAwesomeIcon icon={faGripVertical} />
-      </div>
-      <span className={styles.termText}>{term.text}</span>
-      <div className={styles.termStats}>
-        <span className={styles.frequency}>{term.frequency}</span>
-        <div className={styles.frequencyBar}>
-          <div
-            className={styles.frequencyBarFill}
-            style={{ width: `${Math.min(100, (term.frequency / 20) * 100)}%` }}
-          />
-        </div>
-      </div>
-      {onRemove && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className={styles.termRemoveBtn}
-          onClick={handleRemove}
-          title="Remove from cluster"
-        >
-          <FontAwesomeIcon icon={faXmark} />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-// ================================================
-// Term Overlay Component (for DragOverlay)
-// ================================================
-
-interface TermOverlayProps {
-  term: ClusteredTerm;
-}
-
-function TermOverlay({ term }: TermOverlayProps) {
-  return (
-    <div className={`${styles.termItem} ${styles.termItemOverlay} ${styles.termItemNoRemoveBtn}`}>
-      <div className={styles.termDragHandle}>
-        <FontAwesomeIcon icon={faGripVertical} />
-      </div>
-      <span className={styles.termText}>{term.text}</span>
-      <div className={styles.termStats}>
-        <span className={styles.frequency}>{term.frequency}</span>
-        <div className={styles.frequencyBar}>
-          <div
-            className={styles.frequencyBarFill}
-            style={{ width: `${Math.min(100, (term.frequency / 20) * 100)}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ================================================
-// Droppable Unclustered Area Component
-// ================================================
-
-interface DroppableUnclusteredAreaProps {
-  terms: ClusteredTerm[];
-}
-
-function DroppableUnclusteredArea({ terms }: DroppableUnclusteredAreaProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: "unclustered",
-    data: { clusterId: null },
-  });
-
-  return (
-    <div className={styles.unclusteredSection}>
-      <h2>Unclustered Terms ({terms.length})</h2>
-      <div ref={setNodeRef} className={`${styles.unclusteredArea} ${isOver ? styles.unclusteredDragOver : ""}`}>
-        {terms.map((term) => (
-          <DraggableTerm key={term.term_id} term={term} clusterId={null} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ================================================
-// Cluster Overlay Component (for DragOverlay when dragging clusters)
-// ================================================
-
-interface ClusterOverlayProps {
-  cluster: ClusterData;
-}
-
-function ClusterOverlay({ cluster }: ClusterOverlayProps) {
-  return (
-    <div className={`${styles.clusterCard} ${styles.clusterOverlay}`}>
-      <div className={styles.clusterCardHeader}>
-        <div className={styles.dragHandle}>
-          <FontAwesomeIcon icon={faGripVertical} />
-        </div>
-        <div className={styles.clusterName}>
-          <div className={styles.clusterNameDisplay}>
-            <h3>{cluster.title}</h3>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ================================================
-// Cluster Card Component
-// ================================================
-
-interface ClusterCardProps {
-  cluster: ClusterData;
-  onRename: (newTitle: string) => void;
-  onDelete: () => void;
-  onRemoveTerm: (termId: number) => void;
-  isDraggingCluster: boolean;
-}
-
-function ClusterCard({ cluster, onRename, onDelete, onRemoveTerm, isDraggingCluster }: ClusterCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(cluster.title);
-
-  // Make cluster draggable
-  const {
-    attributes: dragAttributes,
-    listeners: dragListeners,
-    setNodeRef: setDragRef,
-    isDragging,
-  } = useDraggable({
-    id: `drag-cluster-${cluster.id}`,
-    data: { type: "cluster", clusterId: cluster.id, cluster },
-  });
-
-  // Make cluster droppable (for both terms and other clusters)
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `cluster-${cluster.id}`,
-    data: { clusterId: cluster.id },
-  });
-
-  // Combine refs for both drag and drop
-  const setNodeRef = (node: HTMLElement | null) => {
-    setDragRef(node);
-    setDropRef(node);
-  };
-
-  const handleRename = () => {
-    if (editTitle.trim() && editTitle !== cluster.title) {
-      onRename(editTitle.trim());
-    }
-    setIsEditing(false);
-  };
-
-  // Inline style for custom color
-  const labelStyle = cluster.label_color
-    ? {
-      backgroundColor: `${cluster.label_color}20`,
-      color: cluster.label_color,
-      border: `1px solid ${cluster.label_color}40`,
-    }
-    : {};
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`${styles.clusterCard} ${isOver && isDraggingCluster ? styles.clusterMergeTarget : ""} ${isOver && !isDraggingCluster ? styles.dragOver : ""} ${isDragging ? styles.clusterDragging : ""}`}
-      data-cluster-id={cluster.id}
-    >
-      {/* Top Header Section */}
-      <div className={styles.clusterCardHeader}>
-        <div
-          className={styles.dragHandle}
-          {...dragListeners}
-          {...dragAttributes}
-          title="Drag to merge with another cluster"
-        >
-          <FontAwesomeIcon icon={faGripVertical} />
-        </div>
-
-        {/* Editable cluster name */}
-        <div className={styles.clusterName}>
-          {isEditing ? (
-            <div className={styles.clusterNameEdit}>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRename();
-                  if (e.key === "Escape") {
-                    setEditTitle(cluster.title);
-                    setIsEditing(false);
-                  }
-                }}
-                autoFocus
-                className={styles.titleInput}
-              />
-              <Button variant="ghost" size="icon" onClick={handleRename} className={styles.btnEditAction} title="Save">
-                <FontAwesomeIcon icon={faCheck} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setEditTitle(cluster.title);
-                  setIsEditing(false);
-                }}
-                className={classNames(styles.btnEditAction, styles.btnEditCancel)}
-                title="Cancel"
-              >
-                <FontAwesomeIcon icon={faXmark} />
-              </Button>
-            </div>
-          ) : (
-            <div className={styles.clusterNameDisplay}>
-              <h3>{cluster.title}</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(true)}
-                className={styles.btnEditName}
-                title="Edit cluster name"
-              >
-                <FontAwesomeIcon icon={faPencil} />
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Stats */}
-        <div className={styles.clusterStats}>
-          <span title="Total terms">{cluster.total_terms} terms</span>
-          <span title="Total occurrences">{cluster.total_occurrences} occurrences</span>
-          <span title="Unique records">{cluster.unique_records} unique records</span>
-        </div>
-
-        {/* Label badge */}
-        <span
-          className={`${styles.labelBadge} ${styles[getLabelColorClass(cluster.label, cluster.label_color)]}`}
-          style={labelStyle}
-        >
-          {cluster.label}
-        </span>
-
-        {/* Action buttons */}
-        <div className={styles.headerActions}>
-          <Button variant="outline" size="small" colorScheme="danger" onClick={onDelete}>
-            Delete
-          </Button>
-        </div>
-      </div>
-
-      {/* Bottom Terms Section */}
-      <div className={styles.clusterCardBody}>
-        <div className={styles.termsList}>
-          {cluster.terms.map((term) => (
-            <DraggableTerm key={term.term_id} term={term} clusterId={cluster.id} onRemove={onRemoveTerm} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ================================================
-// Main Component
-// ================================================
 
 export default function DatasetClusters() {
   const { datasetId } = useParams<{ datasetId: string }>();
@@ -926,45 +620,37 @@ export default function DatasetClusters() {
           />
 
           {/* Statistics and Actions */}
-          <div className={styles.statsSection}>
-            <div className={styles.statsGrid}>
+          <div className={styles["stats-section"]}>
+            <div className={styles["stats-grid"]}>
               <StatCard label="Clusters" value={stats.totalClusters} />
               <StatCard label="Terms" value={stats.totalTerms} color="blue" />
               <StatCard label="Avg/Cluster" value={stats.avgTermsPerCluster} color="green" />
               <StatCard label="Unclustered" value={stats.unclusteredCount} color="orange" />
-              <button
+            </div>
+            <div className={styles["page-actions"]}>
+              <Button
                 onClick={handleDownloadClusters}
                 disabled={isDownloadingClusters || (clusters.length === 0 && unclusteredTerms.length === 0)}
-                className={styles.downloadButton}
+                className={styles["download-button"]}
                 title="Download current clusters as JSON"
               >
                 {isDownloadingClusters ? "Downloading..." : "Download"}
-              </button>
-            </div>
-            <div className={styles.pageActions}>
-              <Button
-                variant="primary"
-                size="small"
-                onClick={handleAutoClustering}
-                disabled={isAutoClustering || !selectedLabel}
-              >
-                {isAutoClustering ? "Clustering..." : "Auto-Cluster"}
               </Button>
-              <Button variant="outline" size="small" onClick={handleCreateCluster}>
-                + New Cluster
+              <Button variant="primary" onClick={handleAutoClustering} disabled={isAutoClustering || !selectedLabel}>
+                {isAutoClustering ? "Clustering..." : "Auto-Cluster"}
               </Button>
             </div>
           </div>
 
           {/* Toolbar */}
           <div className={styles.toolbar}>
-            <div className={styles.toolbarControls}>
+            <div className={styles["toolbar__controls"]}>
               <Select
                 options={labels.map((l) => ({ value: l, label: l }))}
                 value={selectedLabel}
                 onValueChange={setSelectedLabel}
                 fullWidth={false}
-                className={styles.labelFilter}
+                className={styles["label-filter"]}
               />
 
               <input
@@ -972,17 +658,22 @@ export default function DatasetClusters() {
                 placeholder="Search clusters..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.searchInput}
+                className={styles["search-input"]}
               />
+              <Button variant="outline" onClick={handleCreateCluster}>
+                <FontAwesomeIcon icon={faPlus} /> New Cluster
+              </Button>
             </div>
 
-            <div className={styles.alphabetNav}>
+            <div className={styles["alphabet-nav"]}>
               {alphabet.map((letter) => {
                 const isActive = availableLetters.has(letter);
                 return (
                   <button
                     key={letter}
-                    className={`${styles.alphabetButton} ${!isActive ? styles.alphabetButtonDisabled : ""}`}
+                    className={classNames(styles["alphabet-nav__button"], {
+                      [styles["alphabet-nav__button--disabled"]]: !isActive,
+                    })}
                     onClick={() => scrollToLetter(letter)}
                     disabled={!isActive}
                   >
@@ -1007,7 +698,7 @@ export default function DatasetClusters() {
           ) : (
             <div>
               {filteredClusters.length === 0 && clusters.length === 0 ? (
-                <div className={styles.emptyState}>
+                <div className={styles["empty-state"]}>
                   <h2>No clusters yet</h2>
                   <p>Get started by auto-clustering your terms for the selected label</p>
                   <Button variant="primary" size="large" onClick={handleAutoClustering} disabled={!selectedLabel}>
@@ -1015,7 +706,7 @@ export default function DatasetClusters() {
                   </Button>
                 </div>
               ) : (
-                <div className={styles.clustersList}>
+                <div className={styles["clusters-list"]}>
                   {filteredClusters.map((cluster) => (
                     <ClusterCard
                       key={cluster.id}
@@ -1036,7 +727,13 @@ export default function DatasetClusters() {
             {activeDragCluster ? <ClusterOverlay cluster={activeDragCluster} /> : null}
           </DragOverlay>
           {showBackToTop && (
-            <Button variant="ghost" size="icon" className={styles.backToTop} onClick={scrollToTop} title="Back to top">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={styles["back-to-top"]}
+              onClick={scrollToTop}
+              title="Back to top"
+            >
               <FontAwesomeIcon icon={faArrowUp} />
             </Button>
           )}

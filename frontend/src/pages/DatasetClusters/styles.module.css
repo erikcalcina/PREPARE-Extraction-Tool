@@ -6,12 +6,11 @@
   font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.container {
-  padding: 0;
-}
+/* ================================================
+   Statistics Section
+   ================================================ */
 
-/* Statistics Section */
-.statsSection {
+.stats-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -19,15 +18,14 @@
   margin-bottom: 24px;
 }
 
-/* Stats Cards */
-.statsGrid {
+.stats-grid {
   display: flex;
   gap: 12px;
   flex: 1;
   flex-wrap: wrap;
 }
 
-.pageActions {
+.page-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
@@ -50,15 +48,20 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.toolbarControls {
+.toolbar__controls {
   display: flex;
   gap: 12px;
   align-items: center;
 }
 
-.searchInput {
+.label-filter {
+  min-width: 200px;
+}
+
+.search-input {
+  flex: 1;
   padding: 10px 14px;
-  background: #ffffff;
+  background: #f9fafb;
   color: #374151;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
@@ -66,564 +69,33 @@
   transition: all 0.2s ease;
 }
 
-.labelFilter {
-  min-width: 200px;
-}
-
-.searchInput {
-  flex: 1;
-  background: #f9fafb;
-}
-
-.searchInput:focus {
+.search-input:focus {
   outline: none;
   border-color: #11415e;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
 }
 
-.searchInput::placeholder {
+.search-input::placeholder {
   color: #9ca3af;
 }
 
 /* ================================================
-   Cluster Grid
+   Clusters List
    ================================================ */
 
-.clustersList {
+.clusters-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-/* Card container - vertical flex layout */
-.clusterCard {
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.clusterCard:hover {
-  border-color: #11415e;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.clusterCard.dragOver {
-  border-color: #11415e;
-  border-width: 2px;
-  background: #fafcfd;
-  box-shadow:
-    0 0 0 4px rgba(76, 101, 175, 0.15),
-    0 4px 12px rgba(76, 101, 175, 0.1);
-  transform: scale(1.01);
-}
-
-/* Cluster dragging state */
-.clusterCard.clusterDragging {
-  opacity: 0.4;
-  border-style: dashed;
-  background: #f9fafb;
-}
-
-/* Cluster merge target (when another cluster is dragged over) */
-.clusterCard.clusterMergeTarget {
-  border-color: #327dae;
-  border-width: 2px;
-  background: #eff6ff;
-  box-shadow:
-    0 0 0 4px rgba(37, 99, 235, 0.15),
-    0 4px 12px rgba(37, 99, 235, 0.1);
-  transform: scale(1.02);
-}
-
-/* Cluster overlay (drag preview) */
-.clusterCard.clusterOverlay {
-  background: #ffffff;
-  border: 2px solid #327dae;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-  cursor: grabbing;
-  max-width: 400px;
-}
-
-/* Top header section */
-.clusterCardHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-/* Drag handle */
-.dragHandle {
-  cursor: grab;
-  color: #9ca3af;
-  font-size: 16px;
-  padding: 4px;
-  user-select: none;
-}
-
-.dragHandle:hover {
-  color: #6b7280;
-}
-
-/* Cluster name area */
-.clusterName {
-  flex: 1;
-  min-width: 0;
-}
-
-.clusterNameDisplay {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.clusterNameDisplay h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #11415e;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.btnEditName {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 4px 6px;
-  font-size: 12px;
-  border-radius: 0px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.btnEditName:hover {
-  color: #327dae;
-  background: #fafcfd;
-}
-
-.clusterNameEdit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btnEditAction {
-  background: #327dae;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 8px 10px;
-  font-size: 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.btnEditAction:hover {
-  background: #11415e;
-}
-
-.btnEditCancel {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.btnEditCancel:hover {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-/* Header action buttons container */
-.headerActions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* Bottom terms section */
-.clusterCardBody {
-  padding: 16px 20px;
-  background: #ffffff;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-  .clusterCardHeader {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .clusterName {
-    order: 1;
-    flex-basis: calc(100% - 50px);
-  }
-
-  .dragHandle {
-    order: 0;
-  }
-
-  .labelBadge,
-  .labelEditor {
-    order: 2;
-  }
-
-  .clusterStats {
-    order: 3;
-    flex-basis: 100%;
-  }
-
-  .headerActions {
-    order: 4;
-    flex-basis: 100%;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 768px) {
-  .clusterCardHeader {
-    padding: 12px 16px;
-  }
-
-  .clusterCardBody {
-    padding: 12px 16px;
-  }
-
-  .clusterStats {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-
-.clusterBadge {
-  background: #f3f4f6;
-  color: #6b7280;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  align-self: flex-start;
-}
-
-.clusterContent {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.labelBadge {
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-block;
-  align-self: center;
-}
-
-.labelBadge.condition {
-  background: #fee2e2;
-  color: #7f1d1d;
-}
-
-.labelBadge.medication {
-  background: #ede9fe;
-  color: #4c1d95;
-}
-
-.labelBadge.labtest {
-  background: #fed7aa;
-  color: #7c2d12;
-}
-
-.labelBadge.procedure {
-  background: #dbeafe;
-  color: #13425e;
-}
-
-.labelBadge.bodypart {
-  background: #d1fae5;
-  color: #16593f;
-}
-
-.labelBadge.default {
-  background: #f3f4f6;
-  color: #1e293b;
-}
-
-.titleStatsRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.clusterTitle {
-  flex: 1;
-}
-
-.clusterTitle h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #11415e;
-  margin: 0;
-  cursor: text;
-}
-
-.titleInput {
-  flex: 1;
-  min-width: 150px;
-  padding: 8px 12px;
-  background: #ffffff;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.titleInput:focus {
-  outline: none;
-  border-color: #11415e;
-  box-shadow: 0 0 0 3px rgba(76, 101, 175, 0.1);
-}
-
-.clusterStats {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #6b7280;
-  background: #f9fafb;
-  padding: 8px 16px;
-}
-
-.clusterStats span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-/* ================================================
-   Terms List
-   ================================================ */
-
-@media (max-width: 768px) {
-  .termsList {
-    flex-direction: column;
-  }
-
-  .termItem {
-    min-width: auto;
-    width: 100%;
-  }
-
-  .clusterStats {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-
-.termsList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.termItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 4px 8px 8px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: grab;
-  transition: all 0.2s ease;
-  min-width: 180px;
-}
-
-.termItem:hover {
-  background: #f9fafb;
-  border-color: #11415e;
-  border-left-color: #11415e;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.termItem:hover .termDragHandle {
-  color: #11415e;
-}
-
-.termItem:active {
-  cursor: grabbing;
-  opacity: 0.7;
-  transform: scale(0.98);
-}
-
-.termDragHandle {
-  color: #9ca3af;
-  font-size: 12px;
-  padding: 2px;
-  flex-shrink: 0;
-  transition: color 0.2s ease;
-}
-
-.termItemDragging {
-  opacity: 0;
-}
-
-.termItemOverlay {
-  background: #ffffff;
-  border: 1px solid #11415e;
-  box-shadow:
-    0 0 0 1px #11415e,
-    0 8px 20px rgba(0, 0, 0, 0.15);
-  cursor: grabbing;
-}
-
-.termItemNoRemoveBtn {
-  padding-right: 15px;
-}
-
-.termRemoveBtn {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 12px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  opacity: 0;
-}
-
-.termItem:hover .termRemoveBtn {
-  opacity: 1;
-}
-
-.termRemoveBtn:hover {
-  color: #dc2626;
-  background: #fef2f2;
-}
-
-.termText {
-  color: #374151;
-  font-size: 14px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.termStats {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.frequency {
-  color: #6b7280;
-  font-size: 12px;
-  min-width: 60px;
-  text-align: right;
-  font-weight: 500;
-}
-
-.frequencyBar {
-  width: 80px;
-  height: 6px;
-  background: #e5e7eb;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.frequencyBarFill {
-  height: 100%;
-  background: #2e9d72;
-  transition: width 0.3s ease;
-}
-
-.moreTerms {
-  text-align: center;
-  padding: 8px;
-  color: #6b7280;
-  font-size: 12px;
-  font-style: italic;
-}
-
-/* ================================================
-   Cluster Actions
-   ================================================ */
-
-.clusterActions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-  justify-content: flex-end;
-}
-
-/* ================================================
-   Unclustered Section
-   ================================================ */
-
-.unclusteredSection {
-  margin-top: 24px;
-}
-
-.unclusteredSection h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #11415e;
-  margin-bottom: 12px;
-}
-
-.unclusteredArea {
-  background: #ffffff;
-  border: 2px dashed #d1d5db;
-  border-radius: 12px;
-  padding: 10px;
-  min-height: 50px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.unclusteredArea:empty::after {
-  content: "Drag terms here to uncluster them";
-  color: #9ca3af;
-  font-style: italic;
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 40px;
-}
-
-.unclusteredArea.unclusteredDragOver {
-  border-color: #11415e;
-  border-style: solid;
-  background: #fafcfd;
-  box-shadow:
-    0 0 0 4px rgba(76, 101, 175, 0.1),
-    0 4px 12px rgba(76, 101, 175, 0.1);
-}
-
 /* ================================================
    Empty State
    ================================================ */
 
-.emptyState {
+.empty-state {
   text-align: center;
   padding: 60px 40px;
   background: #ffffff;
@@ -631,14 +103,14 @@
   border: 2px dashed #d1d5db;
 }
 
-.emptyState h2 {
+.empty-state h2 {
   font-size: 20px;
   font-weight: 600;
   color: #11415e;
   margin-bottom: 8px;
 }
 
-.emptyState p {
+.empty-state p {
   color: #6b7280;
   font-size: 14px;
   margin-bottom: 20px;
@@ -683,110 +155,10 @@
 }
 
 /* ================================================
-   Labels
-   ================================================ */
-
-/* Custom label styles */
-.labelBadge.custom-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.labelBadge.custom-label:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.editLabelIcon {
-  font-size: 10px;
-  opacity: 0.7;
-  margin-left: 4px;
-}
-
-/* Label editor */
-.labelEditor {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.labelInput {
-  padding: 2px 6px;
-  background: #ffffff;
-  color: #374151;
-  border: 2px solid #11415e;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 60px;
-}
-
-.labelInput:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
-}
-
-.colorPicker {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.colorPicker::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.colorPicker::-webkit-color-swatch {
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-}
-
-.saveLabelBtn,
-.cancelLabelBtn {
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.saveLabelBtn {
-  background: #144d70;
-  color: white;
-}
-
-.saveLabelBtn:hover {
-  background: #11415e;
-}
-
-.cancelLabelBtn {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.cancelLabelBtn:hover {
-  background: #e5e7eb;
-}
-
-/* ================================================
    Back to Top Button
    ================================================ */
 
-.backToTop {
+.back-to-top {
   position: fixed;
   bottom: 30px;
   right: 30px;
@@ -803,7 +175,7 @@
   z-index: 100;
 }
 
-.backToTop:hover {
+.back-to-top:hover {
   background: #11415e;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
@@ -813,14 +185,14 @@
    Alphabetic Jump Navigation
    ================================================ */
 
-.alphabetNav {
+.alphabet-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   align-self: center;
 }
 
-.alphabetButton {
+.alphabet-nav__button {
   width: 32px;
   height: 32px;
   border: 1px solid #e5e7eb;
@@ -833,13 +205,13 @@
   transition: all 0.15s ease;
 }
 
-.alphabetButton:hover:not(:disabled) {
+.alphabet-nav__button:hover:not(:disabled) {
   background: #f6fafc;
   border-color: #11415e;
   color: #144d70;
 }
 
-.alphabetButtonDisabled {
+.alphabet-nav__button--disabled {
   background: #f9fafb;
   color: #d1d5db;
   cursor: not-allowed;
