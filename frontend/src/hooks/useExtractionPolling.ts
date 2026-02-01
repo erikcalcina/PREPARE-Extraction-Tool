@@ -57,11 +57,13 @@ export function useExtractionPolling({
 
       try {
         let pollCount = 0;
+        let lastStatus: ExtractionProgress["status"] = "pending";
         while (!cancelledRef.current) {
           const status = await getDatasetExtractionStatusAPI(datasetId, jobId);
 
           if (cancelledRef.current) break;
 
+          lastStatus = status.status;
           setExtractionProgress({
             completed: status.completed,
             total: status.total,
@@ -92,7 +94,7 @@ export function useExtractionPolling({
           await fetchStats();
         }
 
-        return { status: "completed" as const };
+        return { status: lastStatus };
       } finally {
         setIsExtractingDataset(false);
         setIsCancellingExtraction(false);
