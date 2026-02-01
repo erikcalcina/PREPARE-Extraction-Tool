@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
-import type { User, UserRegister } from "types";
+import type { User, UserRegister } from "@/types";
 import {
   login as apiLogin,
   register as apiRegister,
@@ -9,7 +9,7 @@ import {
   setRefreshToken,
   clearToken,
   getToken,
-} from "api";
+} from "@/api";
 
 // ================================================
 // Auth Context

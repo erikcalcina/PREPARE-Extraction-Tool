@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import type { ToastType } from "components/Toast";
+import { useState, useCallback, useRef } from "react";
+import type { ToastType } from "@components/Toast";
 
 interface ToastState {
   message: string;
@@ -17,13 +17,12 @@ interface UseToastReturn {
   info: (message: string) => void;
 }
 
-let toastId = 0;
-
 export function useToast(): UseToastReturn {
+  const toastIdRef = useRef(0);
   const [toasts, setToasts] = useState<ToastState[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
-    const id = ++toastId;
+    const id = ++toastIdRef.current;
     setToasts((prev) => [...prev, { message, type, id }]);
   }, []);
 
