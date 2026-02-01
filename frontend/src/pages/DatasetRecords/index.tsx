@@ -203,15 +203,20 @@ const DatasetRecords: React.FC = () => {
     }
   }, [selectedRecord, records, selectRecord]);
 
-  const handleNextRecord = useCallback(() => {
+  const [pendingNextNavigation, setPendingNextNavigation] = useState(false);
+
+  const handleNextRecord = useCallback(async () => {
     if (!selectedRecord || records.length === 0) return;
 
     const currentIndex = records.findIndex((r) => r.id === selectedRecord.id);
 
     if (currentIndex < records.length - 1) {
       selectRecord(records[currentIndex + 1]);
+    } else if (hasMore) {
+      setPendingNextNavigation(true);
+      await loadMoreRecords();
     }
-  }, [selectedRecord, records, selectRecord]);
+  }, [selectedRecord, records, selectRecord, hasMore, loadMoreRecords]);
 
   const handleMarkReviewedInSidebar = useCallback(async () => {
     if (!selectedRecord) return;
@@ -229,7 +234,18 @@ const DatasetRecords: React.FC = () => {
   }, [selectedRecord, records]);
 
   const hasPreviousRecord = currentRecordIndex > 0;
-  const hasNextRecord = currentRecordIndex >= 0 && currentRecordIndex < records.length - 1;
+  const hasNextRecord = currentRecordIndex >= 0 && (currentRecordIndex < records.length - 1 || hasMore);
+
+  // Navigate to next record after loading more records via navigation
+  useEffect(() => {
+    if (pendingNextNavigation && !isLoadingMore && selectedRecord) {
+      const currentIndex = records.findIndex((r) => r.id === selectedRecord.id);
+      if (currentIndex >= 0 && currentIndex < records.length - 1) {
+        selectRecord(records[currentIndex + 1]);
+      }
+      setPendingNextNavigation(false);
+    }
+  }, [pendingNextNavigation, isLoadingMore, records, selectedRecord, selectRecord]);
 
   // Reset annotation selection when changing records
   useEffect(() => {
@@ -404,7 +420,11 @@ const DatasetRecords: React.FC = () => {
                   variant="outline"
                   onClick={handleTermDownload}
                   disabled={totalRecords === 0}
-                  title={totalRecords === 0 ? "No records in this dataset" : "Download all extracted terms in JSON format (used for NER training)"}
+                  title={
+                    totalRecords === 0
+                      ? "No records in this dataset"
+                      : "Download all extracted terms in JSON format (used for NER training)"
+                  }
                 >
                   Download Term Dataset
                 </Button>
@@ -417,7 +437,6 @@ const DatasetRecords: React.FC = () => {
                 </Button>
               </>
             )}
-
           </div>
         </div>
 
