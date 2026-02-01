@@ -81,6 +81,14 @@
   outline-offset: 2px;
 }
 
+/* Responsive: full-width on small screens */
+@media (max-width: 1492px) {
+  .sidebar {
+    max-width: 100vw;
+    width: 100vw !important;
+  }
+}
+
 /* Element: content area */
 .sidebar__content {
   flex: 1;
