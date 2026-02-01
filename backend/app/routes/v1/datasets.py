@@ -995,9 +995,7 @@ def get_clusters_of_dataset(
 
     # label_reviewed: True if a label is selected and ALL its clusters are reviewed
     label_reviewed = (
-        bool(label)
-        and len(clusters) > 0
-        and all(c.reviewed for c in clusters)
+        bool(label) and len(clusters) > 0 and all(c.reviewed for c in clusters)
     )
 
     return ClustersStatisticsOutput(
@@ -1355,7 +1353,7 @@ def create_clusters_for_dataset(
     else:
         texts = [_normalize_term(t) for t in raw_texts]
 
-        embedding_model = model_registry.get_model("embedding_model2vec")
+        embedding_model = model_registry.get_model("embedding_sentence")
         embeddings = embedding_model.embed(texts)
 
         HDBSCAN_PARAMS = {
@@ -1373,9 +1371,10 @@ def create_clusters_for_dataset(
             max_typos=1,
         )
 
-        labels_arr = _merge_labels_by_centroid_similarity(labels_arr, embeddings, threshold=0.8)
+        labels_arr = _merge_labels_by_centroid_similarity(
+            labels_arr, embeddings, threshold=0.8
+        )
         labels_arr = [int(x) for x in labels_arr]
-
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
@@ -1401,7 +1400,7 @@ def create_clusters_for_dataset(
         else:
             cluster_terms[cid].append(st)
 
-    created_by_title_norm = {} 
+    created_by_title_norm = {}
 
     for cid, terms in cluster_terms.items():
         counter = Counter(st.value for st in terms)
@@ -1443,11 +1442,9 @@ def create_clusters_for_dataset(
             st.cluster_id = cluster_obj.id
             db.add(st)
 
-
     db.commit()
 
     return MessageOutput(message="Clusters rebuilt and saved to database.")
-
 
 
 DATE_SEPARATORS_RE = re.compile(r"[.\-/]")
@@ -1456,6 +1453,7 @@ MEASURE_RE = re.compile(
     r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
     re.IGNORECASE,
 )
+
 
 def _detect_value_type(text: str) -> str:
     """
@@ -1545,7 +1543,6 @@ def _normalize_measure_to_key(text: str) -> Optional[str]:
 # ================================================
 # New enhanced clustering routes
 # ================================================
-
 
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
@@ -1719,7 +1716,9 @@ def download_clusters_json(
         cluster_stmt = cluster_stmt.where(Cluster.label == label)
     clusters = db.exec(cluster_stmt.order_by(Cluster.title)).all()
     if not clusters:
-        raise HTTPException(status_code=404, detail="No clusters found for this dataset")
+        raise HTTPException(
+            status_code=404, detail="No clusters found for this dataset"
+        )
 
     cluster_ids = [c.id for c in clusters]
     term_rows = []

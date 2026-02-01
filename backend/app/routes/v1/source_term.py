@@ -81,7 +81,7 @@ def auto_map_source_term_to_cluster(
         )
 
     # --- 3. Use embedding model instead of TF-IDF ---
-    embedding_model = model_registry.get_model("embedding_model2vec")
+    embedding_model = model_registry.get_model("embedding_sentence")
 
     # Cluster representatives = cluster titles
     cluster_titles = [c.title for c in clusters]
