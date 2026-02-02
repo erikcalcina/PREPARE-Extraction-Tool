@@ -1,6 +1,14 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    File,
+    UploadFile,
+    BackgroundTasks,
+)
 from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
@@ -142,10 +150,7 @@ def get_vocabularies(
 
     # Subquery: only count concepts for this user's vocabularies
     concept_counts_subquery = (
-        select(
-            Concept.vocabulary_id,
-            func.count(Concept.id).label("count")
-        )
+        select(Concept.vocabulary_id, func.count(Concept.id).label("count"))
         .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
         .where(Vocabulary.user_id == current_user.id)
         .group_by(Concept.vocabulary_id)
@@ -156,11 +161,11 @@ def get_vocabularies(
     vocabularies_with_counts = db.exec(
         select(
             Vocabulary,
-            func.coalesce(concept_counts_subquery.c.count, 0).label("concept_count")
+            func.coalesce(concept_counts_subquery.c.count, 0).label("concept_count"),
         )
         .outerjoin(
             concept_counts_subquery,
-            Vocabulary.id == concept_counts_subquery.c.vocabulary_id
+            Vocabulary.id == concept_counts_subquery.c.vocabulary_id,
         )
         .where(Vocabulary.user_id == current_user.id)
         .order_by(Vocabulary.id)
@@ -175,7 +180,7 @@ def get_vocabularies(
             uploaded=vocabulary.uploaded,
             concept_count=concept_count,
             status=vocabulary.status,
-            error_message=vocabulary.error_message
+            error_message=vocabulary.error_message,
         )
         for vocabulary, concept_count in vocabularies_with_counts
     ]
@@ -186,6 +191,7 @@ def get_vocabularies(
             total, pagination.limit, pagination.offset
         ),
     )
+
 
 @router.post(
     "/",
@@ -211,17 +217,14 @@ async def create_vocabulary(
     file_path = await save_upload_to_disk(file)
 
     # start background ingestion
-    background_tasks.add_task(
-        ingest_vocabulary_background,
-        file_path,
-        current_user.id
-    )
-    
+    background_tasks.add_task(ingest_vocabulary_background, file_path, current_user.id)
+
     vocabulary_response = VocabularyUploadResponse(
         status=VocabularyStatus.PENDING,
-        message="Concept upload successfully started background task"
+        message="Concept upload successfully started background task",
     )
     return vocabulary_response
+
 
 async def save_upload_to_disk(file: UploadFile) -> str:
     path = f"/tmp/{uuid4()}.csv"
@@ -233,8 +236,38 @@ async def save_upload_to_disk(file: UploadFile) -> str:
 
     return path
 
+
+def _filter_duplicates(db: Session, batch: list) -> list:
+    """Remove concepts whose vocab_term_id already exists in their vocabulary."""
+    # Group by vocabulary_id
+    by_vocab = {}
+    for c in batch:
+        by_vocab.setdefault(c.vocabulary_id, []).append(c)
+
+    new_concepts = []
+    for vid, concepts in by_vocab.items():
+        term_ids = [c.vocab_term_id for c in concepts]
+        existing = set(
+            db.exec(
+                select(Concept.vocab_term_id).where(
+                    Concept.vocabulary_id == vid,
+                    Concept.vocab_term_id.in_(term_ids),
+                )
+            ).all()
+        )
+        new_concepts.extend(c for c in concepts if c.vocab_term_id not in existing)
+    return new_concepts
+
+
 def _insert_and_index_batch(db: Session, batch: list):
-    """Insert a batch of Concepts via Core INSERT RETURNING and index in ES."""
+    """Insert a batch of Concepts via Core INSERT RETURNING and index in ES.
+
+    Skips concepts that already exist (by vocab_term_id + vocabulary_id).
+    """
+    batch = _filter_duplicates(db, batch)
+    if not batch:
+        return
+
     concept_dicts = [
         {
             "vocab_term_id": c.vocab_term_id,
@@ -274,34 +307,83 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
         "invalid_reason",
     ]
 
-    UNWANTED_IDS = ['Korean Revenue Code', 'Cost Type', 'UB04 Pt dis status', 'Observation Type', 
-            'Concept Class', 'UB04 Pri Typ of Adm', 'Visit Type', 'Sponsor', 'Relationship', 
-            'SOPT', 'Meas Type', 'US Census', 'Language', 'Note Type', 'Condition Status', 
-            'Procedure Type', 'Vocabulary', 'Obs Period Type', 'Type Concept', 'Plan Stop Reason', 
-            'UCUM', 'CDM', 'Metadata', 'OSM', 'Plan', 'UB04 Point of Origin', 'Cost', 'UB04 Typ bill', 
-            'Episode', 'Death Type', 'Condition Type', 'Device Type', 'Drug Type', 'Visit', 'Domain', "None"]
+    UNWANTED_IDS = [
+        "Korean Revenue Code",
+        "Cost Type",
+        "UB04 Pt dis status",
+        "Observation Type",
+        "Concept Class",
+        "UB04 Pri Typ of Adm",
+        "Visit Type",
+        "Sponsor",
+        "Relationship",
+        "SOPT",
+        "Meas Type",
+        "US Census",
+        "Language",
+        "Note Type",
+        "Condition Status",
+        "Procedure Type",
+        "Vocabulary",
+        "Obs Period Type",
+        "Type Concept",
+        "Plan Stop Reason",
+        "UCUM",
+        "CDM",
+        "Metadata",
+        "OSM",
+        "Plan",
+        "UB04 Point of Origin",
+        "Cost",
+        "UB04 Typ bill",
+        "Episode",
+        "Death Type",
+        "Condition Type",
+        "Device Type",
+        "Drug Type",
+        "Visit",
+        "Domain",
+        "None",
+    ]
 
-    vocabularies = {}
+    vocabularies = {}  # vocab_name -> vocab_id
+    new_vocab_ids = set()  # only IDs for newly created vocabularies
     try:
 
         # start ingesting
         BATCH_SIZE = 5000
         batch = []
         total = 0
-        for concept, vocab_name in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
-            if vocab_name in vocabularies.keys():
+        for concept, vocab_name in parse_concepts_file(
+            file_path, REQUIRED_COLUMNS, UNWANTED_IDS
+        ):
+            if vocab_name in vocabularies:
                 concept.vocabulary_id = vocabularies[vocab_name]
             else:
-                # create a new Vocabulary
-                vocabulary = Vocabulary(name=vocab_name, user_id=user_id)
-                db.add(vocabulary)
-                db.commit()
-                db.refresh(vocabulary)
-                vocab_id = vocabulary.id
+                # Check for existing vocabulary (same name + user, DONE)
+                existing = db.exec(
+                    select(Vocabulary).where(
+                        Vocabulary.name == vocab_name,
+                        Vocabulary.user_id == user_id,
+                        Vocabulary.status == VocabularyStatus.DONE,
+                    )
+                ).first()
+
+                if existing:
+                    vocab_id = existing.id
+                    print(f"Reusing existing vocabulary '{vocab_name}' (id={vocab_id})")
+                else:
+                    # create a new Vocabulary
+                    vocabulary = Vocabulary(name=vocab_name, user_id=user_id)
+                    db.add(vocabulary)
+                    db.commit()
+                    db.refresh(vocabulary)
+                    vocab_id = vocabulary.id
+                    # create new ES index
+                    indexer.create_concept_index(vocab_id)
+                    new_vocab_ids.add(vocab_id)
+
                 concept.vocabulary_id = vocab_id
-                # create new ES index and disable refresh during bulk load
-                indexer.create_concept_index(vocab_id)
-                indexer.set_index_refresh(vocab_id, "-1")
                 vocabularies[vocab_name] = vocab_id
 
             batch.append(concept)
@@ -317,49 +399,34 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
             total += len(batch)
             print("Rows saved:", total, "-> ALL")
 
-        # Re-enable ES refresh and force a final refresh
-        vocab_ids = list(vocabularies.values())
-        for vid in vocab_ids:
-            indexer.set_index_refresh(vid, "1s")
-
-        # success
-        db.exec(
-            update(Vocabulary)
-            .where(Vocabulary.id.in_(vocab_ids))
-            .values(status=VocabularyStatus.DONE)
-        )
-        db.commit()
+        # Mark only newly created vocabularies as DONE
+        if new_vocab_ids:
+            db.exec(
+                update(Vocabulary)
+                .where(Vocabulary.id.in_(list(new_vocab_ids)))
+                .values(status=VocabularyStatus.DONE)
+            )
+            db.commit()
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         # failure cleanup
         db.rollback()
 
-        vocab_ids = list(vocabularies.values())
         error_msg = str(e)
 
-        # Re-enable ES refresh before cleanup
-        for vid in vocab_ids:
-            try:
-                indexer.set_index_refresh(vid, "1s")
-            except Exception:
-                pass
-
-        if vocab_ids:
-            # mark all vocabularies as FAILED
+        # Only clean up newly created vocabularies; reused ones stay intact
+        if new_vocab_ids:
             db.exec(
                 update(Vocabulary)
-                .where(Vocabulary.id.in_(vocab_ids))
-                .values(
-                    status=VocabularyStatus.FAILED,
-                    error_message=error_msg
-                )
+                .where(Vocabulary.id.in_(list(new_vocab_ids)))
+                .values(status=VocabularyStatus.FAILED, error_message=error_msg)
             )
             db.commit()
 
-            # delete ES indices
-            for vocab_id in vocab_ids:
+            for vocab_id in new_vocab_ids:
                 try:
                     indexer.delete_index(vocab_id)
                 except Exception as es_err:
@@ -367,6 +434,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
 
     finally:
         db.close()
+
 
 @router.get(
     "/processing/stats",
@@ -381,8 +449,7 @@ def get_processing_vocabulary_stats(
 ):
     # count vocabularies in PROCESSING
     vocab_count = db.exec(
-        select(func.count(Vocabulary.id))
-        .where(
+        select(func.count(Vocabulary.id)).where(
             Vocabulary.user_id == current_user.id,
             Vocabulary.status == VocabularyStatus.PROCESSING,
         )
@@ -429,11 +496,10 @@ def get_vocabulary(
         name=vocabulary.name,
         uploaded=vocabulary.uploaded,
         concept_count=db.exec(
-            select(func.count(Concept.id))
-            .where(Concept.vocabulary_id == vocabulary.id)
+            select(func.count(Concept.id)).where(Concept.vocabulary_id == vocabulary.id)
         ).one(),
         status=vocabulary.status,
-        error_message=vocabulary.error_message
+        error_message=vocabulary.error_message,
     )
     return VocabularyOutput(vocabulary=vocabulary_response)
 
@@ -457,18 +523,16 @@ def delete_vocabulary(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    
+
     verify_vocabulary_ownership(vocabulary, current_user.id)
     vocabulary.status = VocabularyStatus.DELETED
     db.commit()
 
     # start background ingestion
-    background_tasks.add_task(
-        delete_vocabulary_background,
-        vocabulary_id
-    )
+    background_tasks.add_task(delete_vocabulary_background, vocabulary_id)
 
     return MessageOutput(message="Vocabulary deletion started in the background")
+
 
 def delete_vocabulary_background(vocabulary_id: int):
     db = Session(engine)
@@ -538,9 +602,7 @@ def search_vocabulary_concepts(
     # Get concept details from database
     concept_ids = [r["concept_id"] for r in es_results]
     if concept_ids:
-        concepts = db.exec(
-            select(Concept).where(Concept.id.in_(concept_ids))
-        ).all()
+        concepts = db.exec(select(Concept).where(Concept.id.in_(concept_ids))).all()
         # Preserve ES ordering
         concept_map = {c.id: c for c in concepts}
         concepts = [concept_map[cid] for cid in concept_ids if cid in concept_map]
