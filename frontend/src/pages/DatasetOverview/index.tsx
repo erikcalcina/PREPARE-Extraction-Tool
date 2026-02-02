@@ -1,13 +1,18 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Layout from "components/Layout";
-import { usePageTitle } from "hooks/usePageTitle";
-import type { DatasetOverviewOutput } from "types";
-import * as api from "api";
-import styles from "./styles.module.css";
+import classNames from "classnames";
+import Layout from "@/components/Layout";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import type { DatasetOverviewOutput, Vocabulary } from "@/types";
+import * as api from "@/api";
+import Button from "@/components/Button";
+import StatCard from "@/components/StatCard";
+import WorkflowCard from "@/components/WorkflowCard";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare, faObjectGroup, faMapLocationDot, faFilePen } from "@fortawesome/free-solid-svg-icons";
-import { faMap } from "@fortawesome/free-solid-svg-icons/faMap";
+import { faObjectGroup, faMapLocationDot, faFilePen, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+
+import styles from "./styles.module.css";
+
 
 // ================================================
 // Helper functions
@@ -23,92 +28,7 @@ function formatDate(dateString: string): string {
 }
 
 function getLabelColorClass(index: number): string {
-  return `label${(index % 9) + 1}`;
-}
-
-// ================================================
-// Stat Card Component
-// ================================================
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  variant?: "default" | "processed" | "pending" | "terms";
-}
-
-function StatCard({ label, value, variant = "default" }: StatCardProps) {
-  return (
-    <div className={styles.statCard}>
-      <div className={styles.statLabel}>{label}</div>
-      <div className={`${styles.statValue} ${variant !== "default" ? styles[variant] : ""}`}>
-        {value.toLocaleString()}
-      </div>
-    </div>
-  );
-}
-
-// ================================================
-// Workflow Card Component
-// ================================================
-
-interface WorkflowCardProps {
-  title: string;
-  description: string;
-  icon?: any;
-  stats: Array<{ label: string; value: string | number }>;
-  progress?: { current: number; total: number };
-  actions: Array<{ label: string; onClick: () => void; variant?: "primary" | "secondary" }>;
-}
-
-function WorkflowCard({ title, description, icon, stats, progress, actions }: WorkflowCardProps) {
-  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
-
-  return (
-    <div className={styles.workflowCard}>
-      <div className={styles.workflowHeader}>
-        <div>
-          <h3 className={styles.workflowTitle}>{title}</h3>
-          <p className={styles.workflowDescription}>{description}</p>
-        </div>
-        {icon && <FontAwesomeIcon icon={icon} className={styles.workflowIcon} />}
-      </div>
-
-      <div className={styles.workflowStats}>
-        {stats.map((stat, idx) => (
-          <div key={idx} className={styles.workflowStat}>
-            <span className={styles.workflowStatLabel}>{stat.label}</span>
-            <span className={styles.workflowStatValue}>{stat.value}</span>
-          </div>
-        ))}
-      </div>
-
-      {progress && (
-        <div className={styles.progressSection}>
-          <div className={styles.progressHeader}>
-            <span className={styles.progressLabel}>Progress</span>
-            <span className={styles.progressText}>
-              {progress.current} / {progress.total} ({Math.round(progressPercentage)}%)
-            </span>
-          </div>
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${Math.min(100, progressPercentage)}%` }} />
-          </div>
-        </div>
-      )}
-
-      <div className={styles.workflowActions}>
-        {actions.map((action, idx) => (
-          <button
-            key={idx}
-            onClick={action.onClick}
-            className={`${styles.workflowButton} ${action.variant === "primary" ? styles.primary : styles.secondary}`}
-          >
-            {action.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return `labels__badge--label${(index % 9) + 1}`;
 }
 
 // ================================================
@@ -119,7 +39,9 @@ const DatasetOverview = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<DatasetOverviewOutput | null>(null);
+  const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMappingAll, setIsMappingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const parsedDatasetId = datasetId ? parseInt(datasetId, 10) : 0;
@@ -144,6 +66,48 @@ const DatasetOverview = () => {
 
     fetchOverview();
   }, [parsedDatasetId]);
+
+  // Fetch vocabularies for auto-mapping
+  useEffect(() => {
+    const fetchVocabularies = async () => {
+      try {
+        const data = await api.getVocabularies(1, 100);
+        setVocabularies(data.vocabularies);
+      } catch (err) {
+        console.error("Failed to fetch vocabularies:", err);
+      }
+    };
+    fetchVocabularies();
+  }, []);
+
+  const handleStartMapping = async () => {
+    if (!overview || vocabularies.length === 0) return;
+
+    const confirmed = window.confirm(
+      "This will auto-map all unmapped clusters using vector search across all labels. Continue?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsMappingAll(true);
+      const vocabIds = vocabularies.map((v) => v.id);
+      const response = await api.autoMapAllClusters(parsedDatasetId, {
+        vocabulary_ids: vocabIds,
+        use_cluster_terms: true,
+        search_type: "vector",
+      });
+      alert(`Auto-mapping complete! Mapped: ${response.mapped_count}, Failed: ${response.failed_count}`);
+      // Refresh overview
+      const data = await api.getDatasetOverview(parsedDatasetId);
+      setOverview(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to start mapping";
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setIsMappingAll(false);
+    }
+  };
 
   const handleExtractAll = async () => {
     if (!overview) return;
@@ -192,7 +156,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.error}>Invalid dataset ID</div>
+          <div className={styles["page--error"]}>Invalid dataset ID</div>
         </div>
       </Layout>
     );
@@ -202,7 +166,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.loading}>Loading dataset overview...</div>
+          <div className={styles["page--loading"]}>Loading dataset overview...</div>
         </div>
       </Layout>
     );
@@ -212,7 +176,7 @@ const DatasetOverview = () => {
     return (
       <Layout>
         <div className={styles.page}>
-          <div className={styles.error}>{error || "Failed to load dataset"}</div>
+          <div className={styles["page--error"]}>{error || "Failed to load dataset"}</div>
         </div>
       </Layout>
     );
@@ -223,24 +187,24 @@ const DatasetOverview = () => {
       <div className={styles.page}>
         {/* Header Section */}
         <div className={styles.header}>
-          <div className={styles.titleSection}>
-            <button className={styles.backButton} onClick={() => navigate("/datasets")} title="Back to Datasets">
-              ←
-            </button>
+          <div className={styles["header__title-section"]}>
+            <Button variant="outline" size="icon" onClick={() => navigate("/datasets")} aria-label="Back to Datasets">
+              <FontAwesomeIcon icon={faArrowLeft} />
+            </Button>
             <div>
-              <h1 className={styles.title}>{overview.dataset.name}</h1>
-              <p className={styles.subtitle}>Dataset Overview and Statistics</p>
+              <h1 className={styles.header__title}>{overview.dataset.name}</h1>
+              <p className={styles.header__subtitle}>Dataset Overview and Statistics</p>
             </div>
           </div>
         </div>
 
         {/* Labels Section */}
         {overview.dataset.labels.length > 0 && (
-          <div className={styles.labelsSection}>
-            <span className={styles.labelsTitle}>Labels:</span>
-            <div className={styles.labels}>
+          <div className={styles.labels}>
+            <span className={styles.labels__title}>Labels:</span>
+            <div className={styles.labels__list}>
               {overview.dataset.labels.map((label, idx) => (
-                <span key={idx} className={`${styles.labelBadge} ${styles[getLabelColorClass(idx)]}`}>
+                <span key={idx} className={classNames(styles["labels__badge"], styles[getLabelColorClass(idx)])}>
                   {label}
                 </span>
               ))}
@@ -250,28 +214,24 @@ const DatasetOverview = () => {
 
         {/* Metadata Section */}
         <div className={styles.metadata}>
-          <div className={styles.metadataItem}>
-            <span className={styles.metadataLabel}>Uploaded:</span>
-            <span className={styles.metadataValue}>{formatDate(overview.dataset.uploaded)}</span>
-          </div>
-          <div className={styles.metadataItem}>
-            <span className={styles.metadataLabel}>Last Modified:</span>
-            <span className={styles.metadataValue}>{formatDate(overview.dataset.last_modified)}</span>
+          <div className={styles.metadata__item}>
+            <span className={styles.metadata__label}>Uploaded:</span>
+            <span className={styles.metadata__value}>{formatDate(overview.dataset.uploaded)}</span>
           </div>
         </div>
 
         {/* Statistics Cards */}
         <div className={styles.statsGrid}>
           <StatCard label="Total Records" value={overview.stats.total_records} />
-          <StatCard label="Records Processed" value={overview.stats.processed_count} variant="processed" />
-          <StatCard label="Total Terms" value={overview.stats.extracted_terms_count} variant="terms" />
-          <StatCard label="Pending Review" value={overview.stats.pending_review_count} variant="pending" />
+          <StatCard label="Records Processed" value={overview.stats.processed_count} color="green" />
+          <StatCard label="Total Terms" value={overview.stats.extracted_terms_count} color="blue" />
+          <StatCard label="Pending Review" value={overview.stats.pending_review_count} color="orange" />
         </div>
 
         {/* Workflow Section */}
-        <div className={styles.workflowSection}>
-          <h2 className={styles.sectionTitle}>Workflow Steps</h2>
-          <div className={styles.workflowGrid}>
+        <div className={styles.workflow}>
+          <h2 className={styles.workflow__title}>Workflow Steps</h2>
+          <div className={styles.workflow__grid}>
             {/* Term Extraction Card */}
             <WorkflowCard
               title="Term Extraction"
@@ -340,12 +300,12 @@ const DatasetOverview = () => {
               actions={[
                 {
                   label: "View Mappings",
-                  onClick: () => alert("Concept mapping view coming soon!"),
+                  onClick: () => navigate(`/datasets/${datasetId}/mapping`),
                   variant: "primary",
                 },
                 {
-                  label: "Start Mapping",
-                  onClick: () => alert("Automated mapping coming soon!"),
+                  label: isMappingAll ? "Mapping..." : "Start Mapping",
+                  onClick: handleStartMapping,
                   variant: "secondary",
                 },
               ]}

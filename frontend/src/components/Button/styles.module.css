@@ -1,30 +1,164 @@
+/* ====================================
+   Base
+   ==================================== */
+
 .button {
-  display: inline-block;
-  cursor: pointer;
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
   border-radius: 6px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
-  font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
-.primary {
-  background-color: #144d70;
-  color: white;
+
+.button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
-.secondary {
-  box-shadow: rgba(0, 0, 0, 0.15) 0px 0px 0px 1px inset;
-  background-color: transparent;
-  color: #333;
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
-.small {
-  padding: 10px 16px;
+
+/* ====================================
+   Sizes
+   ==================================== */
+
+.button--small {
+  padding: 6px 12px;
   font-size: 12px;
 }
-.medium {
-  padding: 11px 20px;
+
+.button--medium {
+  padding: 10px 20px;
   font-size: 14px;
 }
-.large {
+
+.button--large {
   padding: 12px 24px;
   font-size: 16px;
+}
+
+.button--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 18px;
+}
+
+/* ====================================
+   Variants
+   ==================================== */
+
+.button--primary {
+  background-color: #144d70;
+  color: #ffffff;
+}
+
+.button--primary:hover:not(:disabled) {
+  background-color: #11415e;
+}
+
+.button--secondary {
+  background-color: transparent;
+  color: #333333;
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 0px 0px 1px inset;
+}
+
+.button--secondary:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.button--success {
+  background-color: #269b6f;
+  color: #ffffff;
+}
+
+.button--success:hover:not(:disabled) {
+  background-color: #20855f;
+}
+
+.button--danger {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.button--danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.button--warning {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
+
+.button--warning:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+.button--info {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.button--info:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.button--ghost {
+  background: none;
+  border: none;
+  color: #144d70;
+  box-shadow: none;
+}
+
+.button--ghost:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.button--outline {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.button--outline:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* ====================================
+   Color Schemes (ghost/outline modifiers)
+   ==================================== */
+
+.button--ghost.button--color-danger {
+  color: #dc2626;
+}
+
+.button--ghost.button--color-danger:hover:not(:disabled) {
+  color: #b91c1c;
+}
+
+.button--ghost.button--color-primary {
+  color: #11415e;
+}
+
+.button--ghost.button--color-primary:hover:not(:disabled) {
+  color: #144d70;
+}
+
+.button--outline.button--color-danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.button--outline.button--color-danger:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #dc2626;
 }

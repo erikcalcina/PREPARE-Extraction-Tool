@@ -17,6 +17,7 @@ export interface UserRegister {
 
 export interface Token {
   access_token: string;
+  refresh_token: string;
   token_type: string;
 }
 
@@ -192,7 +193,7 @@ export interface Vocabulary {
   id: number;
   name: string;
   uploaded: string;
-  version: string;
+  version?: string;
   concept_count: number;
 }
 
@@ -220,6 +221,13 @@ export interface Concept {
   vocab_term_id: string;
   vocab_term_name: string;
   vocabulary_id: number;
+  domain_id: string;
+  concept_class_id: string;
+  standard_concept: string | null;
+  concept_code: string | null;
+  valid_start_date: string;
+  valid_end_date: string;
+  invalid_reason: string | null;
 }
 
 export interface ConceptCreate {
@@ -284,6 +292,7 @@ export interface ClustersOutput {
   unclustered_terms: ClusteredTerm[];
   total_terms: number;
   labels: string[];
+  label_reviewed: boolean;
 }
 
 export interface ClusterCreateRequest {
@@ -345,6 +354,7 @@ export interface ConceptSearchResult {
 export interface ConceptSearchResults {
   results: ConceptSearchResult[];
   total: number;
+  pagination?: PaginationMetadata;
 }
 
 export interface ConceptHierarchy {
@@ -360,6 +370,7 @@ export interface AutoMapRequest {
   domain_id?: string;
   concept_class_id?: string;
   standard_concept?: string;
+  search_type?: "vector" | "hybrid";
 }
 
 export interface MapClusterRequest {
@@ -371,6 +382,7 @@ export interface AutoMapAllRequest {
   vocabulary_ids: number[];
   label?: string;
   use_cluster_terms?: boolean;
+  search_type?: "vector" | "hybrid";
 }
 
 export interface AutoMapAllResponse {
@@ -385,7 +397,11 @@ export interface ConceptSearchParams {
   domain_id?: string;
   concept_class_id?: string;
   standard_concept?: string;
+  search_type?: "vector" | "hybrid";
   limit?: number;
+  offset?: number;
+  sort_by?: "relevance" | "name" | "domain";
+  sort_order?: "asc" | "desc";
 }
 
 // ================================================
@@ -402,4 +418,12 @@ export interface ExtractionJobStatusResponse {
   processed: number;
   total: number;
   message?: string;
+}
+
+// ================================================
+// Filter types
+// ================================================
+
+export interface DistinctValuesOutput {
+  values: string[];
 }

@@ -1,0 +1,40 @@
+.droppable-unclustered-area {
+  margin-top: 24px;
+}
+
+.droppable-unclustered-area h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #11415e;
+  margin-bottom: 12px;
+}
+
+.droppable-unclustered-area__drop-zone {
+  background: #ffffff;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 50px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.droppable-unclustered-area__drop-zone:empty::after {
+  content: "Drag terms here to uncluster them";
+  color: #9ca3af;
+  font-style: italic;
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+}
+
+.droppable-unclustered-area__drop-zone--drag-over {
+  border-color: #11415e;
+  border-style: solid;
+  background: #fafcfd;
+  box-shadow:
+    0 0 0 4px rgba(76, 101, 175, 0.1),
+    0 4px 12px rgba(76, 101, 175, 0.1);
+}

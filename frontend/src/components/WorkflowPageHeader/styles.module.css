@@ -1,0 +1,106 @@
+/* Header with Navigation */
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: baseline;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+}
+
+.header__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.header__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #11415e;
+}
+
+.header__dataset-link {
+  font-size: 14px;
+}
+
+/* Info Tooltip */
+.info-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  cursor: help;
+}
+
+.info-tooltip__icon {
+  font-size: 16px;
+  color: #9ca3af;
+  transition: color 0.2s ease;
+}
+
+.info-tooltip:hover .info-tooltip__icon {
+  color: #11415e;
+}
+
+.info-tooltip__content {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  padding: 12px 16px;
+  background: #ffffff;
+  color: #11415e;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  z-index: 1000;
+}
+
+.info-tooltip:hover .info-tooltip__content {
+  opacity: 1;
+  visibility: visible;
+}
+
+.info-tooltip__content p {
+  margin: 0 0 12px 0;
+}
+
+.info-tooltip__content strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.info-tooltip__content ul {
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+
+.info-tooltip__content ul li {
+  margin-bottom: 4px;
+}
+
+.info-tooltip__content ul li:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive: adjust tooltip position on smaller screens */
+@media (max-width: 768px) {
+  .info-tooltip__content {
+    left: 0;
+    transform: translateX(0);
+    width: 250px;
+  }
+}

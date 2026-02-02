@@ -1,0 +1,88 @@
+.tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+  cursor: text;
+}
+
+.tag-input--focused {
+  border-color: #11415e;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+}
+
+.tag-input--disabled {
+  background-color: #f9fafb;
+  cursor: not-allowed;
+}
+
+.tag-input__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #144d70;
+  background-color: #e8f4f8;
+  border-radius: 4px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.tag-input__tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #144d70;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.tag-input__tag-remove:hover {
+  opacity: 1;
+}
+
+.tag-input--disabled .tag-input__tag-remove {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.tag-input__input {
+  flex: 1;
+  min-width: 80px;
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  font-size: 14px;
+  font-family: inherit;
+  background: transparent;
+}
+
+.tag-input__input::placeholder {
+  color: #9ca3af;
+}
+
+.tag-input__input:disabled {
+  cursor: not-allowed;
+}

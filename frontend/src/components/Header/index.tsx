@@ -1,84 +1,80 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from "react-router-dom";
+import classNames from "classnames";
 
-import UserAvatar from 'components/UserAvatar';
-import Dropdown from 'components/Dropdown';
-import Logo from 'components/Logo';
+import UserAvatar from "@components/UserAvatar";
+import Dropdown from "@components/Dropdown";
+import Logo from "@components/Logo";
 
-import { useAuth } from 'hooks/useAuth';
+import { useAuth } from "@/hooks/useAuth";
 
-import styles from './styles.module.css';
+import styles from "./styles.module.css";
 
+const Header = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-// ================================================
-// Component
-// ================================================
+  const dropdownItems = [
+    {
+      label: "View Profile",
+      onClick: () => navigate("/profile"),
+    },
+    {
+      label: "Logout",
+      onClick: logout,
+      variant: "danger" as const,
+    },
+  ];
 
-const NavBar = () => {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
+  return (
+    <header className={styles.header}>
+      <div className={styles["header__left"]}>
+        <Logo size="small" />
+      </div>
 
-    const dropdownItems = [
-        {
-            label: 'View Profile',
-            onClick: () => navigate('/profile'),
-        },
-        {
-            label: 'Logout',
-            onClick: logout,
-            variant: 'danger' as const,
-        },
-    ];
+      <nav className={styles["header__nav"]}>
+        <NavLink
+          to="/datasets"
+          className={({ isActive }) =>
+            classNames(styles["header__nav-link"], {
+              [styles["header__nav-link--active"]]: isActive,
+            })
+          }
+        >
+          Datasets
+        </NavLink>
+        <NavLink
+          to="/vocabularies"
+          className={({ isActive }) =>
+            classNames(styles["header__nav-link"], {
+              [styles["header__nav-link--active"]]: isActive,
+            })
+          }
+        >
+          Vocabularies
+        </NavLink>
+        <NavLink
+          to="/monitor"
+          className={({ isActive }) =>
+            classNames(styles["header__nav-link"], {
+              [styles["header__nav-link--active"]]: isActive,
+            })
+          }
+        >
+          Monitor
+        </NavLink>
+      </nav>
 
-    return (
-        <header className={styles.header}>
-            <div className={styles.left}>
-                <Logo size="small" />
-            </div>
-
-            <nav className={styles.nav}>
-                <NavLink
-                    to="/datasets"
-                    className={({ isActive }) =>
-                        `${styles.navLink} ${isActive ? styles.active : ''}`
-                    }
-                >
-                    Datasets
-                </NavLink>
-                <NavLink
-                    to="/vocabularies"
-                    className={({ isActive }) =>
-                        `${styles.navLink} ${isActive ? styles.active : ''}`
-                    }
-                >
-                    Vocabularies
-                </NavLink>
-                <NavLink
-                    to="/monitor"
-                    className={({ isActive }) =>
-                        `${styles.navLink} ${isActive ? styles.active : ''}`
-                    }
-                >
-                    Monitor
-                </NavLink>
-            </nav>
-
-            <div className={styles.right}>
-                {user && (
-                    <Dropdown
-                        trigger={
-                            <UserAvatar
-                                username={user.username}
-                                size="medium"
-                            />
-                        }
-                        items={dropdownItems}
-                        align="right"
-                    />
-                )}
-            </div>
-        </header>
-    );
+      <div className={styles["header__right"]}>
+        {user && (
+          <Dropdown
+            trigger={<UserAvatar username={user.username} size="medium" />}
+            items={dropdownItems}
+            align="right"
+          />
+        )}
+      </div>
+    </header>
+  );
 };
 
-export default NavBar;
-
+export default Header;

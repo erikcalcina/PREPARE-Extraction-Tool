@@ -1,27 +1,24 @@
-import io
-import csv
-from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, BackgroundTasks
-from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func, update
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
+from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
 from app.models_db import VocabularyStatus
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
-    MessageOutput,
-    VocabularyResponse,
-    VocabulariesOutput,
-    VocabularyUploadResponse,
-    VocabularyOutput,
-    ProcessingVocabularyStats,
     ConceptCreate,
-    ConceptsOutput,
     ConceptOutput,
+    ConceptsOutput,
+    DistinctValuesOutput,
+    MessageOutput,
     PaginationParams,
+    ProcessingVocabularyStats,
+    VocabulariesOutput,
+    VocabularyOutput,
+    VocabularyResponse,
+    VocabularyUploadResponse,
     create_pagination_metadata,
 )
 from app.library.concept_indexer import indexer
@@ -45,6 +42,77 @@ def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this vocabulary",
         )
+
+
+# ================================================
+# Filter endpoints (must be before /{vocabulary_id})
+# ================================================
+
+
+@router.get(
+    "/filters/domains",
+    response_model=DistinctValuesOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get distinct domain values",
+    description="Returns distinct domain_id values from concepts in user's vocabularies",
+)
+def get_distinct_domains(
+    vocabulary_ids: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Get distinct domain values for filter dropdowns."""
+    query = (
+        select(Concept.domain_id)
+        .distinct()
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
+        .where(Concept.domain_id.isnot(None))
+        .where(Concept.domain_id != "")
+    )
+
+    if vocabulary_ids:
+        vocab_id_list = [
+            int(vid.strip()) for vid in vocabulary_ids.split(",") if vid.strip()
+        ]
+        if vocab_id_list:
+            query = query.where(Concept.vocabulary_id.in_(vocab_id_list))
+
+    results = db.exec(query.order_by(Concept.domain_id)).all()
+    return DistinctValuesOutput(values=results)
+
+
+@router.get(
+    "/filters/concept-classes",
+    response_model=DistinctValuesOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Get distinct concept class values",
+    description="Returns distinct concept_class_id values from user's vocabularies",
+)
+def get_distinct_concept_classes(
+    vocabulary_ids: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Get distinct concept class values for filter dropdowns."""
+    query = (
+        select(Concept.concept_class_id)
+        .distinct()
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
+        .where(Concept.concept_class_id.isnot(None))
+        .where(Concept.concept_class_id != "")
+    )
+
+    if vocabulary_ids:
+        vocab_id_list = [
+            int(vid.strip()) for vid in vocabulary_ids.split(",") if vid.strip()
+        ]
+        if vocab_id_list:
+            query = query.where(Concept.vocabulary_id.in_(vocab_id_list))
+
+    results = db.exec(query.order_by(Concept.concept_class_id)).all()
+    return DistinctValuesOutput(values=results)
 
 
 # ================================================
@@ -72,28 +140,44 @@ def get_vocabularies(
         .where(Vocabulary.user_id == current_user.id)
     ).one()
 
-    # Get paginated vocabularies
-    vocabularies = db.exec(
-        select(Vocabulary)
+    # Subquery: only count concepts for this user's vocabularies
+    concept_counts_subquery = (
+        select(
+            Concept.vocabulary_id,
+            func.count(Concept.id).label("count")
+        )
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
+        .group_by(Concept.vocabulary_id)
+        .subquery()
+    )
+
+    # Get paginated vocabularies with concept counts in a single query
+    vocabularies_with_counts = db.exec(
+        select(
+            Vocabulary,
+            func.coalesce(concept_counts_subquery.c.count, 0).label("concept_count")
+        )
+        .outerjoin(
+            concept_counts_subquery,
+            Vocabulary.id == concept_counts_subquery.c.vocabulary_id
+        )
         .where(Vocabulary.user_id == current_user.id)
         .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
     ).all()
-    
+
     vocabulary_responses = [
         VocabularyResponse(
             id=vocabulary.id,
             name=vocabulary.name,
             uploaded=vocabulary.uploaded,
-            concept_count=db.exec(
-                select(func.count(Concept.id))
-                .where(Concept.vocabulary_id == vocabulary.id)
-            ).one(),
+            concept_count=concept_count,
             status=vocabulary.status,
             error_message=vocabulary.error_message
         )
-        for vocabulary in vocabularies
+        for vocabulary, concept_count in vocabularies_with_counts
     ]
 
     return VocabulariesOutput(
@@ -149,6 +233,31 @@ async def save_upload_to_disk(file: UploadFile) -> str:
 
     return path
 
+def _insert_and_index_batch(db: Session, batch: list):
+    """Insert a batch of Concepts via Core INSERT RETURNING and index in ES."""
+    concept_dicts = [
+        {
+            "vocab_term_id": c.vocab_term_id,
+            "vocab_term_name": c.vocab_term_name,
+            "domain_id": c.domain_id,
+            "concept_class_id": c.concept_class_id,
+            "standard_concept": c.standard_concept,
+            "concept_code": c.concept_code,
+            "valid_start_date": c.valid_start_date,
+            "valid_end_date": c.valid_end_date,
+            "invalid_reason": c.invalid_reason,
+            "vocabulary_id": c.vocabulary_id,
+        }
+        for c in batch
+    ]
+    result = db.execute(insert(Concept).returning(Concept.id), concept_dicts)
+    ids = result.scalars().all()
+    db.commit()
+    for concept, concept_id in zip(batch, ids):
+        concept.id = concept_id
+    indexer.add_bulk_to_index(batch)
+
+
 def ingest_vocabulary_background(file_path: str, user_id: int):
     db = Session(engine)
 
@@ -176,7 +285,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
     try:
 
         # start ingesting
-        BATCH_SIZE = 2000
+        BATCH_SIZE = 5000
         batch = []
         total = 0
         for concept, vocab_name in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
@@ -190,29 +299,30 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
                 db.refresh(vocabulary)
                 vocab_id = vocabulary.id
                 concept.vocabulary_id = vocab_id
-                # create new ES index also
+                # create new ES index and disable refresh during bulk load
                 indexer.create_concept_index(vocab_id)
+                indexer.set_index_refresh(vocab_id, "-1")
                 vocabularies[vocab_name] = vocab_id
 
             batch.append(concept)
 
             if len(batch) >= BATCH_SIZE:
-                db.bulk_save_objects(batch, return_defaults=True)
-                db.commit()
+                _insert_and_index_batch(db, batch)
                 total += len(batch)
-                indexer.add_bulk_to_index(batch)
                 batch.clear()
                 print("Rows saved:", total)
 
         if batch:
-            db.bulk_save_objects(batch, return_defaults=True)
-            db.commit()
+            _insert_and_index_batch(db, batch)
             total += len(batch)
-            indexer.add_bulk_to_index(batch)
             print("Rows saved:", total, "-> ALL")
 
-        # success
+        # Re-enable ES refresh and force a final refresh
         vocab_ids = list(vocabularies.values())
+        for vid in vocab_ids:
+            indexer.set_index_refresh(vid, "1s")
+
+        # success
         db.exec(
             update(Vocabulary)
             .where(Vocabulary.id.in_(vocab_ids))
@@ -228,6 +338,13 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
 
         vocab_ids = list(vocabularies.values())
         error_msg = str(e)
+
+        # Re-enable ES refresh before cleanup
+        for vid in vocab_ids:
+            try:
+                indexer.set_index_refresh(vid, "1s")
+            except Exception:
+                pass
 
         if vocab_ids:
             # mark all vocabularies as FAILED
@@ -356,20 +473,19 @@ def delete_vocabulary(
 def delete_vocabulary_background(vocabulary_id: int):
     db = Session(engine)
     try:
-        vocabulary = db.get(Vocabulary, vocabulary_id)
-        if vocabulary is None:
-            print(f"Vocabulary {vocabulary_id} not found during background deletion")
-            return 
+        # Delete ES index first (idempotent — checks exists before deleting).
+        # Doing this first avoids orphaned ES indices if DB delete succeeds
+        # but ES delete fails on a subsequent retry.
+        indexer.delete_index(vocabulary_id)
 
-        # delete from database
-        db.delete(vocabulary)
+        # Single SQL DELETE — PostgreSQL ON DELETE CASCADE handles
+        # Concept and SourceToConceptMap rows at the DB level,
+        # avoiding loading all children into Python memory.
+        db.exec(delete(Vocabulary).where(Vocabulary.id == vocabulary_id))
         db.commit()
 
-        # delete from Elasticsearch
-        indexer.delete_index(vocabulary_id)
-        
         print(f"Successfully deleted vocabulary {vocabulary_id}")
-        
+
     except Exception as e:
         db.rollback()
         print(f"Failed to delete vocabulary {vocabulary_id}: {e}")
@@ -380,6 +496,63 @@ def delete_vocabulary_background(vocabulary_id: int):
 # ================================================
 # Concepts routes
 # ================================================
+
+
+@router.get(
+    "/{vocabulary_id}/concepts/search",
+    response_model=ConceptsOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Search concepts in a vocabulary",
+    description="Searches concepts in a vocabulary using Elasticsearch hybrid search",
+    response_description="List of matching concepts with pagination",
+)
+def search_vocabulary_concepts(
+    vocabulary_id: int,
+    query: str,
+    domain_id: str = None,
+    concept_class_id: str = None,
+    standard_concept: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    pagination: PaginationParams = Depends(),
+):
+    """Search concepts in a vocabulary using Elasticsearch."""
+    vocabulary = db.get(Vocabulary, vocabulary_id)
+    if vocabulary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
+        )
+    verify_vocabulary_ownership(vocabulary, current_user.id)
+
+    # Search using Elasticsearch
+    es_results, total_hits = indexer.search_concepts(
+        query_text=query,
+        vocab_ids=[vocabulary_id],
+        limit=pagination.limit,
+        offset=pagination.offset,
+        domain_id=domain_id,
+        concept_class_id=concept_class_id,
+        standard_concept=standard_concept,
+    )
+
+    # Get concept details from database
+    concept_ids = [r["concept_id"] for r in es_results]
+    if concept_ids:
+        concepts = db.exec(
+            select(Concept).where(Concept.id.in_(concept_ids))
+        ).all()
+        # Preserve ES ordering
+        concept_map = {c.id: c for c in concepts}
+        concepts = [concept_map[cid] for cid in concept_ids if cid in concept_map]
+    else:
+        concepts = []
+
+    return ConceptsOutput(
+        concepts=concepts,
+        pagination=create_pagination_metadata(
+            total_hits, pagination.limit, pagination.offset
+        ),
+    )
 
 
 @router.get(
@@ -402,10 +575,6 @@ def get_concepts(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
     verify_vocabulary_ownership(vocabulary, current_user.id)
-
-    # TODO: Search over Elasticsearch index if query parameters are provided
-    # (query parameters must be added to the endpoint)
-    # query parameters: text (for searching over concept names and alternatives), vocabulary_id (for searching over concepts in a specific vocabulary)
 
     # Get total count
     total = db.exec(

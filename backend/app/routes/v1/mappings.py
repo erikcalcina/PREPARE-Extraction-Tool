@@ -2,11 +2,11 @@ import io
 import csv
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.models_db import (
@@ -14,7 +14,6 @@ from app.models_db import (
     Cluster,
     Concept,
     SourceToConceptMap,
-    Vocabulary,
     User,
 )
 from app.library.concept_indexer import indexer
@@ -23,7 +22,6 @@ from app.schemas import (
     MessageOutput,
     ClusterMappingResponse,
     ClusterMappingsOutput,
-    ConceptSearchRequest,
     ConceptSearchResult,
     ConceptSearchResults,
     AutoMapRequest,
@@ -31,7 +29,6 @@ from app.schemas import (
     AutoMapAllRequest,
     AutoMapAllResponse,
     ConceptHierarchy,
-    MappingExportRequest,
 )
 
 # ================================================
@@ -184,35 +181,30 @@ def auto_map_cluster(
         top_terms = sorted(term_freq.items(), key=lambda x: x[1], reverse=True)[:5]
         search_text += " " + " ".join([term for term, _ in top_terms])
 
-    # Search using Elasticsearch
-    es_results = indexer.search_concepts(
-        query_text=search_text,
-        vocab_ids=request.vocabulary_ids,
-        limit=10,
-        domain_id=request.domain_id,
-        concept_class_id=request.concept_class_id,
-        standard_concept=request.standard_concept,
-    )
+    # Search using Elasticsearch - choose method based on search_type
+    if request.search_type == "vector":
+        es_results, _ = indexer.search_concepts_vector(
+            query_text=search_text,
+            vocab_ids=request.vocabulary_ids,
+            limit=10,
+            domain_id=request.domain_id,
+            concept_class_id=request.concept_class_id,
+        )
+    else:
+        es_results, _ = indexer.search_concepts(
+            query_text=search_text,
+            vocab_ids=request.vocabulary_ids,
+            limit=10,
+            domain_id=request.domain_id,
+            concept_class_id=request.concept_class_id,
+            standard_concept=request.standard_concept,
+        )
 
-    # Get concept details from database and apply filters
+    # Get concept details from database
     results = []
     for es_result in es_results:
         concept = db.get(Concept, es_result["concept_id"])
         if not concept:
-            continue
-
-        # Apply filters
-        if request.domain_id and concept.domain_id != request.domain_id:
-            continue
-        if (
-            request.concept_class_id
-            and concept.concept_class_id != request.concept_class_id
-        ):
-            continue
-        if (
-            request.standard_concept
-            and concept.standard_concept != request.standard_concept
-        ):
             continue
 
         vocabulary = concept.vocabulary
@@ -377,12 +369,19 @@ def auto_map_all_clusters(
                 ]
                 search_text += " " + " ".join([term for term, _ in top_terms])
 
-            # Search for best match
-            es_results = indexer.search_concepts(
-                query_text=search_text,
-                vocab_ids=request.vocabulary_ids,
-                limit=1,  # Just get the best match
-            )
+            # Search for best match - choose method based on search_type
+            if request.search_type == "vector":
+                es_results, _ = indexer.search_concepts_vector(
+                    query_text=search_text,
+                    vocab_ids=request.vocabulary_ids,
+                    limit=1,
+                )
+            else:
+                es_results, _ = indexer.search_concepts(
+                    query_text=search_text,
+                    vocab_ids=request.vocabulary_ids,
+                    limit=1,
+                )
 
             if es_results:
                 best_match = es_results[0]
@@ -428,7 +427,11 @@ def search_concepts(
     domain_id: Optional[str] = None,
     concept_class_id: Optional[str] = None,
     standard_concept: Optional[str] = None,
+    search_type: str = "hybrid",  # "vector" or "hybrid"
     limit: int = 10,
+    offset: int = 0,
+    sort_by: str = "relevance",
+    sort_order: str = "desc",
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
@@ -439,26 +442,34 @@ def search_concepts(
     if not vocab_ids:
         raise HTTPException(status_code=400, detail="No vocabulary IDs provided")
 
-    # Search using Elasticsearch
-    es_results = indexer.search_concepts(
-        query_text=query,
-        vocab_ids=vocab_ids,
-        limit=limit * 2,  # Get more for filtering
-    )
+    # Search using Elasticsearch - choose method based on search_type
+    if search_type == "vector":
+        es_results, total_hits = indexer.search_concepts_vector(
+            query_text=query,
+            vocab_ids=vocab_ids,
+            limit=limit,
+            offset=offset,
+            domain_id=domain_id,
+            concept_class_id=concept_class_id,
+        )
+    else:
+        es_results, total_hits = indexer.search_concepts(
+            query_text=query,
+            vocab_ids=vocab_ids,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            domain_id=domain_id,
+            concept_class_id=concept_class_id,
+            standard_concept=standard_concept,
+        )
 
-    # Get concept details from database and apply filters
+    # Get concept details from database
     results = []
     for es_result in es_results:
         concept = db.get(Concept, es_result["concept_id"])
         if not concept:
-            continue
-
-        # Apply filters
-        if domain_id and concept.domain_id != domain_id:
-            continue
-        if concept_class_id and concept.concept_class_id != concept_class_id:
-            continue
-        if standard_concept and concept.standard_concept != standard_concept:
             continue
 
         vocabulary = concept.vocabulary
@@ -470,10 +481,12 @@ def search_concepts(
             )
         )
 
-        if len(results) >= limit:
-            break
+    # Calculate pagination metadata
+    from app.schemas import create_pagination_metadata
 
-    return ConceptSearchResults(results=results, total=len(results))
+    pagination = create_pagination_metadata(total_hits, limit, offset)
+
+    return ConceptSearchResults(results=results, total=total_hits, pagination=pagination)
 
 
 @router.get(

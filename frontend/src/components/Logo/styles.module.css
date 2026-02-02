@@ -1,10 +1,8 @@
-/* styles.module.css */
-
 .logo {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
 }
 
 .logo svg {
@@ -12,14 +10,14 @@
   display: block;
 }
 
-.small svg {
-  width: 100px;
+.logo--small svg {
+  width: 170px;
 }
 
-.medium svg {
-  width: 120px;
-}
-
-.large svg {
+.logo--medium svg {
   width: 200px;
+}
+
+.logo--large svg {
+  width: 300px;
 }

@@ -1,26 +1,13 @@
-import { AuthContext, useAuthProvider } from 'hooks/useAuth';
-
-// ================================================
-// Interface
-// ================================================
+import { AuthContext, useAuthProvider } from "@/hooks/useAuth";
 
 export interface AuthProviderProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
-// ================================================
-// Component
-// ================================================
-
 const AuthProvider = ({ children }: AuthProviderProps) => {
-    const auth = useAuthProvider();
+  const auth = useAuthProvider();
 
-    return (
-        <AuthContext.Provider value={auth}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 };
 
 export default AuthProvider;
-

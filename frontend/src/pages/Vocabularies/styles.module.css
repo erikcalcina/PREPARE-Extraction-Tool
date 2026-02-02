@@ -1,64 +1,54 @@
-.page {
-    font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+.vocabularies {
+  font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.title {
-    margin: 0 0 24px;
-    font-size: 28px;
-    font-weight: 700;
-    color: #1e3a5f;
+.vocabularies__title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #11415e;
 }
 
-.sidebarContent {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+.vocabularies__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.error {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    font-size: 14px;
-    color: #dc2626;
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
+.vocabularies__error {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
 }
 
-.loading {
-    padding: 40px;
-    text-align: center;
-    color: #6b7280;
-    font-size: 14px;
+.vocabularies__loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
 }
 
-.actions {
-    display: flex;
-    gap: 12px;
+.vocabularies__link {
+  color: #11415e;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
-.actionLink {
-    padding: 0;
-    font-size: 13px;
-    font-weight: 500;
-    color: #1e3a5f;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: color 0.2s ease;
-    font-family: inherit;
+.vocabularies__link:hover {
+  color: #11415e;
+  text-decoration: underline;
 }
 
-.actionLink:hover {
-    color: #4CAF50;
-    text-decoration: underline;
+.vocabularies__actions {
+  display: flex;
+  gap: 12px;
 }
 
-.actionLink.delete {
-    color: #dc2626;
+.vocabularies__action-button {
+  padding: 0;
 }
-
-.actionLink.delete:hover {
-    color: #b91c1c;
-}
-

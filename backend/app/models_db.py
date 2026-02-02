@@ -29,6 +29,28 @@ class User(SQLModel, table=True):
     # Relationships to owned resources
     datasets: list["Dataset"] = Relationship(back_populates="user")
     vocabularies: list["Vocabulary"] = Relationship(back_populates="user")
+    refresh_tokens: list["RefreshToken"] = Relationship(back_populates="user")
+
+
+class RefreshToken(SQLModel, table=True):
+    """
+    Refresh token model for JWT token refresh flow.
+
+    Refresh tokens allow users to obtain new access tokens without
+    re-authenticating. Tokens can be revoked for logout functionality.
+    """
+
+    __tablename__ = "refresh_token"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    expires_at: datetime
+    revoked: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # Relationship back to User
+    user: Optional["User"] = Relationship(back_populates="refresh_tokens")
 
 
 class Dataset(SQLModel, table=True):
@@ -154,6 +176,9 @@ class Cluster(SQLModel, table=True):
     # human-readable cluster name (default = first term in cluster)
     title: str
 
+    # whether the cluster has been reviewed (clustering step complete)
+    reviewed: bool = Field(default=False)
+
     # dataset this cluster belongs to
     dataset_id: int = Field(foreign_key="dataset.id", nullable=False, index=True)
     dataset: Optional["Dataset"] = Relationship(back_populates="clusters")
@@ -242,7 +267,7 @@ class Vocabulary(SQLModel, table=True):
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
-    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
     user: Optional["User"] = Relationship(back_populates="vocabularies")
 
     # Relationship to Concepts (one-to-many)
@@ -273,7 +298,7 @@ class Concept(SQLModel, table=True):
 
     # Relationship back to Vocabulary (many-to-one)
     vocabulary_id: int = Field(
-        foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False
+        foreign_key="vocabulary.id", ondelete="CASCADE", nullable=False, index=True
     )
     vocabulary: Optional["Vocabulary"] = Relationship(back_populates="concepts")
 

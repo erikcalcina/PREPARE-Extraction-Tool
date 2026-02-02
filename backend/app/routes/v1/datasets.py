@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional, Tuple
 import math
 
 from datetime import datetime, timezone
@@ -41,10 +41,14 @@ from app.schemas import (
     ClustersStatisticsOutput,
     ClusterResponse,
     ClusterMerge,
+    ClusterReviewLabelRequest,
     create_pagination_metadata,
 )
 
-from app.library.file_parser import download_annotated_dataset
+from app.library.file_parser import (
+    download_annotated_dataset,
+    build_clusters_download_json,
+)
 
 # ================================================
 # Route definitions
@@ -439,13 +443,25 @@ def download_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No records found for this dataset",
         )
-    file_content, media_type = download_annotated_dataset(records, format)
+    try:
+        file_content, media_type = download_annotated_dataset(records, format)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+
+    file_extension = "json" if format in {"json", "gliner"} else "csv"
+
+    filename_parts = [dataset.name]
+    if format == "gliner":
+        filename_parts.append("extracted_terms")
+    filename = "_".join(filename_parts)
 
     return StreamingResponse(
         iter([file_content]),
         media_type=media_type,
         headers={
-            "Content-Disposition": f"attachment; filename={dataset.name}.{format}"
+            "Content-Disposition": f'attachment; filename="{filename}.{file_extension}"'
         },
     )
 
@@ -977,12 +993,78 @@ def get_clusters_of_dataset(
         unclustered_terms
     )
 
+    # label_reviewed: True if a label is selected and ALL its clusters are reviewed
+    label_reviewed = (
+        bool(label) and len(clusters) > 0 and all(c.reviewed for c in clusters)
+    )
+
     return ClustersStatisticsOutput(
         clusters=cluster_responses,
         unclustered_terms=unclustered_terms,
         total_number_terms=total_number_terms,
         labels=all_labels,
+        label_reviewed=label_reviewed,
     )
+
+
+@router.post(
+    "/{dataset_id}/clusters/review-label",
+    response_model=MessageOutput,
+)
+def review_label(
+    dataset_id: int,
+    body: ClusterReviewLabelRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Mark all clusters for a given label as reviewed."""
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == body.label)
+    ).all()
+
+    for cluster in clusters:
+        cluster.reviewed = True
+        db.add(cluster)
+
+    db.commit()
+    return MessageOutput(message=f"Marked {len(clusters)} clusters as reviewed")
+
+
+@router.post(
+    "/{dataset_id}/clusters/unreview-label",
+    response_model=MessageOutput,
+)
+def unreview_label(
+    dataset_id: int,
+    body: ClusterReviewLabelRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """Unmark all clusters for a given label as reviewed."""
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    clusters = db.exec(
+        select(Cluster)
+        .where(Cluster.dataset_id == dataset_id)
+        .where(Cluster.label == body.label)
+    ).all()
+
+    for cluster in clusters:
+        cluster.reviewed = False
+        db.add(cluster)
+
+    db.commit()
+    return MessageOutput(message=f"Unmarked {len(clusters)} clusters as reviewed")
 
 
 def _normalize_term(text: str) -> str:
@@ -1215,36 +1297,84 @@ def create_clusters_for_dataset(
         )
 
     raw_texts = [st.value for st in source_terms]
-    texts = [_normalize_term(t) for t in raw_texts] 
-    if len(texts) == 0:
+    if not raw_texts:
         return MessageOutput(message="No terms to cluster")
 
-    embedding_model = model_registry.get_model("embedding_model2vec")
-    embeddings = embedding_model.embed(texts)
+    # 1) Decide value type for this label by majority vote
+    types = []
+    date_keys = []
+    measure_keys = []
 
-    # Default clustering parameters (can be tuned)
-    HDBSCAN_PARAMS = {
-        "min_cluster_size": 2,
-        "min_samples": None,
-        "metric": "euclidean",
-        "cluster_selection_method": "eom",
-    }
+    for t in raw_texts:
+        tp = _detect_value_type(t)
+        types.append(tp)
+        date_keys.append(_normalize_date_to_key(t) if tp == "date" else None)
+        measure_keys.append(_normalize_measure_to_key(t) if tp == "measure" else None)
 
-    clusterer = HDBSCAN(**HDBSCAN_PARAMS)
+    type_counts = Counter(types)
+    major_type = type_counts.most_common(1)[0][0]
 
-    labels_arr = clusterer.fit_predict(embeddings)
+    # 2) If it's dates: cluster by exact canonical key
+    if major_type == "date":
+        key_to_cluster = {}
+        labels_arr = []
+        next_id = 0
 
-    # Post-processing: merge clusters with very similar names (formatting / small typos) 2
-    labels_arr = _merge_labels_by_spelling(
-        labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
-        texts,                
-        max_typos=1,
-    )
+        for key in date_keys:
+            if key is None:
+                labels_arr.append(-1)  # unclustered if can't parse
+                continue
+            if key not in key_to_cluster:
+                key_to_cluster[key] = next_id
+                next_id += 1
+            labels_arr.append(key_to_cluster[key])
 
-    labels_arr = _merge_labels_by_centroid_similarity(
-        labels_arr, embeddings, threshold=0.8
-    )
-    labels_arr = [int(x) for x in labels_arr]
+        # For title picking later we still need texts (original)
+        texts = raw_texts
+
+    # 3) If it's measures: normalize -> cluster by exact match of normalized key
+    elif major_type == "measure":
+        key_to_cluster = {}
+        labels_arr = []
+        next_id = 0
+
+        for key in measure_keys:
+            if key is None:
+                labels_arr.append(-1)
+                continue
+            if key not in key_to_cluster:
+                key_to_cluster[key] = next_id
+                next_id += 1
+            labels_arr.append(key_to_cluster[key])
+
+        texts = raw_texts
+
+    # 4) Otherwise: default pipeline (embeddings + HDBSCAN + merges)
+    else:
+        texts = [_normalize_term(t) for t in raw_texts]
+
+        embedding_model = model_registry.get_model("embedding_sentence")
+        embeddings = embedding_model.embed(texts)
+
+        HDBSCAN_PARAMS = {
+            "min_cluster_size": 2,
+            "min_samples": None,
+            "metric": "euclidean",
+            "cluster_selection_method": "eom",
+        }
+        clusterer = HDBSCAN(**HDBSCAN_PARAMS)
+        labels_arr = clusterer.fit_predict(embeddings)
+
+        labels_arr = _merge_labels_by_spelling(
+            labels_arr.tolist() if hasattr(labels_arr, "tolist") else labels_arr,
+            texts,
+            max_typos=1,
+        )
+
+        labels_arr = _merge_labels_by_centroid_similarity(
+            labels_arr, embeddings, threshold=0.8
+        )
+        labels_arr = [int(x) for x in labels_arr]
 
     # Remove existing clusters for this dataset/label
     # TODO: This might be a bit dangerous if the user is not careful
@@ -1270,7 +1400,7 @@ def create_clusters_for_dataset(
         else:
             cluster_terms[cid].append(st)
 
-    created_by_title_norm = {} 
+    created_by_title_norm = {}
 
     for cid, terms in cluster_terms.items():
         counter = Counter(st.value for st in terms)
@@ -1312,10 +1442,102 @@ def create_clusters_for_dataset(
             st.cluster_id = cluster_obj.id
             db.add(st)
 
-
     db.commit()
 
     return MessageOutput(message="Clusters rebuilt and saved to database.")
+
+
+DATE_SEPARATORS_RE = re.compile(r"[.\-/]")
+
+MEASURE_RE = re.compile(
+    r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
+    re.IGNORECASE,
+)
+
+
+def _detect_value_type(text: str) -> str:
+    """
+    Rough detector:
+    - date: looks like a date and can be normalized
+    - measure: looks like dosage/quantity with units
+    - id: mostly alnum with digits and separators (optional i guess)
+    - text: default
+    """
+    s = (text or "").strip()
+    if not s:
+        return "text"
+
+    # quick date-like check
+    if any(ch.isdigit() for ch in s) and DATE_SEPARATORS_RE.search(s):
+        # we'll confirm later by trying to normalize
+        return "date"
+
+    # measure-like check
+    if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
+        return "measure"
+
+    return "text"
+
+
+def _normalize_date_to_key(text: str) -> Optional[str]:
+    """
+    Convert many date formats to canonical YYYY-MM-DD.
+    If we can't confidently parse -> return None.
+    """
+    s = (text or "").strip()
+
+    # supports: DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
+    m = re.match(r"^\s*(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\s*$", s)
+    if not m:
+        return None
+
+    a, b, c = m.group(1), m.group(2), m.group(3)
+
+    # Heuristic:
+    # if first part has 4 digits -> YYYY-MM-DD
+    if len(a) == 4:
+        year = int(a)
+        month = int(b)
+        day = int(c)
+    else:
+        # assume DD.MM.YYYY
+        day = int(a)
+        month = int(b)
+        year = int(c)
+
+    # basic validation
+    if not (1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100):
+        return None
+
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def _normalize_measure_to_key(text: str) -> Optional[str]:
+    """
+    Normalize measures but keep numeric meaning:
+    - collapse spaces
+    - turn separators into spaces
+    - ensure unit separated
+    Example:
+      '2/50mg' -> '2 50 mg'
+      '2   50mg' -> '2 50 mg'
+    """
+    s = (text or "").strip().lower()
+    if not s:
+        return None
+    s = s.replace("/", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+
+    # ensure space before unit: "50mg" -> "50 mg"
+    s = re.sub(r"(\d)(mg|ml|g|mcg|µg|kg|iu|%)\b", r"\1 \2", s)
+
+    # remove spaces around dots/commas in decimals (optional)
+    s = s.replace(" ,", ",").replace(", ", ",").replace(" .", ".").replace(". ", ".")
+
+    if not re.search(r"\b(mg|ml|g|mcg|µg|kg|iu|%)\b", s):
+        return None
+
+    return s
 
 
 # ================================================
@@ -1468,4 +1690,52 @@ def delete_extracted_source_terms(
     db.commit()
     return MessageOutput(
         message=f"Deleted {len(terms)} automatically extracted source terms"
+    )
+
+
+@router.get(
+    "/{dataset_id}/clusters/download",
+    response_class=StreamingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Download clusters JSON",
+    description="Exports clusters (optionally filtered by label) as a JSON attachment",
+)
+def download_clusters_json(
+    dataset_id: int,
+    label: Optional[str] = None,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    cluster_stmt = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    if label:
+        cluster_stmt = cluster_stmt.where(Cluster.label == label)
+    clusters = db.exec(cluster_stmt.order_by(Cluster.title)).all()
+    if not clusters:
+        raise HTTPException(
+            status_code=404, detail="No clusters found for this dataset"
+        )
+
+    cluster_ids = [c.id for c in clusters]
+    term_rows = []
+    if cluster_ids:
+        term_rows = db.exec(
+            select(SourceTerm.cluster_id, SourceTerm.value).where(
+                SourceTerm.cluster_id.in_(cluster_ids)
+            )
+        ).all()
+
+    content, filename = build_clusters_download_json(
+        dataset.name,
+        clusters,
+        term_rows,
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

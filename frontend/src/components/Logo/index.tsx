@@ -1,25 +1,21 @@
-import styles from './styles.module.css';
-import ToolLogo from 'assets/images/logo.svg?react';
+import React from "react";
+import classNames from "classnames";
 
-// ================================================
-// Interface
-// ================================================
+import ToolLogo from "@assets/images/logo.svg?react";
+
+import styles from "./styles.module.css";
 
 export interface LogoProps {
-    size?: 'small' | 'medium' | 'large';
+  size?: "small" | "medium" | "large";
+  className?: string;
 }
 
-// ================================================
-// Component
-// ================================================
-
-
-const Logo = ({ size = 'medium' }: LogoProps) => {
-    return (
-        <div className={`${styles.logo} ${styles[size]}`}>
-            <ToolLogo />
-        </div>
-    );
+const Logo: React.FC<LogoProps> = ({ size = "medium", className }) => {
+  return (
+    <div className={classNames(styles.logo, styles[`logo--${size}`], className)}>
+      <ToolLogo />
+    </div>
+  );
 };
 
 export default Logo;
