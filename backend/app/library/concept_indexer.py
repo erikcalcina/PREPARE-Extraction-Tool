@@ -67,6 +67,7 @@ class ConceptIndexer:
                         "vocab_term_name": {"type": "text"},
                         "domain_id": {"type": "keyword"},
                         "concept_class_id": {"type": "keyword"},
+                        "standard_concept": {"type": "keyword"},
                         "embedding": {
                             "type": "dense_vector",
                             "dims": self.embedding_dim,
@@ -135,6 +136,7 @@ class ConceptIndexer:
                                 "vocab_term_name": c.vocab_term_name,
                                 "domain_id": c.domain_id,
                                 "concept_class_id": c.concept_class_id,
+                                "standard_concept": c.standard_concept,
                                 "embedding": emb,
                             },
                         }
@@ -174,6 +176,7 @@ class ConceptIndexer:
             "vocab_term_name": concept_text,
             "domain_id": concept_db.domain_id,
             "concept_class_id": concept_db.concept_class_id,
+            "standard_concept": concept_db.standard_concept,
             "embedding": vect_embedding,
         }
 
@@ -251,6 +254,31 @@ class ConceptIndexer:
 
         return concept_ids
 
+    @staticmethod
+    def _build_es_filters(
+        domain_id: Optional[str] = None,
+        concept_class_id: Optional[str] = None,
+        standard_concept: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Build a list of ES term filters from non-None parameters.
+
+        Args:
+            domain_id: Filter by domain ID.
+            concept_class_id: Filter by concept class ID.
+            standard_concept: Filter by standard concept flag.
+
+        Returns:
+            List of ES term filter clauses.
+        """
+        filters: List[Dict[str, Any]] = []
+        if domain_id is not None:
+            filters.append({"term": {"domain_id": domain_id}})
+        if concept_class_id is not None:
+            filters.append({"term": {"concept_class_id": concept_class_id}})
+        if standard_concept is not None:
+            filters.append({"term": {"standard_concept": standard_concept}})
+        return filters
+
     def search_concepts_vector(
         self,
         query_text: str,
@@ -259,29 +287,25 @@ class ConceptIndexer:
         offset: int = 0,
         domain_id: Optional[str] = None,
         concept_class_id: Optional[str] = None,
+        standard_concept: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Search for concepts using vector similarity only.
 
         Performs pure semantic search using embeddings without text matching.
         Ideal for cross-lingual search where text matching is not useful.
 
-        Note: domain_id and concept_class_id filters are not applied in ES.
-        Filtering should be done at the route level after fetching concept
-        details from the database.
-
         Args:
             query_text: The search query text.
             vocab_ids: List of vocabulary IDs to search across.
             limit: Maximum number of results to return.
             offset: Number of results to skip for pagination.
-            domain_id: Domain filter (applied at route level).
-            concept_class_id: Concept class filter (applied at route level).
+            domain_id: Filter by domain ID.
+            concept_class_id: Filter by concept class ID.
+            standard_concept: Filter by standard concept flag.
 
         Returns:
             A tuple of (results list, total hits count).
         """
-        # Filters passed for API compatibility - applied at route level
-        del domain_id, concept_class_id
         if not vocab_ids:
             return [], 0
 
@@ -300,18 +324,23 @@ class ConceptIndexer:
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
+        es_filters = self._build_es_filters(domain_id, concept_class_id, standard_concept)
 
         # Pure kNN vector search - no text matching
+        knn_clause: Dict[str, Any] = {
+            "field": "embedding",
+            "query_vector": query_embedding,
+            "k": max(limit + offset, 50),
+            "num_candidates": 100,
+        }
+        if es_filters:
+            knn_clause["filter"] = {"bool": {"must": es_filters}}
+
         query = {
             "size": limit,
             "from": offset,
             "track_total_hits": True,
-            "knn": {
-                "field": "embedding",
-                "query_vector": query_embedding,
-                "k": max(limit + offset, 50),
-                "num_candidates": 100,
-            },
+            "knn": knn_clause,
         }
 
         response = es_client.search(index=existing_indices, body=query)
@@ -349,9 +378,6 @@ class ConceptIndexer:
 
         Performs hybrid search (text + semantic) and returns results with scores.
 
-        Note: domain_id, concept_class_id, and standard_concept filters are not
-        currently applied in ES. Would require adding these fields to the index.
-
         Args:
             query_text: The search query text.
             vocab_ids: List of vocabulary IDs to search across.
@@ -359,17 +385,13 @@ class ConceptIndexer:
             offset: Number of results to skip for pagination.
             sort_by: Field to sort by ('relevance', 'name', 'domain').
             sort_order: Sort direction ('asc' or 'desc').
-            domain_id: Reserved for future ES filtering (currently unused).
-            concept_class_id: Reserved for future ES filtering (currently unused).
-            standard_concept: Reserved for future ES filtering (currently unused).
+            domain_id: Filter by domain ID.
+            concept_class_id: Filter by concept class ID.
+            standard_concept: Filter by standard concept flag.
 
         Returns:
             A tuple of (results list, total hits count).
         """
-        # These filters are accepted for API compatibility but not yet implemented in ES
-        # Would require adding these fields to the ES index mapping
-        del domain_id, concept_class_id, standard_concept
-
         if not vocab_ids:
             return [], 0
 
@@ -389,27 +411,42 @@ class ConceptIndexer:
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
+        es_filters = self._build_es_filters(domain_id, concept_class_id, standard_concept)
 
-        # Build query - use kNN with text boost for hybrid search
-        # This approach works with ES 8.x without requiring RRF support
+        # Build kNN clause with optional pre-filtering
+        knn_clause: Dict[str, Any] = {
+            "field": "embedding",
+            "query_vector": query_embedding,
+            "k": max(limit + offset, 50),
+            "num_candidates": 100,
+        }
+        if es_filters:
+            knn_clause["filter"] = {"bool": {"must": es_filters}}
+
+        # Build text query — wrap in bool with filter when filters are active
+        text_query: Dict[str, Any] = {
+            "multi_match": {
+                "query": query_text,
+                "fields": ["vocab_term_name^2", "vocab_term_id"],
+                "type": "best_fields",
+                "boost": 0.3,
+            }
+        }
+        if es_filters:
+            text_query = {
+                "bool": {
+                    "must": [text_query],
+                    "filter": es_filters,
+                }
+            }
+
+        # Hybrid search: kNN + text boost (ES 8.x compatible)
         query = {
             "size": limit,
             "from": offset,
             "track_total_hits": True,
-            "knn": {
-                "field": "embedding",
-                "query_vector": query_embedding,
-                "k": max(limit + offset, 50),
-                "num_candidates": 100,
-            },
-            "query": {
-                "multi_match": {
-                    "query": query_text,
-                    "fields": ["vocab_term_name^2", "vocab_term_id"],
-                    "type": "best_fields",
-                    "boost": 0.3,
-                }
-            },
+            "knn": knn_clause,
+            "query": text_query,
         }
 
         # Add sorting if not by relevance

@@ -32,6 +32,7 @@ interface SourceTermsTableProps {
   onApproveMapping: (mapping: ClusterMapping) => void;
   onDeleteMapping: (mapping: ClusterMapping) => void;
   isLoading: boolean;
+  isRefreshing?: boolean;
   labels: string[];
   selectedLabel: string;
   onLabelChange: (label: string) => void;
@@ -44,6 +45,7 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
   onApproveMapping,
   onDeleteMapping,
   isLoading,
+  isRefreshing = false,
   labels,
   selectedLabel,
   onLabelChange,
@@ -228,6 +230,7 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
           onRowClick={onSelectMapping}
           isRowSelected={(mapping) => selectedMapping?.cluster_id === mapping.cluster_id}
           isLoading={isLoading}
+          isLoadingOverlay={isRefreshing}
           loadingContent={<LoadingSpinner size="small" text="Loading source terms..." />}
           stickyHeader
           ariaLabel="Source terms"
