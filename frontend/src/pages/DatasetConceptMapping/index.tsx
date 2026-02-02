@@ -370,7 +370,7 @@ export default function DatasetConceptMapping() {
     setConfirmDialog({
       isOpen: true,
       title: "Auto-Map All Unmapped",
-      message: `Auto-map all ${unmappedCount} unmapped clusters? This may take a while.`,
+      message: `Auto-map ${unmappedCount} unmapped clusters? Already accepted or pending mappings will not be overridden.`,
       variant: "warning",
       onConfirm: async () => {
         setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
