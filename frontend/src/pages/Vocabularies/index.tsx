@@ -1,15 +1,11 @@
 import { Link } from "react-router-dom";
-import Layout from "components/Layout";
-import Table from "components/Table";
-import Button from "components/Button";
-import { useVocabularies } from '@/hooks/useVocabularies';
-import { usePageTitle } from '@/hooks/usePageTitle';
-import type { Vocabulary } from "types";
+import Layout from "@components/Layout";
+import Table from "@components/Table";
+import Button from "@components/Button";
+import { useVocabularies } from "@/hooks/useVocabularies";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import type { Vocabulary } from "@/types";
 import styles from "./styles.module.css";
-
-// ================================================
-// Component
-// ================================================
 
 const Vocabularies = () => {
   usePageTitle("Vocabularies");
@@ -40,7 +36,7 @@ const Vocabularies = () => {
       header: "Name",
       width: "35%",
       render: (item: Vocabulary) => (
-        <Link to={`/vocabularies/${item.id}`} className={styles.nameLink}>
+        <Link to={`/vocabularies/${item.id}`} className={styles.vocabularies__link}>
           {item.name}
         </Link>
       ),
@@ -67,10 +63,12 @@ const Vocabularies = () => {
       header: "Actions",
       width: "15%",
       render: (item: Vocabulary) => (
-        <div className={styles.actions}>
+        <div className={styles.vocabularies__actions}>
           <Button
             variant="ghost"
             size="small"
+            title="Download vocabulary"
+            className={styles["vocabularies__action-button"]}
             onClick={(e) => {
               e.stopPropagation();
               downloadVocabulary(item.id);
@@ -81,7 +79,9 @@ const Vocabularies = () => {
           <Button
             variant="ghost"
             size="small"
+            title="Delete vocabulary"
             colorScheme="danger"
+            className={styles["vocabularies__action-button"]}
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
@@ -95,7 +95,7 @@ const Vocabularies = () => {
   ];
 
   const sidebar = (
-    <div className={styles.sidebarContent}>
+    <div className={styles.vocabularies__sidebar}>
       <Link to="/vocabularies/upload">
         <Button variant="primary" label="+ Upload vocabulary" />
       </Link>
@@ -104,13 +104,13 @@ const Vocabularies = () => {
 
   return (
     <Layout sidebar={sidebar}>
-      <div className={styles.page}>
-        <h1 className={styles.title}>Vocabularies</h1>
+      <div className={styles.vocabularies}>
+        <h1 className={styles.vocabularies__title}>Vocabularies</h1>
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div className={styles.vocabularies__error}>{error}</div>}
 
         {isLoading ? (
-          <div className={styles.loading}>Loading vocabularies...</div>
+          <div className={styles.vocabularies__loading}>Loading vocabularies...</div>
         ) : (
           <Table
             columns={columns}
