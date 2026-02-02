@@ -31,6 +31,7 @@ export default function DatasetConceptMapping() {
   const [selectedVocabularies, setSelectedVocabularies] = useState<number[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<string>("");
   const [labels, setLabels] = useState<string[]>([]);
+  const [labelsLoaded, setLabelsLoaded] = useState(false);
   const [domainFilter, setDomainFilter] = useState<string>("");
   const [conceptClassFilter, setConceptClassFilter] = useState<string>("");
   const [standardOnly, setStandardOnly] = useState(false);
@@ -86,6 +87,7 @@ export default function DatasetConceptMapping() {
         if (data.dataset.labels.length > 0) {
           setSelectedLabel(data.dataset.labels[0]);
         }
+        setLabelsLoaded(true);
       } catch (err) {
         console.error("Failed to fetch dataset:", err);
       }
@@ -126,7 +128,7 @@ export default function DatasetConceptMapping() {
 
   // Fetch mappings
   const fetchMappings = useCallback(async () => {
-    if (!datasetId) return;
+    if (!datasetId || !labelsLoaded) return;
 
     try {
       setIsLoading(true);
@@ -138,7 +140,7 @@ export default function DatasetConceptMapping() {
     } finally {
       setIsLoading(false);
     }
-  }, [datasetId, selectedLabel]);
+  }, [datasetId, selectedLabel, labelsLoaded]);
 
   useEffect(() => {
     fetchMappings();
