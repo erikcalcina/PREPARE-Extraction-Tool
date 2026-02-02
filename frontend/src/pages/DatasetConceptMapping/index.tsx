@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 import Layout from "@components/Layout";
@@ -58,6 +58,8 @@ export default function DatasetConceptMapping() {
   const [conceptClasses, setConceptClasses] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const hasLoadedOnce = useRef(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isMapping, setIsMapping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,20 +131,38 @@ export default function DatasetConceptMapping() {
   }, []);
 
   // Fetch mappings
-  const fetchMappings = useCallback(async () => {
-    if (!datasetId || !labelsLoaded) return;
+  const fetchMappings = useCallback(async (): Promise<ClusterMapping[]> => {
+    if (!datasetId || !labelsLoaded) return [];
 
     try {
-      setIsLoading(true);
+      if (!hasLoadedOnce.current) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       setError(null);
       const data = await api.getDatasetMappings(parseInt(datasetId), selectedLabel || undefined);
       setMappings(data.mappings);
+      hasLoadedOnce.current = true;
+      return data.mappings;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load mappings");
+      return [];
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [datasetId, selectedLabel, labelsLoaded]);
+
+  // Reset view when label changes
+  useEffect(() => {
+    hasLoadedOnce.current = false;
+    setSelectedMapping(null);
+    setSearchResults([]);
+    setSearchPagination(null);
+    setSearchQuery("");
+    setSearchPage(1);
+  }, [selectedLabel]);
 
   useEffect(() => {
     fetchMappings();
@@ -273,11 +293,10 @@ export default function DatasetConceptMapping() {
     try {
       setIsMapping(true);
       await api.mapClusterToConcept(parseInt(datasetId), selectedMapping.cluster_id, { concept_id: conceptId, status });
-      await fetchMappings();
+      const freshMappings = await fetchMappings();
       toast.success(status === "approved" ? "Mapping approved" : "Concept mapped successfully");
 
-      // Update selected mapping
-      const updated = mappings.find((m) => m.cluster_id === selectedMapping.cluster_id);
+      const updated = freshMappings.find((m) => m.cluster_id === selectedMapping.cluster_id);
       if (updated) {
         setSelectedMapping(updated);
       }
@@ -301,10 +320,10 @@ export default function DatasetConceptMapping() {
         setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
         try {
           await api.deleteClusterMapping(parseInt(datasetId), selectedMapping.cluster_id);
-          await fetchMappings();
+          const freshMappings = await fetchMappings();
           toast.success("Mapping removed successfully");
 
-          const updated = mappings.find((m) => m.cluster_id === selectedMapping.cluster_id);
+          const updated = freshMappings.find((m) => m.cluster_id === selectedMapping.cluster_id);
           if (updated) {
             setSelectedMapping(updated);
           }
@@ -326,8 +345,13 @@ export default function DatasetConceptMapping() {
           concept_id: mapping.concept_id!,
           status: "approved",
         });
-        await fetchMappings();
+        const freshMappings = await fetchMappings();
         toast.success("Mapping approved");
+
+        if (selectedMapping?.cluster_id === mapping.cluster_id) {
+          const updated = freshMappings.find((m) => m.cluster_id === mapping.cluster_id);
+          if (updated) setSelectedMapping(updated);
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Approval failed");
       } finally {
@@ -496,6 +520,7 @@ export default function DatasetConceptMapping() {
             onApproveMapping={handleApproveFromTable}
             onDeleteMapping={handleDeleteFromTable}
             isLoading={isLoading}
+            isRefreshing={isRefreshing}
             labels={labels}
             selectedLabel={selectedLabel}
             onLabelChange={setSelectedLabel}

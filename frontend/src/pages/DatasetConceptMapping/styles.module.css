@@ -729,6 +729,11 @@
   max-height: 280px;
 }
 
+/* Remove inner overflow so sticky header works against this scroll container */
+.source-terms-section__table-wrapper > div {
+  overflow: visible;
+}
+
 /* Pagination Bar */
 .source-terms-section__pagination-bar {
   display: flex;
