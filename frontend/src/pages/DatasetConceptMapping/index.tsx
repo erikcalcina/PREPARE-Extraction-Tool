@@ -150,10 +150,10 @@ export default function DatasetConceptMapping() {
 
   // Auto-search when cluster is selected
   useEffect(() => {
-    if (selectedMapping && selectedVocabularies.length > 0) {
+    if (selectedMapping) {
       handleAutoSearch();
     }
-  }, [selectedMapping?.cluster_id]);
+  }, [selectedMapping?.cluster_id, vocabularies]);
 
   // Re-search when any filter or query mode changes
   useEffect(() => {
