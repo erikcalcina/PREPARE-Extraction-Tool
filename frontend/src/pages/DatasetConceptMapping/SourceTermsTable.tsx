@@ -29,6 +29,8 @@ interface SourceTermsTableProps {
   mappings: ClusterMapping[];
   selectedMapping: ClusterMapping | null;
   onSelectMapping: (mapping: ClusterMapping) => void;
+  onApproveMapping: (mapping: ClusterMapping) => void;
+  onDeleteMapping: (mapping: ClusterMapping) => void;
   isLoading: boolean;
   labels: string[];
   selectedLabel: string;
@@ -39,6 +41,8 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
   mappings,
   selectedMapping,
   onSelectMapping,
+  onApproveMapping,
+  onDeleteMapping,
   isLoading,
   labels,
   selectedLabel,
@@ -98,10 +102,6 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
         render: (mapping: ClusterMapping) => <FontAwesomeIcon icon={getStatusIcon(mapping.status)} />,
       },
       {
-        key: "cluster_id",
-        header: "Source Code",
-      },
-      {
         key: "cluster_title",
         header: "Source Term",
       },
@@ -140,8 +140,42 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
         header: "Vocabulary",
         render: (mapping: ClusterMapping) => mapping.vocabulary_name || "—",
       },
+      {
+        key: "actions",
+        header: "Actions",
+        render: (mapping: ClusterMapping) => (
+          <div className={styles["source-terms-section__actions-cell"]}>
+            <button
+              className={classNames(
+                styles["source-terms-section__action-btn"],
+                styles["source-terms-section__action-btn--approve"]
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                onApproveMapping(mapping);
+              }}
+              disabled={!mapping.concept_id || mapping.status === "approved"}
+            >
+              Accept
+            </button>
+            <button
+              className={classNames(
+                styles["source-terms-section__action-btn"],
+                styles["source-terms-section__action-btn--remove"]
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteMapping(mapping);
+              }}
+              disabled={!mapping.concept_id}
+            >
+              Remove
+            </button>
+          </div>
+        ),
+      },
     ],
-    []
+    [onApproveMapping, onDeleteMapping]
   );
 
   return (

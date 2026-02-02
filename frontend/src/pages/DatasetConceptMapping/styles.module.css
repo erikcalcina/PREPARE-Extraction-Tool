@@ -68,6 +68,31 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
+  gap: 16px;
+}
+
+.selection-bar__panels {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.selection-bar__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.selection-bar__panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .selection-bar__info {
@@ -78,33 +103,47 @@
   color: #374151;
 }
 
-.selection-bar__label {
-  font-weight: 500;
-  color: #6b7280;
-}
-
 .selection-bar__value {
   font-weight: 600;
+  font-size: 14px;
   color: #11415e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .selection-bar__arrow {
   color: #9ca3af;
-  font-size: 16px;
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
 .selection-bar__target {
   color: #269b6f;
   font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selection-bar__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
+  flex-wrap: wrap;
 }
 
 .selection-bar__no-selection {
   color: #9ca3af;
+  font-size: 13px;
 }
 
 .selection-bar__actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* Comment Row */
@@ -394,6 +433,47 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.source-terms-section__actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-terms-section__action-btn {
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 3px 8px;
+  white-space: nowrap;
+  background: transparent;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.source-terms-section__action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.source-terms-section__action-btn--approve:not(:disabled) {
+  color: #065f46;
+}
+
+.source-terms-section__action-btn--approve:not(:disabled):hover {
+  background: #d1fae5;
+}
+
+.source-terms-section__action-btn--remove:not(:disabled) {
+  color: #991b1b;
+}
+
+.source-terms-section__action-btn--remove:not(:disabled):hover {
+  background: #fee2e2;
 }
 
 .source-terms-section__empty-cell {
