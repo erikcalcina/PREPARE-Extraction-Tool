@@ -189,6 +189,7 @@ def auto_map_cluster(
             limit=10,
             domain_id=request.domain_id,
             concept_class_id=request.concept_class_id,
+            standard_concept=request.standard_concept,
         )
     else:
         es_results, _ = indexer.search_concepts(
@@ -451,6 +452,7 @@ def search_concepts(
             offset=offset,
             domain_id=domain_id,
             concept_class_id=concept_class_id,
+            standard_concept=standard_concept,
         )
     else:
         es_results, total_hits = indexer.search_concepts(
