@@ -19,6 +19,8 @@ import TargetConceptsList from "./TargetConceptsList";
 import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "@/types";
 
 import styles from "./styles.module.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRightLong } from "@fortawesome/free-solid-svg-icons";
 
 export default function DatasetConceptMapping() {
   const { datasetId } = useParams<{ datasetId: string }>();
@@ -313,6 +315,50 @@ export default function DatasetConceptMapping() {
     });
   };
 
+  // Handle approve from table row
+  const handleApproveFromTable = (mapping: ClusterMapping) => {
+    if (!mapping.concept_id || !datasetId) return;
+
+    const doApprove = async () => {
+      try {
+        setIsMapping(true);
+        await api.mapClusterToConcept(parseInt(datasetId), mapping.cluster_id, {
+          concept_id: mapping.concept_id!,
+          status: "approved",
+        });
+        await fetchMappings();
+        toast.success("Mapping approved");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Approval failed");
+      } finally {
+        setIsMapping(false);
+      }
+    };
+    doApprove();
+  };
+
+  // Handle delete from table row
+  const handleDeleteFromTable = (mapping: ClusterMapping) => {
+    if (!mapping.concept_id || !datasetId) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Remove Mapping",
+      message: `Remove mapping for "${mapping.cluster_title}"?`,
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await api.deleteClusterMapping(parseInt(datasetId), mapping.cluster_id);
+          await fetchMappings();
+          toast.success("Mapping removed successfully");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Failed to delete mapping");
+        }
+      },
+    });
+  };
+
   // Handle auto-map all
   const handleAutoMapAll = () => {
     // Use all vocabularies if filter is disabled, otherwise use selected
@@ -447,6 +493,8 @@ export default function DatasetConceptMapping() {
             mappings={mappings}
             selectedMapping={selectedMapping}
             onSelectMapping={setSelectedMapping}
+            onApproveMapping={handleApproveFromTable}
+            onDeleteMapping={handleDeleteFromTable}
             isLoading={isLoading}
             labels={labels}
             selectedLabel={selectedLabel}
@@ -455,41 +503,69 @@ export default function DatasetConceptMapping() {
 
           {/* Selection Bar */}
           <div className={styles["selection-bar"]}>
-            <div className={styles["selection-bar__info"]}>
-              <span className={styles["selection-bar__label"]}>Selected:</span>
-              {selectedMapping ? (
-                <>
-                  <span className={styles["selection-bar__value"]}>{selectedMapping.cluster_title}</span>
-                  <span className={styles["selection-bar__arrow"]}>→</span>
-                  {selectedMapping.concept_name ? (
-                    <span className={styles["selection-bar__target"]}>{selectedMapping.concept_name}</span>
-                  ) : (
-                    <span className={styles["selection-bar__no-selection"]}>No concept mapped</span>
+            {selectedMapping ? (
+              <>
+                <div className={styles["selection-bar__panels"]}>
+                  {/* Source Term Panel */}
+                  <div className={styles["selection-bar__panel"]}>
+                    <span className={styles["selection-bar__panel-label"]}>Source Term</span>
+                    <span className={styles["selection-bar__value"]}>{selectedMapping.cluster_title}</span>
+                    <div className={styles["selection-bar__meta"]}>
+                      <span>Label: {selectedMapping.cluster_label}</span>
+                      <span>Freq: {selectedMapping.cluster_total_occurrences}</span>
+                      <span>Terms: {selectedMapping.cluster_term_count}</span>
+                    </div>
+                  </div>
+
+                  <span className={styles["selection-bar__arrow"]}>
+                    <FontAwesomeIcon icon={faArrowRightLong} />
+                  </span>
+
+                  {/* Target Concept Panel */}
+                  <div className={styles["selection-bar__panel"]}>
+                    <span className={styles["selection-bar__panel-label"]}>Target Concept</span>
+                    {selectedMapping.concept_name ? (
+                      <>
+                        <span className={styles["selection-bar__target"]}>{selectedMapping.concept_name}</span>
+                        <div className={styles["selection-bar__meta"]}>
+                          <span>ID: {selectedMapping.concept_id}</span>
+                          {selectedMapping.concept_code && <span>Code: {selectedMapping.concept_code}</span>}
+                          {selectedMapping.concept_domain && <span>Domain: {selectedMapping.concept_domain}</span>}
+                          {selectedMapping.concept_class && <span>Class: {selectedMapping.concept_class}</span>}
+                          {selectedMapping.vocabulary_name && <span>Vocab: {selectedMapping.vocabulary_name}</span>}
+                        </div>
+                      </>
+                    ) : (
+                      <span className={styles["selection-bar__no-selection"]}>No concept mapped</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles["selection-bar__actions"]}>
+                  {selectedMapping.concept_id && (
+                    <Button variant="outline" size="small" onClick={handleDeleteMapping}>
+                      Remove
+                    </Button>
                   )}
-                </>
-              ) : (
+                  <Button
+                    variant="success"
+                    size="small"
+                    onClick={() => {
+                      if (selectedMapping.concept_id) {
+                        handleMapConcept(selectedMapping.concept_id, "approved");
+                      }
+                    }}
+                    disabled={!selectedMapping.concept_id || isMapping}
+                  >
+                    Accept
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className={styles["selection-bar__info"]}>
                 <span className={styles["selection-bar__no-selection"]}>No source term selected</span>
-              )}
-            </div>
-            <div className={styles["selection-bar__actions"]}>
-              {selectedMapping?.concept_id && (
-                <Button variant="outline" size="small" onClick={handleDeleteMapping}>
-                  Remove
-                </Button>
-              )}
-              <Button
-                variant="success"
-                size="small"
-                onClick={() => {
-                  if (selectedMapping?.concept_id) {
-                    handleMapConcept(selectedMapping.concept_id, "approved");
-                  }
-                }}
-                disabled={!selectedMapping?.concept_id || isMapping}
-              >
-                Accept
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Comment Row */}
