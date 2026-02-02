@@ -132,7 +132,7 @@ class ConceptIndexer:
                                 "vocab_term_name": c.vocab_term_name,
                                 "domain_id": c.domain_id,
                                 "concept_class_id": c.concept_class_id,
-                                "embedding": [float(x) for x in emb],
+                                "embedding": emb,
                             },
                         }
                     )
@@ -175,6 +175,20 @@ class ConceptIndexer:
         }
 
         es_client.index(index=f"concepts_{vocab_id}", id=concept_db.id, document=doc)
+
+    def set_index_refresh(self, vocab_id: int, interval: str):
+        """Set the refresh interval for a vocabulary's ES index.
+
+        Args:
+            vocab_id: The vocabulary ID whose index settings to update.
+            interval: The refresh interval (e.g. "1s", "-1" to disable).
+        """
+        index_name = f"concepts_{vocab_id}"
+        if es_client.indices.exists(index=index_name):
+            es_client.indices.put_settings(
+                index=index_name,
+                body={"index": {"refresh_interval": interval}},
+            )
 
     def delete_concept_from_index(self, vocab_id: int, concept_id: int):
         """Delete a concept from the index.

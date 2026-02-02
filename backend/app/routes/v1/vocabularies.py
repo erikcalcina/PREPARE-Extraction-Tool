@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
-from sqlmodel import Session, select, func, update
+from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
@@ -140,12 +140,14 @@ def get_vocabularies(
         .where(Vocabulary.user_id == current_user.id)
     ).one()
 
-    # Subquery for concept counts grouped by vocabulary_id
+    # Subquery: only count concepts for this user's vocabularies
     concept_counts_subquery = (
         select(
             Concept.vocabulary_id,
             func.count(Concept.id).label("count")
         )
+        .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
+        .where(Vocabulary.user_id == current_user.id)
         .group_by(Concept.vocabulary_id)
         .subquery()
     )
@@ -231,6 +233,31 @@ async def save_upload_to_disk(file: UploadFile) -> str:
 
     return path
 
+def _insert_and_index_batch(db: Session, batch: list):
+    """Insert a batch of Concepts via Core INSERT RETURNING and index in ES."""
+    concept_dicts = [
+        {
+            "vocab_term_id": c.vocab_term_id,
+            "vocab_term_name": c.vocab_term_name,
+            "domain_id": c.domain_id,
+            "concept_class_id": c.concept_class_id,
+            "standard_concept": c.standard_concept,
+            "concept_code": c.concept_code,
+            "valid_start_date": c.valid_start_date,
+            "valid_end_date": c.valid_end_date,
+            "invalid_reason": c.invalid_reason,
+            "vocabulary_id": c.vocabulary_id,
+        }
+        for c in batch
+    ]
+    result = db.execute(insert(Concept).returning(Concept.id), concept_dicts)
+    ids = result.scalars().all()
+    db.commit()
+    for concept, concept_id in zip(batch, ids):
+        concept.id = concept_id
+    indexer.add_bulk_to_index(batch)
+
+
 def ingest_vocabulary_background(file_path: str, user_id: int):
     db = Session(engine)
 
@@ -258,7 +285,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
     try:
 
         # start ingesting
-        BATCH_SIZE = 2000
+        BATCH_SIZE = 5000
         batch = []
         total = 0
         for concept, vocab_name in parse_concepts_file(file_path, REQUIRED_COLUMNS, UNWANTED_IDS):
@@ -272,29 +299,30 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
                 db.refresh(vocabulary)
                 vocab_id = vocabulary.id
                 concept.vocabulary_id = vocab_id
-                # create new ES index also
+                # create new ES index and disable refresh during bulk load
                 indexer.create_concept_index(vocab_id)
+                indexer.set_index_refresh(vocab_id, "-1")
                 vocabularies[vocab_name] = vocab_id
 
             batch.append(concept)
 
             if len(batch) >= BATCH_SIZE:
-                db.bulk_save_objects(batch, return_defaults=True)
-                db.commit()
+                _insert_and_index_batch(db, batch)
                 total += len(batch)
-                indexer.add_bulk_to_index(batch)
                 batch.clear()
                 print("Rows saved:", total)
 
         if batch:
-            db.bulk_save_objects(batch, return_defaults=True)
-            db.commit()
+            _insert_and_index_batch(db, batch)
             total += len(batch)
-            indexer.add_bulk_to_index(batch)
             print("Rows saved:", total, "-> ALL")
 
-        # success
+        # Re-enable ES refresh and force a final refresh
         vocab_ids = list(vocabularies.values())
+        for vid in vocab_ids:
+            indexer.set_index_refresh(vid, "1s")
+
+        # success
         db.exec(
             update(Vocabulary)
             .where(Vocabulary.id.in_(vocab_ids))
@@ -310,6 +338,13 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
 
         vocab_ids = list(vocabularies.values())
         error_msg = str(e)
+
+        # Re-enable ES refresh before cleanup
+        for vid in vocab_ids:
+            try:
+                indexer.set_index_refresh(vid, "1s")
+            except Exception:
+                pass
 
         if vocab_ids:
             # mark all vocabularies as FAILED
@@ -438,20 +473,19 @@ def delete_vocabulary(
 def delete_vocabulary_background(vocabulary_id: int):
     db = Session(engine)
     try:
-        vocabulary = db.get(Vocabulary, vocabulary_id)
-        if vocabulary is None:
-            print(f"Vocabulary {vocabulary_id} not found during background deletion")
-            return 
+        # Delete ES index first (idempotent — checks exists before deleting).
+        # Doing this first avoids orphaned ES indices if DB delete succeeds
+        # but ES delete fails on a subsequent retry.
+        indexer.delete_index(vocabulary_id)
 
-        # delete from database
-        db.delete(vocabulary)
+        # Single SQL DELETE — PostgreSQL ON DELETE CASCADE handles
+        # Concept and SourceToConceptMap rows at the DB level,
+        # avoiding loading all children into Python memory.
+        db.exec(delete(Vocabulary).where(Vocabulary.id == vocabulary_id))
         db.commit()
 
-        # delete from Elasticsearch
-        indexer.delete_index(vocabulary_id)
-        
         print(f"Successfully deleted vocabulary {vocabulary_id}")
-        
+
     except Exception as e:
         db.rollback()
         print(f"Failed to delete vocabulary {vocabulary_id}: {e}")
