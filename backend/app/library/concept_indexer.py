@@ -1,3 +1,4 @@
+import logging
 from typing import List, Union, Optional, Dict, Any, Tuple
 from collections import defaultdict
 
@@ -7,6 +8,8 @@ from elasticsearch.helpers import bulk
 from app.core.elastic import es_client
 from app.core.model_registry import model_registry
 from app.models_db import Concept, Cluster
+
+logger = logging.getLogger(__name__)
 
 # ================================================
 # Concept indexer in elasticsearch
@@ -72,9 +75,9 @@ class ConceptIndexer:
                 }
             }
             es_client.indices.create(index=index_name, body=mapping)
-            print(f"Created index '{index_name}' successfully")
+            logger.info(f"Created index '{index_name}' successfully")
         else:
-            print(f"Index '{index_name}' already exists, skipping creation")
+            logger.info(f"Index '{index_name}' already exists, skipping creation")
 
     def delete_index(self, vocab_id: int):
         """Delete an Elasticsearch index for a vocabulary.
@@ -86,9 +89,9 @@ class ConceptIndexer:
 
         if es_client.indices.exists(index=index_name):
             es_client.indices.delete(index=index_name)
-            print(f"Index {index_name} deleted successfully")
+            logger.info(f"Index {index_name} deleted successfully")
         else:
-            print(f"Index {index_name} not found, skipping deletion")
+            logger.info(f"Index {index_name} not found, skipping deletion")
 
     def _calculate_embedding(self, text: Union[str, List[str]]) -> List[float]:
         """Calculate embedding vector(s) for the given text.
@@ -145,11 +148,11 @@ class ConceptIndexer:
                 )
 
                 if errors:
-                    print(f"ES bulk failed for batch starting at {i}")
-                    print(f"Failed docs: {len(errors)}")
+                    logger.error(f"ES bulk failed for batch starting at {i}")
+                    logger.error(f"Failed docs: {len(errors)}")
 
                     for err in errors[:3]:
-                        print("ES error:", err)
+                        logger.error(f"ES error: {err}")
 
                     raise RuntimeError(
                         f"{len(errors)} document(s) failed to index into Elasticsearch"
@@ -201,9 +204,9 @@ class ConceptIndexer:
 
         try:
             es_client.delete(index=index_name, id=concept_id)
-            print(f"Document {concept_id} deleted from {index_name} successfully")
+            logger.info(f"Document {concept_id} deleted from {index_name} successfully")
         except NotFoundError:
-            print(f"Document {concept_id} not found in {index_name}, skipping deletion")
+            logger.info(f"Document {concept_id} not found in {index_name}, skipping deletion")
 
     def es_map_term_to_concept(
         self, cluster_db: Cluster, vocab_ids: List[int]
@@ -290,6 +293,10 @@ class ConceptIndexer:
                 existing_indices.append(idx)
 
         if not existing_indices:
+            logger.warning(
+                f"No ES indices found for vocab_ids={vocab_ids} "
+                f"(checked: {relevant_indices})"
+            )
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
@@ -307,28 +314,24 @@ class ConceptIndexer:
             },
         }
 
-        try:
-            response = es_client.search(index=existing_indices, body=query)
+        response = es_client.search(index=existing_indices, body=query)
 
-            total_hits = response["hits"]["total"]
-            if isinstance(total_hits, dict):
-                total_hits = total_hits["value"]
+        total_hits = response["hits"]["total"]
+        if isinstance(total_hits, dict):
+            total_hits = total_hits["value"]
 
-            results = []
-            for hit in response["hits"]["hits"]:
-                vocab_id = int(hit["_index"].split("_")[1])
-                results.append(
-                    {
-                        "concept_id": int(hit["_id"]),
-                        "score": float(hit["_score"]) if hit["_score"] else 0.0,
-                        "vocab_id": vocab_id,
-                    }
-                )
+        results = []
+        for hit in response["hits"]["hits"]:
+            vocab_id = int(hit["_index"].split("_")[1])
+            results.append(
+                {
+                    "concept_id": int(hit["_id"]),
+                    "score": float(hit["_score"]) if hit["_score"] else 0.0,
+                    "vocab_id": vocab_id,
+                }
+            )
 
-            return results, total_hits
-        except Exception as e:
-            print(f"Error in vector search: {e}")
-            return [], 0
+        return results, total_hits
 
     def search_concepts(
         self,
@@ -379,6 +382,10 @@ class ConceptIndexer:
                 existing_indices.append(idx)
 
         if not existing_indices:
+            logger.warning(
+                f"No ES indices found for vocab_ids={vocab_ids} "
+                f"(checked: {relevant_indices})"
+            )
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
@@ -421,30 +428,26 @@ class ConceptIndexer:
             ]
         # For relevance, ES uses _score by default
 
-        try:
-            response = es_client.search(index=existing_indices, body=query)
+        response = es_client.search(index=existing_indices, body=query)
 
-            # Get total hits
-            total_hits = response["hits"]["total"]
-            if isinstance(total_hits, dict):
-                total_hits = total_hits["value"]
+        # Get total hits
+        total_hits = response["hits"]["total"]
+        if isinstance(total_hits, dict):
+            total_hits = total_hits["value"]
 
-            results = []
-            for hit in response["hits"]["hits"]:
-                # Extract vocab_id from index name (e.g., "concepts_1" -> 1)
-                vocab_id = int(hit["_index"].split("_")[1])
-                results.append(
-                    {
-                        "concept_id": int(hit["_id"]),
-                        "score": float(hit["_score"]) if hit["_score"] else 0.0,
-                        "vocab_id": vocab_id,
-                    }
-                )
+        results = []
+        for hit in response["hits"]["hits"]:
+            # Extract vocab_id from index name (e.g., "concepts_1" -> 1)
+            vocab_id = int(hit["_index"].split("_")[1])
+            results.append(
+                {
+                    "concept_id": int(hit["_id"]),
+                    "score": float(hit["_score"]) if hit["_score"] else 0.0,
+                    "vocab_id": vocab_id,
+                }
+            )
 
-            return results, total_hits
-        except Exception as e:
-            print(f"Error searching concepts: {e}")
-            return [], 0
+        return results, total_hits
 
 
 # ================================================
