@@ -267,7 +267,7 @@ class Vocabulary(SQLModel, table=True):
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
-    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
     user: Optional["User"] = Relationship(back_populates="vocabularies")
 
     # Relationship to Concepts (one-to-many)
