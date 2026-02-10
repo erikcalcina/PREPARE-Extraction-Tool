@@ -1,25 +1,41 @@
-import re
-from typing import List, Optional, Tuple
-import math
-
 from datetime import datetime, timezone
+import math
+import re
+from typing import List, Optional, Union
+from uuid import uuid4
 
-from typing import Optional, Union
-
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import (
+    APIRouter, 
+    Depends, 
+    HTTPException, 
+    status, 
+    File, 
+    UploadFile, 
+    Form, 
+    BackgroundTasks,
+)
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, update, delete
 from collections import defaultdict, Counter
 
 from hdbscan import HDBSCAN
 
-from app.core.database import get_session
+from app.core.database import engine, get_session
 from app.core.model_registry import model_registry
-from app.models_db import Dataset, Record, SourceTerm, User, Cluster, SourceToConceptMap
+from app.models_db import (
+    Dataset, 
+    Record, 
+    SourceTerm, 
+    User, 
+    Cluster, 
+    SourceToConceptMap, 
+    ProcessingStatus,
+)
 from app.library.file_parser import parse_records_file
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
+    DatasetUploadResponse,
     DatasetStatisticsResponse,
     DatasetOverviewResponse,
     ClusteringStatsResponse,
@@ -111,6 +127,8 @@ def get_datasets(
             uploaded=dataset.uploaded,
             last_modified=dataset.last_modified,
             labels=dataset.labels,
+            status=dataset.status,
+            error_message=dataset.error_message,
             record_count=db.query(func.count(Record.id))
             .filter(Record.dataset_id == dataset.id)
             .scalar(),
@@ -134,18 +152,46 @@ def get_datasets(
     description="Creates a new dataset with its associated records",
     response_description="The created dataset with its metadata",
 )
-def create_dataset(
+async def create_dataset(
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     labels: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    REQUIRED_COLUMNS = ["text", "patient_id"]
+    file_name = file.filename.lower()
+    if not file_name.endswith(".csv") or not file_name.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type.",
+        )
+
+    # save file to disk
+    file_path = await save_upload_to_disk(file)
+
+    label_list = [label.strip() for label in labels.split(",")]
+    # start background ingestion
+    background_tasks.add_task(
+        ingest_dataset_background, 
+        file_path, 
+        name,
+        label_list, 
+        current_user.id
+    )
+
+    dataset_response = DatasetUploadResponse(
+        status=ProcessingStatus.PENDING,
+        message="Record upload successfully started background task",
+    )
+    return dataset_response
+
+def ingest_dataset_background(file_path: str, name: str, label_list: list, user_id: int):
+    db = Session(engine)
 
     # create a new Dataset
-    label_list = [label.strip() for label in labels.split(",")]
-    dataset = Dataset(name=name, labels=label_list, user_id=current_user.id)
+    REQUIRED_COLUMNS = ["text", "patient_id"]
+    dataset = Dataset(name=name, labels=label_list, user_id=user_id)
     db.add(dataset)
     db.commit()
     # Refresh the instance so database now has its generated ID
@@ -153,36 +199,62 @@ def create_dataset(
 
     dataset_id = dataset.id
 
-    BATCH_SIZE = 2000
-    batch = []
-    total = 0
-    for record in parse_records_file(file, REQUIRED_COLUMNS):
-        record.dataset_id = dataset_id
-        batch.append(record)
+    try:
+        BATCH_SIZE = 2000
+        batch = []
+        total = 0
+        for record in parse_records_file(file_path, REQUIRED_COLUMNS):
+            record.dataset_id = dataset_id
+            batch.append(record)
 
-        if len(batch) >= BATCH_SIZE:
+            if len(batch) >= BATCH_SIZE:
+                db.bulk_save_objects(batch, return_defaults=True)
+                db.commit()
+                total += len(batch)
+                batch.clear()
+                print("Rows saved:", total)
+
+        if batch:
             db.bulk_save_objects(batch, return_defaults=True)
             db.commit()
             total += len(batch)
-            batch.clear()
-            print("Rows saved:", total)
+            print("All rows saved.")
 
-    if batch:
-        db.bulk_save_objects(batch, return_defaults=True)
+        db.exec(
+            update(Dataset)
+            .where(Dataset.id == dataset_id)
+            .values(status=ProcessingStatus.DONE)
+        )
         db.commit()
-        total += len(batch)
-        print("All rows saved.")
 
-    dataset_response = DatasetResponse(
-        id=dataset.id,
-        name=dataset.name,
-        uploaded=dataset.uploaded,
-        last_modified=dataset.last_modified,
-        labels=dataset.labels,
-        record_count=total,
-    )
-    return DatasetOutput(dataset=dataset_response)
+    except Exception as e:
+        import traceback
 
+        traceback.print_exc()
+        # failure cleanup
+        db.rollback()
+
+        error_msg = str(e)
+
+        db.exec(
+            update(Dataset)
+            .where(Dataset.id == dataset_id)
+            .values(status=ProcessingStatus.FAILED, error_message=error_msg)
+        )
+        db.commit()
+
+    finally:
+        db.close()
+
+async def save_upload_to_disk(file: UploadFile) -> str:
+    path = f"/tmp/{uuid4()}.csv"
+
+    with open(path, "wb") as out:
+        # read 1 MB at a time
+        while chunk := await file.read(1024 * 1024):
+            out.write(chunk)
+
+    return path
 
 @router.get(
     "/{dataset_id}",
@@ -209,6 +281,8 @@ def get_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
+        status=dataset.status,
+        error_message=dataset.error_message,
         record_count=db.query(func.count(Record.id))
         .filter(Record.dataset_id == dataset.id)
         .scalar(),
@@ -300,6 +374,8 @@ def get_dataset_overview(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
+        status=dataset.status,
+        error_message=dataset.error_message,
         record_count=len(dataset.records),
     )
 
@@ -398,6 +474,7 @@ def get_dataset_overview(
     response_description="Confirmation message that the dataset was deleted successfully",
 )
 def delete_dataset(
+    background_tasks: BackgroundTasks,
     dataset_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -409,11 +486,28 @@ def delete_dataset(
         )
     verify_dataset_ownership(dataset, current_user.id)
 
-    db.delete(dataset)
+    dataset.status = ProcessingStatus.DELETED
     db.commit()
-    # Cascade delete – also deletes all records linked to this dataset
 
-    return MessageOutput(message="Dataset deleted successfully")
+    # start background deletion
+    background_tasks.add_task(delete_dataset_background, dataset_id)
+
+    return MessageOutput(message="Dataset deletion started in the background")
+
+
+def delete_dataset_background(dataset_id: int):
+    db = Session(engine)
+    try:
+        db.exec(delete(Dataset).where(Dataset.id == dataset_id))
+        db.commit()
+
+        print(f"Successfully deleted dataset {dataset_id}")
+
+    except Exception as e:
+        db.rollback()
+        print(f"Failed to delete dataset {dataset_id}: {e}")
+    finally:
+        db.close()
 
 
 @router.get(

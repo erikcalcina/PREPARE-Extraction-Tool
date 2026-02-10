@@ -62,6 +62,9 @@ class ConceptIndexer:
         if not es_client.indices.exists(index=index_name):
             mapping = {
                 "mappings": {
+                    "_source": {
+                        "excludes": ["embedding"]
+                    },
                     "properties": {
                         "vocab_term_id": {"type": "keyword"},
                         "vocab_term_name": {"type": "text"},
@@ -71,11 +74,12 @@ class ConceptIndexer:
                         "embedding": {
                             "type": "dense_vector",
                             "dims": self.embedding_dim,
-                            "index": True,
                             "element_type": "float",
                             "index_options": {
-                                "type": "int8_hnsw",  # compress it to 1-byte integers
-                            }
+                                "type": "int8_hnsw",
+                                "m": 12,
+                                "ef_construction": 100,
+                            },
                         }
                     }
                 }
@@ -242,7 +246,7 @@ class ConceptIndexer:
                 "field": "embedding",
                 "query_vector": cluster_embedding,
                 "k": 50,
-                "num_candidates": 100,  # perhaps more 500?
+                "num_candidates": 250,  # perhaps more 500?
             },
             "query": {
                 "multi_match": {
@@ -336,7 +340,7 @@ class ConceptIndexer:
             "field": "embedding",
             "query_vector": query_embedding,
             "k": max(limit + offset, 50),
-            "num_candidates": 100,  # perhaps more - 500? cuz the precission is lower now (int8)
+            "num_candidates": 250,  # perhaps more - 500? cuz the precission is lower now (int8)
         }
         if es_filters:
             knn_clause["filter"] = {"bool": {"must": es_filters}}
@@ -423,7 +427,7 @@ class ConceptIndexer:
             "field": "embedding",
             "query_vector": query_embedding,
             "k": max(limit + offset, 50),
-            "num_candidates": 100,  # perhaps more - 500?
+            "num_candidates": 250,  # perhaps more - 500?
         }
         if es_filters:
             knn_clause["filter"] = {"bool": {"must": es_filters}}

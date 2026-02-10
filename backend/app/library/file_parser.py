@@ -4,12 +4,13 @@ import codecs
 import json
 from collections import defaultdict
 from typing import Sequence, Tuple
+from pathlib import Path
 
 from dateutil import parser
 from datetime import datetime
 import ijson
 
-from fastapi import HTTPException, status, UploadFile
+from fastapi import HTTPException, status
 
 from app.models_db import Record, Concept, Cluster
 
@@ -19,17 +20,19 @@ from app.models_db import Record, Concept, Cluster
 # ================================================
 
 
-def parse_records_file(file: UploadFile, required_columns: list):
+def parse_records_file(file_path: str, required_columns: list):
     """Yield Record objects from the uploaded file lazily."""
-    filename = file.filename.lower()
 
-    if filename.endswith(".csv"):
-        for record in parse_csv(file, required_columns):
+    path = Path(file_path)
+    suffix = path.suffix.lower()
+
+    if suffix == ".csv":
+        for record in parse_csv(file_path, required_columns):
             yield record
         return
 
-    if filename.endswith(".json"):
-        for record in parse_json(file, required_columns):
+    if suffix == ".json":
+        for record in parse_json(file_path, required_columns):
             yield record
         return
 
@@ -40,85 +43,109 @@ def parse_records_file(file: UploadFile, required_columns: list):
 
 
 def parse_json(
-    file: UploadFile,
+    file_path: str,
     required_columns: list,
 ):
     """Streaming JSON parser – yields Record objects one by one."""
 
-    items = ijson.items(file.file, "item")
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            items = ijson.items(f, "item")
 
-    for i, obj in enumerate(items):
-        if not isinstance(obj, dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="JSON array must contain objects.",
-            )
+            for i, obj in enumerate(items):
+                if not isinstance(obj, dict):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="JSON array must contain objects.",
+                    )
 
-        missing = [col for col in required_columns if col not in obj]
-        if missing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns at index {i}: {', '.join(missing)}",
-            )
+                missing = [col for col in required_columns if col not in obj]
+                if missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Missing required columns at index {i}: {', '.join(missing)}",
+                    )
 
-        date_str = obj.get("date")
-        if date_str:
-            try:
-                date_obj = parser.parse(date_str)
-            except (ValueError, TypeError):
-                date_obj = None
-        else:
-            date_obj = None
+                date_str = obj.get("date")
+                if date_str:
+                    try:
+                        date_obj = parser.parse(date_str)
+                    except (ValueError, TypeError):
+                        date_obj = None
+                else:
+                    date_obj = None
 
-        yield Record(
-            patient_id=obj["patient_id"],
-            seq_number=obj.get("seq_number"),
-            date=date_obj,
-            text=obj["text"],
+                yield Record(
+                    patient_id=obj["patient_id"],
+                    seq_number=obj.get("seq_number"),
+                    date=date_obj,
+                    text=obj["text"],
+                )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse dataset JSON file: {e}",
         )
 
 
 def parse_csv(
-    file: UploadFile,
+    file_path: str,
     required_columns: list,
 ):
     """Streaming parser – yields Record objects one by one."""
+    try:
+        with open(file_path, "rb") as f:
+            text_stream = codecs.getreader("utf-8")(f)
+            reader = csv.DictReader(text_stream)
 
-    text_stream = codecs.getreader("utf-8")(file.file)
+            if not reader.fieldnames:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="CSV file is empty or invalid.",
+                )
 
-    reader = csv.DictReader(text_stream)
+            missing = [col for col in required_columns if col not in reader.fieldnames]
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required columns: {', '.join(missing)}",
+                )
 
-    if not reader.fieldnames:
+            for row_number, row in enumerate(reader, start=2):
+                if not row.get("text"):
+                    continue
+
+                date_str = row.get("date")
+                if date_str:
+                    try:
+                        date_obj = parser.parse(date_str)
+                    except (ValueError, TypeError):
+                        date_obj = None
+                else:
+                    date_obj = None
+
+                try:
+                    yield Record(
+                        patient_id=row["patient_id"],
+                        seq_number=row.get("seq_number"),
+                        date=date_obj,
+                        text=row["text"],
+                    )
+                except Exception as row_error:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid data at CSV row {row_number}: {row_error}",
+                    )
+
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="CSV file is empty or invalid.",
-        )
-
-    missing = [col for col in required_columns if col not in reader.fieldnames]
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Missing required columns: {', '.join(missing)}",
-        )
-
-    for row in reader:
-        if not row.get("text"):
-            continue
-
-        date_str = row.get("date")
-        if date_str:
-            try:
-                date_obj = parser.parse(date_str)
-            except (ValueError, TypeError):
-                date_obj = None
-        else:
-            date_obj = None
-
-        yield Record(
-            patient_id=row["patient_id"],
-            seq_number=row.get("seq_number"),
-            date=date_obj,
-            text=row["text"],
+            detail=f"Failed to parse dataset CSV file: {e}",
         )
 
 

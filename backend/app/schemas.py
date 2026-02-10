@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator
-from app.models_db import Record, Concept, SourceTerm, Cluster, VocabularyStatus
+from app.models_db import Record, Concept, SourceTerm, Cluster, ProcessingStatus
 
 
 # ================================================
@@ -168,6 +168,11 @@ class DatasetCreate(BaseModel):
     records: List["RecordCreate"] = Field(default_factory=list)
 
 
+class DatasetUploadResponse(BaseModel):
+    status: ProcessingStatus
+    message: str
+
+
 class DatasetResponse(BaseModel):
     """Model for dataset API responses with metadata."""
 
@@ -176,6 +181,8 @@ class DatasetResponse(BaseModel):
     uploaded: datetime
     last_modified: datetime
     labels: List[str]
+    status: ProcessingStatus
+    error_message: Optional[str] = None
     record_count: int
 
 
@@ -280,7 +287,7 @@ class VocabularyCreate(BaseModel):
     concepts: List["ConceptCreate"] = Field(default_factory=list)
 
 class VocabularyUploadResponse(BaseModel):
-    status: VocabularyStatus
+    status: ProcessingStatus
     message: str
     
 class VocabularyResponse(BaseModel):
@@ -290,7 +297,7 @@ class VocabularyResponse(BaseModel):
     name: str
     uploaded: datetime
     concept_count: Optional[int] = None
-    status: VocabularyStatus
+    status: ProcessingStatus
     error_message: Optional[str] = None
 
 
