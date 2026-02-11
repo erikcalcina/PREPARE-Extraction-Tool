@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Record, SourceTerm, DatasetStats, PaginationMetadata, Dataset } from "@/types";
 import {
   getRecords,
@@ -32,6 +32,8 @@ export function useRecords(datasetId: number) {
   const [patientIdFilter, setPatientIdFilter] = useState<string>("");
   const [textFilter, setTextFilter] = useState<string>("");
   const [reviewedFilter, setReviewedFilter] = useState<boolean | undefined>(undefined);
+
+  const selectedRecordIdRef = useRef<number | null>(null);
 
   // Fetch dataset info
   const fetchDataset = useCallback(async () => {
@@ -110,6 +112,7 @@ export function useRecords(datasetId: number) {
   // Select a record and fetch its source terms
   const selectRecord = useCallback(
     async (record: Record) => {
+      selectedRecordIdRef.current = record.id;
       setSelectedRecord(record);
       setIsLoadingTerms(true);
       try {
@@ -126,15 +129,16 @@ export function useRecords(datasetId: number) {
 
   // Refresh selected record data
   const refreshSelectedRecord = useCallback(async () => {
-    if (!selectedRecord) return;
+    const currentRecordId = selectedRecordIdRef.current;
+    if (!currentRecordId) return;
     try {
-      const response = await getRecord(datasetId, selectedRecord.id);
+      const response = await getRecord(datasetId, currentRecordId);
       setSelectedRecord(response.record);
       setRecords((prev) => prev.map((r) => (r.id === response.record.id ? response.record : r)));
     } catch {
       // Refresh failure is non-critical
     }
-  }, [datasetId, selectedRecord]);
+  }, [datasetId]);
 
   // Mark record as reviewed
   const markRecordReviewed = useCallback(
@@ -172,15 +176,19 @@ export function useRecords(datasetId: number) {
     }
 
     // Also refresh the selected record's source terms so the detail panel stays in sync
-    if (selectedRecord) {
+    const currentRecordId = selectedRecordIdRef.current;
+    if (currentRecordId) {
       try {
-        const termsResponse = await getRecordSourceTerms(datasetId, selectedRecord.id, SOURCE_TERMS_LIMIT);
-        setSelectedRecordTerms(termsResponse.source_terms);
+        const termsResponse = await getRecordSourceTerms(datasetId, currentRecordId, SOURCE_TERMS_LIMIT);
+        // Only update if the user is still on the same record by the time the request completes
+        if (selectedRecordIdRef.current === currentRecordId) {
+          setSelectedRecordTerms(termsResponse.source_terms);
+        }
       } catch {
         // Non-critical
       }
     }
-  }, [datasetId, records.length, patientIdFilter, textFilter, reviewedFilter, selectedRecord]);
+  }, [datasetId, records.length, patientIdFilter, textFilter, reviewedFilter]);
 
   // Compose sub-hooks
   const sourceTerms = useSourceTerms({
@@ -200,6 +208,10 @@ export function useRecords(datasetId: number) {
   });
 
   // Fetch on mount
+  useEffect(() => {
+    selectedRecordIdRef.current = selectedRecord?.id ?? null;
+  }, [selectedRecord?.id]);
+
   useEffect(() => {
     fetchDataset();
     fetchRecords();
