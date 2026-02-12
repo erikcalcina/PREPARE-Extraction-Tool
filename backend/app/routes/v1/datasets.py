@@ -146,7 +146,7 @@ def get_datasets(
 
 @router.post(
     "/",
-    response_model=DatasetOutput,
+    response_model=DatasetUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new dataset",
     description="Creates a new dataset with its associated records",
@@ -161,7 +161,7 @@ async def create_dataset(
     db: Session = Depends(get_session),
 ):
     file_name = file.filename.lower()
-    if not file_name.endswith(".csv") or not file_name.endswith(".json"):
+    if not file_name.endswith(".csv") and not file_name.endswith(".json"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file type.",
@@ -484,8 +484,8 @@ def delete_dataset(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
         )
+    
     verify_dataset_ownership(dataset, current_user.id)
-
     dataset.status = ProcessingStatus.DELETED
     db.commit()
 
@@ -496,18 +496,20 @@ def delete_dataset(
 
 
 def delete_dataset_background(dataset_id: int):
-    db = Session(engine)
-    try:
-        db.exec(delete(Dataset).where(Dataset.id == dataset_id))
-        db.commit()
+    with Session(engine) as db:
+        try:
+            dataset = db.get(Dataset, dataset_id)
+            if dataset is None:
+                print("Cannot find dataset to delete")
 
-        print(f"Successfully deleted dataset {dataset_id}")
+            db.delete(dataset)
+            db.commit()
 
-    except Exception as e:
-        db.rollback()
-        print(f"Failed to delete dataset {dataset_id}: {e}")
-    finally:
-        db.close()
+            print(f"Successfully deleted dataset {dataset_id}")
+
+        except Exception as e:
+            db.rollback()
+            print(f"Failed to delete dataset {dataset_id}: {e}")
 
 
 @router.get(
