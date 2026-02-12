@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 import warnings
 from typing import Optional, Tuple
@@ -7,13 +8,111 @@ from typing import Optional, Tuple
 import dateparser
 from babel.dates import format_datetime
 
-# We can keep this list small at first; expand later if needed
 POSSIBLE_FORMATS = [
-    "dd.MM.yyyy",
-    "dd-MM-yyyy",
-    "dd/MM/yyyy",
+    # numeric + time
+    "yyyy-MM-dd HH:mm:ss",
+    "dd-MM-yyyy HH:mm:ss",
+    "MM-dd-yyyy HH:mm:ss",
+    "yyyy/MM/dd HH:mm:ss",
+    "dd/MM/yyyy HH:mm:ss",
+    "MM/dd/yyyy HH:mm:ss",
+    "yyyy.MM.dd HH:mm:ss",
+    "dd.MM.yyyy HH:mm:ss",
+    "d.M.yyyy HH:mm:ss",
+    "MM.dd.yyyy HH:mm:ss",
+    "yyyy-MM-dd HH:mm",
+    "dd-MM-yyyy HH:mm",
+    "MM-dd-yyyy HH:mm",
+    "yyyy/MM/dd HH:mm",
+    "dd/MM/yyyy HH:mm",
+    "MM/dd/yyyy HH:mm",
+    "yyyy.MM.dd HH:mm",
+    "dd.MM.yyyy HH:mm",
+    "d.M.yyyy HH:mm",
+    "MM.dd.yyyy HH:mm",
+    # numeric only
     "yyyy-MM-dd",
+    "dd-MM-yyyy",
+    "MM-dd-yyyy",
+    "yyyy/MM/dd",
+    "dd/MM/yyyy",
+    "MM/dd/yyyy",
+    "yyyy.MM.dd",
+    "dd.MM.yyyy",
+    "d.M.yyyy",
+    "MM.dd.yyyy",
+    # month names (full/short) + optional dot after day
+    "d MMMM yyyy HH:mm:ss",
+    "d MMMM yyyy HH:mm",
+    "d MMMM yyyy",
+    "d. MMMM yyyy HH:mm:ss",
+    "d. MMMM yyyy HH:mm",
+    "d. MMMM yyyy",
+    "d MMM yyyy HH:mm:ss",
+    "d MMM yyyy HH:mm",
+    "d MMM yyyy",
+    "d. MMM yyyy HH:mm:ss",
+    "d. MMM yyyy HH:mm",
+    "d. MMM yyyy",
+    # weekday + month names
+    "EEE, d MMMM yyyy HH:mm:ss",
+    "EEE, d MMMM yyyy HH:mm",
+    "EEE, d MMMM yyyy",
+    "EEE, d MMMM, yyyy HH:mm:ss",
+    "EEE, d MMMM, yyyy HH:mm",
+    "EEE, d MMMM, yyyy",
+    "EEE, d. MMMM yyyy HH:mm:ss",
+    "EEE, d. MMMM yyyy HH:mm",
+    "EEE, d. MMMM yyyy",
+    "EEE, d. MMMM, yyyy HH:mm:ss",
+    "EEE, d. MMMM, yyyy HH:mm",
+    "EEE, d. MMMM, yyyy",
+    "EEE, MMMM d, yyyy HH:mm:ss",
+    "EEE, MMMM d, yyyy HH:mm",
+    "EEE, MMMM d, yyyy",
+    "EEE, MMMM d yyyy HH:mm:ss",
+    "EEE, MMMM d yyyy HH:mm",
+    "EEE, MMMM d yyyy",
+    "EEEE, d MMMM yyyy HH:mm:ss",
+    "EEEE, d MMMM yyyy HH:mm",
+    "EEEE, d MMMM yyyy",
+    "EEEE, d MMMM, yyyy HH:mm:ss",
+    "EEEE, d MMMM, yyyy HH:mm",
+    "EEEE, d MMMM, yyyy",
+    "EEEE, d. MMMM yyyy HH:mm:ss",
+    "EEEE, d. MMMM yyyy HH:mm",
+    "EEEE, d. MMMM yyyy",
+    "EEEE, d. MMMM, yyyy HH:mm:ss",
+    "EEEE, d. MMMM, yyyy HH:mm",
+    "EEEE, d. MMMM, yyyy",
+    "EEEE, MMMM d, yyyy HH:mm:ss",
+    "EEEE, MMMM d, yyyy HH:mm",
+    "EEEE, MMMM d, yyyy",
+    "EEEE, MMMM d yyyy HH:mm:ss",
+    "EEEE, MMMM d yyyy HH:mm",
+    "EEEE, MMMM d yyyy",
+    # Spanish/Portuguese style "de"
+    "d 'de' MMMM 'de' yyyy HH:mm:ss",
+    "d 'de' MMMM 'de' yyyy HH:mm",
+    "d 'de' MMMM 'de' yyyy",
+    "EEEE, d 'de' MMMM 'de' yyyy HH:mm:ss",
+    "EEEE, d 'de' MMMM 'de' yyyy HH:mm",
+    "EEEE, d 'de' MMMM 'de' yyyy",
+    "EEEE, MMMM d 'de' yyyy HH:mm:ss",
+    "EEEE, MMMM d 'de' yyyy HH:mm",
+    "EEEE, MMMM d 'de' yyyy",
+    # common English month-first
+    "MMM d, yyyy HH:mm:ss",
+    "MMM d, yyyy HH:mm",
+    "MMM d, yyyy",
+    "EEE, MMM d, yyyy HH:mm:ss",
+    "EEE, MMM d, yyyy HH:mm",
+    "EEE, MMM d, yyyy",
 ]
+
+# =====================================
+# Measures / type detection
+# =====================================
 
 MEASURE_UNITS = r"(mg|ml|g|mcg|µg|kg|iu|%)"
 MEASURE_RE = re.compile(
@@ -23,16 +122,52 @@ MEASURE_RE = re.compile(
 
 DATE_SEP_RE = re.compile(r"[.\-/]")
 
+# "date with month name" heuristic: has digits AND letters (latin/cyrillic + accents)
+DATE_WORDLIKE_RE = re.compile(r"(?=.*\d)(?=.*[A-Za-zА-Яа-яÀ-ÿ])")
 
-def detect_datetime_format(dt_str: str, lang: str) -> Tuple[object, Optional[str]]:
+
+def _prepare_datetime(dt_str: str, lang: str) -> str:
     """
-    Ported idea from anonipy:
-    detect date and its format using dateparser + babel.
-    Returns (parsed_datetime, format) or (None, None).
+    Prepare datetime string for matching against babel output:
+    - normalize case for most langs
+    - remove AM/PM markers
+    - remove some language-specific tokens/suffixes
+    - collapse whitespace
     """
     s = (dt_str or "").strip()
     if not s:
+        return s
+
+    # In many locales babel uses case-sensitive month/weekday names;
+    # the original logic lowercases for most, except these.
+    if lang not in ["en", "de", "el"]:
+        s = s.lower()
+
+    # Remove AM/PM
+    s = re.sub(r"[ ]?[APap][mM]", "", s).strip()
+
+    # Language-specific cleaning (same spirit as your reference)
+    s = re.sub(r"\b1er\b", "1", s)           # French "1er"
+    s = re.sub(r"(\d+)η", r"\1", s)          # Greek ordinal
+    s = re.sub(r"\bτου\b", "", s)            # Greek filler
+    s = re.sub(r"°", "", s)                  # Italian/Spanish sometimes
+    s = re.sub(r"\bроку\b", "", s)           # Ukrainian "року"
+
+    # Collapse whitespace
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def detect_datetime_format(dt_str: str, lang: str) -> Tuple[Optional[datetime.datetime], Optional[str]]:
+    """
+    Detect date/datetime and its format using dateparser + babel.
+    Returns (parsed_datetime, format) or (None, None).
+    """
+    raw = (dt_str or "").strip()
+    if not raw:
         return None, None
+
+    s = _prepare_datetime(raw, lang)
 
     try:
         with warnings.catch_warnings():
@@ -44,14 +179,13 @@ def detect_datetime_format(dt_str: str, lang: str) -> Tuple[object, Optional[str
 
         for fmt in POSSIBLE_FORMATS:
             try:
-                # babel formatting output must match input exactly to confirm format
                 formatted = format_datetime(parsed_dt, format=fmt, locale=lang)
                 if formatted == s:
                     return parsed_dt, fmt
             except ValueError:
                 continue
 
-        # If parsed but format not confidently detected, still return parsed_dt
+        # Parsed, but couldn't match exactly -> fallback
         return parsed_dt, "yyyy-MM-dd"
 
     except Exception:
@@ -88,7 +222,7 @@ def normalize_measure_to_key(text: str) -> Optional[str]:
     # ensure space before unit: "50mg" -> "50 mg"
     s = re.sub(r"(\d)(mg|ml|g|mcg|µg|kg|iu|%)\b", r"\1 \2", s)
 
-    # remove spaces around dots/commas in decimals (optional)
+    # cleanup spaces around punctuation
     s = s.replace(" ,", ",").replace(", ", ",").replace(" .", ".").replace(". ", ".")
 
     if not re.search(r"\b(mg|ml|g|mcg|µg|kg|iu|%)\b", s):
@@ -100,7 +234,7 @@ def normalize_measure_to_key(text: str) -> Optional[str]:
 def detect_value_type(text: str) -> str:
     """
     Decide which pipeline to use:
-      - date: looks like date
+      - date: looks like date (numeric with separators OR word-month style)
       - measure: looks like dosage/unit
       - text: default
     """
@@ -109,11 +243,16 @@ def detect_value_type(text: str) -> str:
         return "text"
 
     # measure check first (often contains digits too)
-    if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
+    compact = s.replace(" ", "")
+    if MEASURE_RE.match(compact) or MEASURE_RE.match(s):
         return "measure"
 
-    # date-like check: digits + separators
+    # numeric date-like: digits + separators
     if any(ch.isdigit() for ch in s) and DATE_SEP_RE.search(s):
+        return "date"
+
+    # wordy date-like: digits + letters (e.g. "12 March 2024", "Пн, 5 сен 2023")
+    if DATE_WORDLIKE_RE.search(s):
         return "date"
 
     return "text"

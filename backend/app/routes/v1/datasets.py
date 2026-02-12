@@ -1313,12 +1313,22 @@ def create_clusters_for_dataset(
 
     for t in raw_texts:
         tp = detect_value_type(t)
+
+        dt_key = normalize_date_to_key(t) if tp == "date" else None
+        ms_key = normalize_measure_to_key(t) if tp == "measure" else None
+
+        if tp == "date" and dt_key is None:
+            tp = "text"
+        if tp == "measure" and ms_key is None:
+            tp = "text"
+
         types.append(tp)
-        date_keys.append(normalize_date_to_key(t) if tp == "date" else None)
-        measure_keys.append(normalize_measure_to_key(t) if tp == "measure" else None)
+        date_keys.append(dt_key)
+        measure_keys.append(ms_key)
 
     type_counts = Counter(types)
     major_type = type_counts.most_common(1)[0][0]
+
 
     # 2) If it's dates: cluster by exact canonical key
     if major_type == "date":
@@ -1459,69 +1469,6 @@ MEASURE_RE = re.compile(
     r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
     re.IGNORECASE,
 )
-
-
-# def _detect_value_type(text: str) -> str:
-#     """
-#     Rough detector:
-#     - date: looks like a date and can be normalized
-#     - measure: looks like dosage/quantity with units
-#     - id: mostly alnum with digits and separators (optional i guess)
-#     - text: default
-#     """
-#     s = (text or "").strip()
-#     if not s:
-#         return "text"
-
-#     # quick date-like check
-#     if any(ch.isdigit() for ch in s) and DATE_SEPARATORS_RE.search(s):
-#         # we'll confirm later by trying to normalize
-#         return "date"
-
-#     # measure-like check
-#     if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
-#         return "measure"
-
-#     return "text"
-
-
-# def _normalize_date_to_key(text: str) -> Optional[str]:
-#     """
-#     Convert many date formats to canonical YYYY-MM-DD.
-#     If we can't confidently parse -> return None.
-#     """
-#     s = (text or "").strip()
-
-#     # supports: DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
-#     m = re.match(r"^\s*(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\s*$", s)
-#     if not m:
-#         return None
-
-#     a, b, c = m.group(1), m.group(2), m.group(3)
-
-#     # Heuristic:
-#     # if first part has 4 digits -> YYYY-MM-DD
-#     if len(a) == 4:
-#         year = int(a)
-#         month = int(b)
-#         day = int(c)
-#     else:
-#         # assume DD.MM.YYYY
-#         day = int(a)
-#         month = int(b)
-#         year = int(c)
-
-#     # basic validation
-#     if not (1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100):
-#         return None
-
-#     return f"{year:04d}-{month:02d}-{day:02d}"
-
-
-# ================================================
-# New enhanced clustering routes
-# ================================================
-
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
 def create_cluster_endpoint(
