@@ -50,6 +50,12 @@ from app.library.file_parser import (
     build_clusters_download_json,
 )
 
+from app.utils.value_typing import (
+    detect_value_type,
+    normalize_date_to_key,
+    normalize_measure_to_key,
+)
+
 # ================================================
 # Route definitions
 # ================================================
@@ -1306,13 +1312,23 @@ def create_clusters_for_dataset(
     measure_keys = []
 
     for t in raw_texts:
-        tp = _detect_value_type(t)
+        tp = detect_value_type(t)
+
+        dt_key = normalize_date_to_key(t) if tp == "date" else None
+        ms_key = normalize_measure_to_key(t) if tp == "measure" else None
+
+        if tp == "date" and dt_key is None:
+            tp = "text"
+        if tp == "measure" and ms_key is None:
+            tp = "text"
+
         types.append(tp)
-        date_keys.append(_normalize_date_to_key(t) if tp == "date" else None)
-        measure_keys.append(_normalize_measure_to_key(t) if tp == "measure" else None)
+        date_keys.append(dt_key)
+        measure_keys.append(ms_key)
 
     type_counts = Counter(types)
     major_type = type_counts.most_common(1)[0][0]
+
 
     # 2) If it's dates: cluster by exact canonical key
     if major_type == "date":
@@ -1453,97 +1469,6 @@ MEASURE_RE = re.compile(
     r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
     re.IGNORECASE,
 )
-
-
-def _detect_value_type(text: str) -> str:
-    """
-    Rough detector:
-    - date: looks like a date and can be normalized
-    - measure: looks like dosage/quantity with units
-    - id: mostly alnum with digits and separators (optional i guess)
-    - text: default
-    """
-    s = (text or "").strip()
-    if not s:
-        return "text"
-
-    # quick date-like check
-    if any(ch.isdigit() for ch in s) and DATE_SEPARATORS_RE.search(s):
-        # we'll confirm later by trying to normalize
-        return "date"
-
-    # measure-like check
-    if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
-        return "measure"
-
-    return "text"
-
-
-def _normalize_date_to_key(text: str) -> Optional[str]:
-    """
-    Convert many date formats to canonical YYYY-MM-DD.
-    If we can't confidently parse -> return None.
-    """
-    s = (text or "").strip()
-
-    # supports: DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
-    m = re.match(r"^\s*(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\s*$", s)
-    if not m:
-        return None
-
-    a, b, c = m.group(1), m.group(2), m.group(3)
-
-    # Heuristic:
-    # if first part has 4 digits -> YYYY-MM-DD
-    if len(a) == 4:
-        year = int(a)
-        month = int(b)
-        day = int(c)
-    else:
-        # assume DD.MM.YYYY
-        day = int(a)
-        month = int(b)
-        year = int(c)
-
-    # basic validation
-    if not (1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100):
-        return None
-
-    return f"{year:04d}-{month:02d}-{day:02d}"
-
-
-def _normalize_measure_to_key(text: str) -> Optional[str]:
-    """
-    Normalize measures but keep numeric meaning:
-    - collapse spaces
-    - turn separators into spaces
-    - ensure unit separated
-    Example:
-      '2/50mg' -> '2 50 mg'
-      '2   50mg' -> '2 50 mg'
-    """
-    s = (text or "").strip().lower()
-    if not s:
-        return None
-    s = s.replace("/", " ")
-    s = re.sub(r"\s+", " ", s).strip()
-
-    # ensure space before unit: "50mg" -> "50 mg"
-    s = re.sub(r"(\d)(mg|ml|g|mcg|µg|kg|iu|%)\b", r"\1 \2", s)
-
-    # remove spaces around dots/commas in decimals (optional)
-    s = s.replace(" ,", ",").replace(", ", ",").replace(" .", ".").replace(". ", ".")
-
-    if not re.search(r"\b(mg|ml|g|mcg|µg|kg|iu|%)\b", s):
-        return None
-
-    return s
-
-
-# ================================================
-# New enhanced clustering routes
-# ================================================
-
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
 def create_cluster_endpoint(
