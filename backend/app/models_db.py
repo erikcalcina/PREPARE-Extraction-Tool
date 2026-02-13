@@ -52,6 +52,14 @@ class RefreshToken(SQLModel, table=True):
     # Relationship back to User
     user: Optional["User"] = Relationship(back_populates="refresh_tokens")
 
+class ProcessingStatus(str, Enum):
+    """ Enum for processing status, used in Vocabulary and Dataset. """
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    DELETED = "DELETED"
+
 
 class Dataset(SQLModel, table=True):
     """
@@ -67,6 +75,11 @@ class Dataset(SQLModel, table=True):
     last_modified: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # TODO: need to specify a structure for the labels
     labels: List[str] = Field(sa_column=Column(JSON))
+    status: ProcessingStatus = Field(
+        default=ProcessingStatus.PROCESSING,
+        index=True
+    )
+    error_message: Optional[str] = None
 
     # Relationship to User (owner)
     user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False)
@@ -241,14 +254,6 @@ class ExtractionJob(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class VocabularyStatus(str, Enum):
-    PENDING = "PENDING"
-    PROCESSING = "PROCESSING"
-    DONE = "DONE"
-    FAILED = "FAILED"
-    DELETED = "DELETED"
-
-
 class Vocabulary(SQLModel, table=True):
     """
     Vocabulary model representing a standardized terminology system.
@@ -260,8 +265,8 @@ class Vocabulary(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    status: VocabularyStatus = Field(
-        default=VocabularyStatus.PROCESSING,
+    status: ProcessingStatus = Field(
+        default=ProcessingStatus.PROCESSING,
         index=True
     )
     error_message: Optional[str] = None

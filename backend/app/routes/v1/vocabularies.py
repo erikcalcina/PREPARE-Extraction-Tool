@@ -13,7 +13,7 @@ from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
 from app.library.file_parser import parse_concepts_file
-from app.models_db import VocabularyStatus
+from app.models_db import ProcessingStatus
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     ConceptCreate,
@@ -220,7 +220,7 @@ async def create_vocabulary(
     background_tasks.add_task(ingest_vocabulary_background, file_path, current_user.id)
 
     vocabulary_response = VocabularyUploadResponse(
-        status=VocabularyStatus.PENDING,
+        status=ProcessingStatus.PENDING,
         message="Concept upload successfully started background task",
     )
     return vocabulary_response
@@ -365,7 +365,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
                     select(Vocabulary).where(
                         Vocabulary.name == vocab_name,
                         Vocabulary.user_id == user_id,
-                        Vocabulary.status == VocabularyStatus.DONE,
+                        Vocabulary.status == ProcessingStatus.DONE,
                     )
                 ).first()
 
@@ -404,7 +404,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
             db.exec(
                 update(Vocabulary)
                 .where(Vocabulary.id.in_(list(new_vocab_ids)))
-                .values(status=VocabularyStatus.DONE)
+                .values(status=ProcessingStatus.DONE)
             )
             db.commit()
 
@@ -422,7 +422,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
             db.exec(
                 update(Vocabulary)
                 .where(Vocabulary.id.in_(list(new_vocab_ids)))
-                .values(status=VocabularyStatus.FAILED, error_message=error_msg)
+                .values(status=ProcessingStatus.FAILED, error_message=error_msg)
             )
             db.commit()
 
@@ -451,7 +451,7 @@ def get_processing_vocabulary_stats(
     vocab_count = db.exec(
         select(func.count(Vocabulary.id)).where(
             Vocabulary.user_id == current_user.id,
-            Vocabulary.status == VocabularyStatus.PROCESSING,
+            Vocabulary.status == ProcessingStatus.PROCESSING,
         )
     ).one()
 
@@ -525,10 +525,10 @@ def delete_vocabulary(
         )
 
     verify_vocabulary_ownership(vocabulary, current_user.id)
-    vocabulary.status = VocabularyStatus.DELETED
+    vocabulary.status = ProcessingStatus.DELETED
     db.commit()
 
-    # start background ingestion
+    # start background deletion
     background_tasks.add_task(delete_vocabulary_background, vocabulary_id)
 
     return MessageOutput(message="Vocabulary deletion started in the background")
