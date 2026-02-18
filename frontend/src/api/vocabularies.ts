@@ -1,6 +1,7 @@
 import type {
   VocabulariesOutput,
   VocabularyOutput,
+  VocabularyUploadResponse,
   VocabularyCreate,
   MessageOutput,
   ConceptsOutput,
@@ -20,7 +21,7 @@ export async function getVocabulary(id: number): Promise<VocabularyOutput> {
 export async function createVocabulary(
   data: VocabularyCreate,
   onProgress?: (progress: number) => void
-): Promise<VocabularyOutput> {
+): Promise<VocabularyUploadResponse> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("name", data.name);

@@ -39,6 +39,12 @@ export interface PaginationMetadata {
 }
 
 // ================================================
+// Processing status type
+// ================================================
+
+export type ProcessingStatus = "PENDING" | "PROCESSING" | "DONE" | "FAILED" | "DELETED";
+
+// ================================================
 // Dataset types
 // ================================================
 
@@ -49,6 +55,8 @@ export interface Dataset {
   last_modified: string;
   labels: string[];
   record_count: number;
+  status: ProcessingStatus;
+  error_message: string | null;
 }
 
 export interface DatasetCreate {
@@ -59,6 +67,11 @@ export interface DatasetCreate {
 
 export interface DatasetOutput {
   dataset: Dataset;
+}
+
+export interface DatasetUploadResponse {
+  status: string;
+  message: string;
 }
 
 export interface DatasetsOutput {
@@ -194,6 +207,8 @@ export interface Vocabulary {
   name: string;
   uploaded: string;
   concept_count: number;
+  status: ProcessingStatus;
+  error_message: string | null;
 }
 
 export interface VocabularyCreate {
@@ -203,6 +218,11 @@ export interface VocabularyCreate {
 
 export interface VocabularyOutput {
   vocabulary: Vocabulary;
+}
+
+export interface VocabularyUploadResponse {
+  status: string;
+  message: string;
 }
 
 export interface VocabulariesOutput {

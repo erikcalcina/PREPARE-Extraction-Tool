@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import Layout from "@components/Layout";
 import Table from "@components/Table";
 import Button from "@components/Button";
+import ProcessingBadge from "@components/ProcessingBadge";
 import { useVocabularies } from "@/hooks/useVocabularies";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import type { Vocabulary } from "@/types";
@@ -9,7 +10,7 @@ import styles from "./styles.module.css";
 
 const Vocabularies = () => {
   usePageTitle("Vocabularies");
-  const { vocabularies, isLoading, error, removeVocabulary, downloadVocabulary } = useVocabularies();
+  const { vocabularies, isLoading, isProcessing, error, removeVocabulary, downloadVocabulary } = useVocabularies();
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -30,15 +31,24 @@ const Vocabularies = () => {
     }
   };
 
+  const isReady = (item: Vocabulary) => item.status === "DONE" || item.status === "DELETED" || item.status === "FAILED";
+
   const columns = [
     {
       key: "name",
       header: "Name",
       width: "40%",
       render: (item: Vocabulary) => (
-        <Link to={`/vocabularies/${item.id}`} className={styles.vocabularies__link}>
-          {item.name}
-        </Link>
+        <div className={styles.vocabularies__name}>
+          {isReady(item) ? (
+            <Link to={`/vocabularies/${item.id}`} className={styles.vocabularies__link}>
+              {item.name}
+            </Link>
+          ) : (
+            <span>{item.name}</span>
+          )}
+          <ProcessingBadge status={item.status} errorMessage={item.error_message} />
+        </div>
       ),
     },
     {
@@ -64,6 +74,7 @@ const Vocabularies = () => {
             size="small"
             title="Download vocabulary"
             className={styles["vocabularies__action-button"]}
+            disabled={!isReady(item)}
             onClick={(e) => {
               e.stopPropagation();
               downloadVocabulary(item.id);
@@ -77,6 +88,7 @@ const Vocabularies = () => {
             title="Delete vocabulary"
             colorScheme="danger"
             className={styles["vocabularies__action-button"]}
+            disabled={!isReady(item)}
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
@@ -91,9 +103,16 @@ const Vocabularies = () => {
 
   const sidebar = (
     <div className={styles.vocabularies__sidebar}>
-      <Link to="/vocabularies/upload">
-        <Button variant="primary" label="+ Upload vocabulary" />
-      </Link>
+      {isProcessing ? (
+        <>
+          <Button variant="primary" label="+ Upload vocabulary" disabled />
+          <span className={styles["vocabularies__processing-note"]}>Upload in progress...</span>
+        </>
+      ) : (
+        <Link to="/vocabularies/upload">
+          <Button variant="primary" label="+ Upload vocabulary" />
+        </Link>
+      )}
     </div>
   );
 

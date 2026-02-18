@@ -1,6 +1,7 @@
 import type {
   DatasetsOutput,
   DatasetOutput,
+  DatasetUploadResponse,
   DatasetCreate,
   DatasetStats,
   DatasetOverviewOutput,
@@ -20,7 +21,7 @@ export async function getDataset(id: number): Promise<DatasetOutput> {
 export async function createDataset(
   data: DatasetCreate,
   onProgress?: (progress: number) => void
-): Promise<DatasetOutput> {
+): Promise<DatasetUploadResponse> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("name", data.name);

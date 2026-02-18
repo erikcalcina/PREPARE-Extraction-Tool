@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import Layout from "components/Layout";
 import Table from "components/Table";
 import Button from "components/Button";
+import ProcessingBadge from "@components/ProcessingBadge";
 import { useDatasets } from "@/hooks/useDatasets";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import type { Dataset } from "types";
@@ -13,7 +14,7 @@ import styles from "./styles.module.css";
 
 const Datasets = () => {
   usePageTitle("Datasets");
-  const { datasets, isLoading, error, removeDataset, downloadDataset } = useDatasets();
+  const { datasets, isLoading, isProcessing, error, removeDataset, downloadDataset } = useDatasets();
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -34,15 +35,29 @@ const Datasets = () => {
     }
   };
 
+  const isReady = (item: Dataset) => item.status === "DONE" || item.status === "DELETED" || item.status === "FAILED";
+
   const columns = [
     {
       key: "name",
       header: "Name",
       width: "40%",
       render: (item: Dataset) => (
-        <Link to={`/datasets/${item.id}`} title={item.name} className={styles.datasets__link} onClick={(e) => e.stopPropagation()}>
-          {item.name}
-        </Link>
+        <div className={styles.datasets__name}>
+          {isReady(item) ? (
+            <Link
+              to={`/datasets/${item.id}`}
+              title={item.name}
+              className={styles.datasets__link}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {item.name}
+            </Link>
+          ) : (
+            <span>{item.name}</span>
+          )}
+          <ProcessingBadge status={item.status} errorMessage={item.error_message} />
+        </div>
       ),
     },
     {
@@ -68,6 +83,7 @@ const Datasets = () => {
             size="small"
             title="Download dataset"
             className={styles["datasets__action-button"]}
+            disabled={!isReady(item)}
             onClick={(e) => {
               e.stopPropagation();
               downloadDataset(item.id);
@@ -81,6 +97,7 @@ const Datasets = () => {
             title="Delete dataset"
             colorScheme="danger"
             className={styles["datasets__action-button"]}
+            disabled={!isReady(item)}
             onClick={(e) => {
               e.stopPropagation();
               handleDelete(item);
@@ -95,9 +112,16 @@ const Datasets = () => {
 
   const sidebar = (
     <div className={styles.datasets__sidebar}>
-      <Link to="/datasets/upload">
-        <Button variant="primary" label="+ Upload dataset" />
-      </Link>
+      {isProcessing ? (
+        <>
+          <Button variant="primary" label="+ Upload dataset" disabled />
+          <span className={styles["datasets__processing-note"]}>Upload in progress...</span>
+        </>
+      ) : (
+        <Link to="/datasets/upload">
+          <Button variant="primary" label="+ Upload dataset" />
+        </Link>
+      )}
     </div>
   );
 

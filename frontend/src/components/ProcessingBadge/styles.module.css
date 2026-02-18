@@ -1,0 +1,22 @@
+.processing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.processing-badge--active {
+  color: #1d4ed8;
+  background-color: #dbeafe;
+}
+
+.processing-badge--failed {
+  color: #dc2626;
+  background-color: #fef2f2;
+  cursor: help;
+}

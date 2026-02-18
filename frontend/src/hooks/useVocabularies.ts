@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import type { Vocabulary, VocabularyCreate, PaginationMetadata } from "@/types";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { Vocabulary, VocabularyCreate, PaginationMetadata, ProcessingStatus } from "@/types";
 import {
   getVocabularies,
   createVocabulary,
@@ -11,19 +11,38 @@ import {
 // Hook
 // ================================================
 
+const POLL_INTERVAL_MS = 3000;
+
+/** Correct obviously-wrong statuses (e.g. migration defaulted old rows to PROCESSING). */
+function normalizeStatus(v: Vocabulary): Vocabulary {
+  const isActive = v.status === "PENDING" || v.status === "PROCESSING";
+  if (isActive && v.concept_count > 0) {
+    return { ...v, status: "DONE" as ProcessingStatus };
+  }
+  return v;
+}
+
+function hasActiveProcessing(items: Vocabulary[]): boolean {
+  return items.some((v) => v.status === "PENDING" || v.status === "PROCESSING");
+}
+
 export function useVocabularies() {
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchVocabularies = useCallback(async (page = 1, limit = 50) => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await getVocabularies(page, limit);
-      setVocabularies(response.vocabularies);
+      const normalized = response.vocabularies.map(normalizeStatus);
+      setVocabularies(normalized);
       setPagination(response.pagination);
+      setIsProcessing(hasActiveProcessing(normalized));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch vocabularies");
     } finally {
@@ -31,12 +50,22 @@ export function useVocabularies() {
     }
   }, []);
 
+  const silentRefresh = useCallback(async () => {
+    try {
+      const response = await getVocabularies(1, 50);
+      const normalized = response.vocabularies.map(normalizeStatus);
+      setVocabularies(normalized);
+      setPagination(response.pagination);
+      setIsProcessing(hasActiveProcessing(normalized));
+    } catch {
+      // Silent — don't set error or loading state
+    }
+  }, []);
+
   const addVocabulary = useCallback(
     async (data: VocabularyCreate, onProgress?: (progress: number) => void) => {
-      const response = await createVocabulary(data, onProgress);
-      // Refresh the list
+      await createVocabulary(data, onProgress);
       await fetchVocabularies();
-      return response.vocabulary;
     },
     [fetchVocabularies]
   );
@@ -44,7 +73,6 @@ export function useVocabularies() {
   const removeVocabulary = useCallback(
     async (id: number) => {
       await deleteVocabulary(id);
-      // Refresh the list
       await fetchVocabularies();
     },
     [fetchVocabularies]
@@ -59,11 +87,28 @@ export function useVocabularies() {
     fetchVocabularies();
   }, [fetchVocabularies]);
 
+  // Poll while processing
+  useEffect(() => {
+    if (isProcessing) {
+      pollRef.current = setInterval(silentRefresh, POLL_INTERVAL_MS);
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [isProcessing, silentRefresh]);
+
   return {
     vocabularies,
     pagination,
     isLoading,
     error,
+    isProcessing,
     fetchVocabularies,
     addVocabulary,
     removeVocabulary,
