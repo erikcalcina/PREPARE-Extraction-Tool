@@ -13,3 +13,5 @@ pwdlib[argon2]
 scikit-learn
 hdbscan
 model2vec
+dateparser
+Babel
