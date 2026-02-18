@@ -1,27 +1,29 @@
 from datetime import datetime, timezone
 import math
+import os
 import re
 from typing import List, Optional, Union
 from uuid import uuid4
 
 from fastapi import (
-    APIRouter, 
-    Depends, 
-    HTTPException, 
-    status, 
-    File, 
-    UploadFile, 
-    Form, 
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    File,
+    UploadFile,
+    Form,
     BackgroundTasks,
 )
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func, update, delete
+from sqlmodel import Session, select, func, update
 from collections import defaultdict, Counter
 
 from hdbscan import HDBSCAN
 
 from app.core.database import engine, get_session
 from app.core.model_registry import model_registry
+from app.core.settings import settings
 from app.models_db import (
     Dataset, 
     Record, 
@@ -53,7 +55,6 @@ from app.schemas import (
     PaginationParams,
     ClusteredTerm,
     ClusterCreate,
-    ClustersOutput,
     ClustersStatisticsOutput,
     ClusterResponse,
     ClusterMerge,
@@ -173,8 +174,17 @@ async def create_dataset(
             detail="Unsupported file type.",
         )
 
-    # save file to disk
-    file_path = await save_upload_to_disk(file)
+    # Reject obviously oversized uploads via Content-Length header
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if file.size and file.size > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB} MB.",
+        )
+
+    # save file to disk (preserving original extension for the parser)
+    suffix = os.path.splitext(file.filename)[1].lower()
+    file_path = await save_upload_to_disk(file, suffix)
 
     label_list = [label.strip() for label in labels.split(",")]
     # start background ingestion
@@ -252,12 +262,21 @@ def ingest_dataset_background(file_path: str, name: str, label_list: list, user_
     finally:
         db.close()
 
-async def save_upload_to_disk(file: UploadFile) -> str:
-    path = f"/tmp/{uuid4()}.csv"
+async def save_upload_to_disk(file: UploadFile, suffix: str) -> str:
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    path = f"/tmp/{uuid4()}{suffix}"
+    total = 0
 
     with open(path, "wb") as out:
         # read 1 MB at a time
         while chunk := await file.read(1024 * 1024):
+            total += len(chunk)
+            if total > max_bytes:
+                os.unlink(path)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB} MB.",
+                )
             out.write(chunk)
 
     return path

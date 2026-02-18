@@ -28,6 +28,11 @@ export async function createVocabulary(
     formData.append("file", data.file);
 
     const xhr = new XMLHttpRequest();
+    xhr.timeout = 600_000; // 10 minutes
+
+    xhr.addEventListener("timeout", () => {
+      reject(new Error("Upload timed out — please check your connection and try again"));
+    });
 
     // Track upload progress
     xhr.upload.addEventListener("progress", (e) => {

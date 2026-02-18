@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     ELASTICSEARCH_URL: str
 
+    # Upload settings
+    MAX_UPLOAD_SIZE_MB: int = 2048  # 2 GB default
+
     # Service settings
     EXTRACT_HOST: str = "http://0.0.0.0:5600"
 
