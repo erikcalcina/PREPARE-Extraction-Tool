@@ -27,15 +27,6 @@
   color: #11415e;
 }
 
-.version {
-  padding: 4px 10px;
-  background: #e0e7ff;
-  color: #3730a3;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 /* Stats Section */
 .statsSection {
   display: flex;

@@ -283,7 +283,6 @@ class VocabularyCreate(BaseModel):
     """Model for creating a new vocabulary with concepts."""
 
     name: str
-    version: str
     concepts: List["ConceptCreate"] = Field(default_factory=list)
 
 class VocabularyUploadResponse(BaseModel):

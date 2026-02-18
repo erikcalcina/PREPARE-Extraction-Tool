@@ -193,13 +193,11 @@ export interface Vocabulary {
   id: number;
   name: string;
   uploaded: string;
-  version?: string;
   concept_count: number;
 }
 
 export interface VocabularyCreate {
   name: string;
-  version: string;
   file: File;
 }
 
@@ -402,22 +400,6 @@ export interface ConceptSearchParams {
   offset?: number;
   sort_by?: "relevance" | "name" | "domain";
   sort_order?: "asc" | "desc";
-}
-
-// ================================================
-// Extraction Job types
-// ================================================
-
-export interface ExtractionJobStartResponse {
-  job_id: string;
-}
-
-export interface ExtractionJobStatusResponse {
-  job_id: string;
-  status: "queued" | "running" | "completed" | "failed";
-  processed: number;
-  total: number;
-  message?: string;
 }
 
 // ================================================

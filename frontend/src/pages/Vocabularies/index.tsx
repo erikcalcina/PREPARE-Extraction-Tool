@@ -34,7 +34,7 @@ const Vocabularies = () => {
     {
       key: "name",
       header: "Name",
-      width: "35%",
+      width: "40%",
       render: (item: Vocabulary) => (
         <Link to={`/vocabularies/${item.id}`} className={styles.vocabularies__link}>
           {item.name}
@@ -42,20 +42,15 @@ const Vocabularies = () => {
       ),
     },
     {
-      key: "version",
-      header: "Version",
-      width: "15%",
-    },
-    {
       key: "concept_count",
       header: "Concepts",
-      width: "15%",
+      width: "20%",
       render: (item: Vocabulary) => item.concept_count.toLocaleString(),
     },
     {
       key: "uploaded",
       header: "Date uploaded",
-      width: "20%",
+      width: "25%",
       render: (item: Vocabulary) => formatDate(item.uploaded),
     },
     {

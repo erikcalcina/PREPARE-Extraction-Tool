@@ -24,7 +24,6 @@ export async function createVocabulary(
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("name", data.name);
-    formData.append("version", data.version);
     formData.append("file", data.file);
 
     const xhr = new XMLHttpRequest();
