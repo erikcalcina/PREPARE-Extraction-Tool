@@ -48,6 +48,7 @@ export interface Dataset {
   uploaded: string;
   last_modified: string;
   labels: string[];
+  date_label: string | null;
   record_count: number;
 }
 
@@ -55,6 +56,7 @@ export interface DatasetCreate {
   name: string;
   labels: string;
   file: File;
+  date_label?: string;
 }
 
 export interface DatasetOutput {
