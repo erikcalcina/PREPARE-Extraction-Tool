@@ -198,6 +198,7 @@ class SourceTerm(SQLModel, table=True):
         ondelete="SET NULL",
     )
     linked_visit_date: Optional[datetime] = Field(default=None)
+    manual_linked_visit_date: bool = Field(default=False)
 
     cluster_id: Optional[int] = Field(
         default=None,

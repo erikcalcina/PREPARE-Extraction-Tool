@@ -229,11 +229,21 @@ def update_source_term(
     # Update fields if provided
     if update_data.label is not None:
         source_term.label = update_data.label
+    # If the update explicitly included linked_visit_date (even if null), apply it
+    # and mark this term as manually overridden so automatic linking won't overwrite it.
+    fields_set = getattr(update_data, "__fields_set__", None)
+    manually_set_date = False
+    if fields_set is not None and "linked_visit_date" in fields_set:
+        source_term.linked_visit_date = update_data.linked_visit_date
+        source_term.manual_linked_visit_date = True
+        source_term.linked_date_term_id = None
+        manually_set_date = True
 
     db.add(source_term)
     db.flush()
     record = source_term.record or db.get(Record, source_term.record_id)
-    if record is not None:
+    # Re-run automatic linking only when the client did not explicitly set the linked_visit_date.
+    if record is not None and not manually_set_date:
         link_dates_for_record(db, record)
     db.commit()
     db.refresh(source_term)

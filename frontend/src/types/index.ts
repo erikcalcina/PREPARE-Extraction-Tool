@@ -108,6 +108,9 @@ export interface SourceTerm {
   start_position: number | null;
   end_position: number | null;
   record_id: number;
+  linked_visit_date?: string | null;
+  manual_linked_visit_date?: boolean | null;
+  linked_date_term_id?: number | null;
 }
 
 export interface SourceTermCreate {
@@ -119,6 +122,7 @@ export interface SourceTermCreate {
 
 export interface SourceTermUpdate {
   label?: string;
+  linked_visit_date?: string | null;
 }
 
 export interface SourceTermOutput {

@@ -371,6 +371,7 @@ class SourceTermUpdate(BaseModel):
     """Model for updating a source term."""
 
     label: Optional[str] = None
+    linked_visit_date: Optional[datetime] = None
 
 
 class SourceTermOutput(BaseModel):

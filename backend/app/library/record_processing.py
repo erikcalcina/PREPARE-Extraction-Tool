@@ -141,8 +141,10 @@ def link_dates_for_record(
     segment_lookup = {segment.id: segment for segment in segments}
 
     for term in terms:
-        term.linked_date_term_id = None
-        term.linked_visit_date = None
+        # Preserve manually set linked dates
+        if not getattr(term, "manual_linked_visit_date", False):
+            term.linked_date_term_id = None
+            term.linked_visit_date = None
         _ensure_sentence_assignment(term, segments)
 
     grouped = defaultdict(list)
@@ -162,7 +164,9 @@ def link_dates_for_record(
         for term in segment_terms:
             if term.label == date_label:
                 parsed = _parse_date_value(term.value)
-                term.linked_visit_date = parsed
+                # Do not overwrite manual dates
+                if not getattr(term, "manual_linked_visit_date", False):
+                    term.linked_visit_date = parsed
                 date_terms.append((term, parsed))
 
         non_date_terms = [t for t in segment_terms if t.label != date_label]
@@ -172,8 +176,10 @@ def link_dates_for_record(
         if len(valid_dates) == 1:
             date_term, parsed_dt = valid_dates[0]
             for entity in non_date_terms:
-                entity.linked_date_term_id = date_term.id
-                entity.linked_visit_date = parsed_dt
+                # Do not overwrite manually set dates on entities
+                if not getattr(entity, "manual_linked_visit_date", False):
+                    entity.linked_date_term_id = date_term.id
+                    entity.linked_visit_date = parsed_dt
         elif len(valid_dates) > 1:
             date_midpoints = {
                 dt_term.id: _term_midpoint(dt_term, segment_lookup)
@@ -191,10 +197,12 @@ def link_dates_for_record(
                         closest_distance = distance
                         closest_term_id = dt_term.id
                         closest_dt = parsed_dt
-                entity.linked_date_term_id = closest_term_id
-                entity.linked_visit_date = closest_dt
+                if not getattr(entity, "manual_linked_visit_date", False):
+                    entity.linked_date_term_id = closest_term_id
+                    entity.linked_visit_date = closest_dt
         else:
             for entity in non_date_terms:
-                entity.linked_visit_date = fallback_date
+                if not getattr(entity, "manual_linked_visit_date", False):
+                    entity.linked_visit_date = fallback_date
 
     db.flush()
