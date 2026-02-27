@@ -223,7 +223,7 @@ def ingest_dataset_background(
     db.refresh(dataset)
 
     dataset_id = dataset.id
-    default_visit_date = dataset.uploaded
+    default_visit_date = None
 
     try:
         BATCH_SIZE = 2000
