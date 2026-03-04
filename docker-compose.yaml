@@ -111,27 +111,57 @@ services:
     build:
       context: ./frontend
       args:
-        - BACKEND_HOST=${BACKEND_HOST?Variable not set}
+        - VITE_BACKEND_HOST=${BACKEND_HOST?Variable not set}
         - NODE_ENV=production
 
-  # bioner:
-  #   image: '${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}'
-  #   container_name: PREPARE-USAGI-BIONER
-  #   restart: unless-stopped
-  #   ports:
-  #     - "${BIONER_HOST_PORT:-8001}:8000"
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     - MODEL_TYPE=${BIONER_MODEL_TYPE:?Variable not set}
-  #     - MODEL_PATH=${BIONER_MODEL_PATH:?Variable not set}
-  #     - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
-  #     - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
-  #   networks:
-  #     - prepare-usagi-public
-  #     - default
-  #   build:
-  #     context: ./bioner
+  bioner:
+    build:
+      context: ./bioner
+    image: "${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}"
+    container_name: PREPARE-USAGI-BIONER
+    restart: unless-stopped
+    ports:
+      - "${BIONER_HOST_PORT:-5600}:${BIONER_PORT:-5600}"
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    env_file:
+      - .env
+    volumes:
+      - ./bioner/models:/models:ro
+      - ./bioner/model:/model:ro
+    environment:
+      - ENGINE=${BIONER_ENGINE?Variable not set}
+      - MODEL=${BIONER_MODEL?Variable not set}
+      - ADAPTER_MODEL=${BIONER_ADAPTER_MODEL}
+      - HOST=${BIONER_HOST?Variable not set}
+      - PORT=${BIONER_PORT?Variable not set}
+      - USE_GPU=${BIONER_USE_GPU}
+      - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
+      - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
+    networks:
+      - prepare-usagi-public
+      - default
+    command:
+      - python
+      - -m
+      - app.main
+      - --engine
+      - "${BIONER_ENGINE}"
+      - --model
+      - "${BIONER_MODEL}"
+      - --adapter_model
+      - "${BIONER_ADAPTER_MODEL}"
+      - --host
+      - "${BIONER_HOST}"
+      - --port
+      - "${BIONER_PORT}"
+      - --use_gpu
+      - "${BIONER_USE_GPU}"
 
 volumes:
   app-db-data:

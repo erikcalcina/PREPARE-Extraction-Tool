@@ -411,22 +411,6 @@ export interface ConceptSearchParams {
 }
 
 // ================================================
-// Extraction Job types
-// ================================================
-
-export interface ExtractionJobStartResponse {
-  job_id: string;
-}
-
-export interface ExtractionJobStatusResponse {
-  job_id: string;
-  status: "queued" | "running" | "completed" | "failed";
-  processed: number;
-  total: number;
-  message?: string;
-}
-
-// ================================================
 // Filter types
 // ================================================
 
