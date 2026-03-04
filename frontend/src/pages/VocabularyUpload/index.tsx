@@ -21,7 +21,7 @@ const VocabularyUpload = () => {
 
   const [file, setFile] = useState<File | null>(null);
   const [vocabularyName, setVocabularyName] = useState("");
-  const [version, setVersion] = useState("1.0");
+  const [version] = useState("1.0");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
