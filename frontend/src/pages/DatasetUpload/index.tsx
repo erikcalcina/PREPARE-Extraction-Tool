@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@components/Layout";
 import FileDropzone from "@components/FileDropzone";
@@ -27,9 +27,16 @@ const DatasetUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [dateLabel, setDateLabel] = useState("");
 
   const { uploadDataset } = useDatasets();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (dateLabel && !labels.includes(dateLabel)) {
+      setDateLabel("");
+    }
+  }, [labels, dateLabel]);
 
   const handleFileSelect = useCallback(
     (selectedFile: File) => {
@@ -73,6 +80,7 @@ const DatasetUpload = () => {
           name: datasetName.trim(),
           labels: labels.join(","),
           file: file,
+          date_label: dateLabel || undefined,
         },
         (progress) => {
           console.log("Upload progress:", progress.toFixed(2) + "%");
@@ -134,6 +142,26 @@ const DatasetUpload = () => {
                 />
               </div>
 
+              <div className={styles["upload__field"]}>
+                <label htmlFor="dateLabel" className={styles["upload__label"]}>
+                  Date label (optional)
+                </label>
+                <select
+                  id="dateLabel"
+                  value={dateLabel}
+                  onChange={(e) => setDateLabel(e.target.value)}
+                  className={styles["upload__input"]}
+                  disabled={isUploading || labels.length === 0}
+                >
+                  <option value="">-- no date label --</option>
+                  {labels.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className={styles["upload__dropzone"]}>
                 <p className={styles["upload__dropzone-label"]}>Upload dataset file</p>
                 <FileDropzone
@@ -178,6 +206,10 @@ const DatasetUpload = () => {
                 <strong>Labels:</strong> Type a label and press Enter to add it. These labels represent the data
                 categories in your dataset (e.g., diagnosis, symptom, event, medication). You can also paste
                 comma-separated values.
+              </p>
+              <p>
+                <strong>Date label:</strong> (optional) Pick which label corresponds to dates so extracted terms can inherit
+                the right timestamp. Leave it blank to fall back to each record&rsquo;s visit_date or the upload time.
               </p>
               <p>Maximum file size: 2GB. Supported format: .csv</p>
             </div>

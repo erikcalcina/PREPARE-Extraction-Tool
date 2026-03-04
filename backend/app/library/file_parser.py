@@ -20,19 +20,40 @@ from app.models_db import Record, Concept, Cluster
 # ================================================
 
 
-def parse_records_file(file_path: str, required_columns: list):
+def _safe_parse_datetime(value):
+    if not value:
+        return None
+    try:
+        return parser.parse(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_records_file(
+    file_path: str,
+    required_columns: list,
+    default_visit_date: datetime | None = None,
+):
     """Yield Record objects from the uploaded file lazily."""
 
     path = Path(file_path)
     suffix = path.suffix.lower()
 
     if suffix == ".csv":
-        for record in parse_csv(file_path, required_columns):
+        for record in parse_csv(
+            file_path,
+            required_columns,
+            default_visit_date=default_visit_date,
+        ):
             yield record
         return
 
     if suffix == ".json":
-        for record in parse_json(file_path, required_columns):
+        for record in parse_json(
+            file_path,
+            required_columns,
+            default_visit_date=default_visit_date,
+        ):
             yield record
         return
 
@@ -45,6 +66,7 @@ def parse_records_file(file_path: str, required_columns: list):
 def parse_json(
     file_path: str,
     required_columns: list,
+    default_visit_date: datetime | None = None,
 ):
     """Streaming JSON parser – yields Record objects one by one."""
 
@@ -66,20 +88,16 @@ def parse_json(
                         detail=f"Missing required columns at index {i}: {', '.join(missing)}",
                     )
 
-                date_str = obj.get("date")
-                if date_str:
-                    try:
-                        date_obj = parser.parse(date_str)
-                    except (ValueError, TypeError):
-                        date_obj = None
-                else:
-                    date_obj = None
+                visit_candidate = obj.get("visit_date") or obj.get("date")
+                visit_date_obj = _safe_parse_datetime(visit_candidate)
+                if visit_date_obj is None:
+                    visit_date_obj = default_visit_date
 
                 yield Record(
                     patient_id=obj["patient_id"],
                     seq_number=obj.get("seq_number"),
-                    date=date_obj,
                     text=obj["text"],
+                    visit_date=visit_date_obj,
                 )
 
     except HTTPException:
@@ -94,6 +112,7 @@ def parse_json(
 def parse_csv(
     file_path: str,
     required_columns: list,
+    default_visit_date: datetime | None = None,
 ):
     """Streaming parser – yields Record objects one by one."""
     try:
@@ -118,21 +137,17 @@ def parse_csv(
                 if not row.get("text"):
                     continue
 
-                date_str = row.get("date")
-                if date_str:
-                    try:
-                        date_obj = parser.parse(date_str)
-                    except (ValueError, TypeError):
-                        date_obj = None
-                else:
-                    date_obj = None
+                visit_candidate = row.get("visit_date") or row.get("date")
+                visit_date_obj = _safe_parse_datetime(visit_candidate)
+                if visit_date_obj is None:
+                    visit_date_obj = default_visit_date
 
                 try:
                     yield Record(
                         patient_id=row["patient_id"],
                         seq_number=row.get("seq_number"),
-                        date=date_obj,
                         text=row["text"],
+                        visit_date=visit_date_obj,
                     )
                 except Exception as row_error:
                     raise HTTPException(
@@ -226,7 +241,7 @@ def download_annotated_dataset(records, format):
         writer = csv.writer(output)
 
         writer.writerow(
-            ["patient_id", "seq_number", "date", "entity_type", "entity_name"]
+            ["patient_id", "seq_number", "visit_date", "entity_type", "entity_name"]
         )
         for record in records:
             for term in record.source_terms:
@@ -238,7 +253,7 @@ def download_annotated_dataset(records, format):
                     [
                         record.patient_id,
                         record.seq_number,
-                        record.date,
+                        record.visit_date,
                         entity_type,
                         entity_name,
                     ]
@@ -258,7 +273,9 @@ def download_annotated_dataset(records, format):
                     {
                         "patient_id": record.patient_id,
                         "seq_number": record.seq_number,
-                        "date": record.date.isoformat() if record.date else None,
+                        "visit_date": record.visit_date.isoformat()
+                        if record.visit_date
+                        else None,
                         "entity_type": entity_type,
                         "entity_name": entity_name,
                     }

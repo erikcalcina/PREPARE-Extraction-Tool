@@ -39,6 +39,7 @@ export function useExtractionPolling({
   const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
 
   const cancelledRef = useRef(false);
+  const latestSelectedRecordIdRef = useRef<number | null>(null);
   const extractionStorageKey = `extractionJob-${datasetId}`;
 
   // Cleanup on unmount
@@ -48,6 +49,10 @@ export function useExtractionPolling({
       cancelledRef.current = true;
     };
   }, []);
+
+  useEffect(() => {
+    latestSelectedRecordIdRef.current = selectedRecordId;
+  }, [selectedRecordId]);
 
   const pollExtractionJob = useCallback(
     async (jobId: string) => {
@@ -85,8 +90,12 @@ export function useExtractionPolling({
           await new Promise((res) => setTimeout(res, 2000));
         }
 
-        if (!cancelledRef.current && selectedRecordId) {
-          const termsResponse = await getRecordSourceTerms(datasetId, selectedRecordId);
+        const activeRecordId = latestSelectedRecordIdRef.current;
+        if (!cancelledRef.current && activeRecordId) {
+          const termsResponse = await getRecordSourceTerms(datasetId, activeRecordId);
+          if (cancelledRef.current || latestSelectedRecordIdRef.current !== activeRecordId) {
+            return { status: lastStatus };
+          }
           setSelectedRecordTerms(termsResponse.source_terms);
         }
         if (!cancelledRef.current) {

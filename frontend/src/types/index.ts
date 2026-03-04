@@ -48,6 +48,7 @@ export interface Dataset {
   uploaded: string;
   last_modified: string;
   labels: string[];
+  date_label: string | null;
   record_count: number;
 }
 
@@ -55,6 +56,7 @@ export interface DatasetCreate {
   name: string;
   labels: string;
   file: File;
+  date_label?: string;
 }
 
 export interface DatasetOutput {
@@ -106,6 +108,9 @@ export interface SourceTerm {
   start_position: number | null;
   end_position: number | null;
   record_id: number;
+  linked_visit_date?: string | null;
+  manual_linked_visit_date?: boolean | null;
+  linked_date_term_id?: number | null;
 }
 
 export interface SourceTermCreate {
@@ -117,6 +122,7 @@ export interface SourceTermCreate {
 
 export interface SourceTermUpdate {
   label?: string;
+  linked_visit_date?: string | null;
 }
 
 export interface SourceTermOutput {
@@ -402,22 +408,6 @@ export interface ConceptSearchParams {
   offset?: number;
   sort_by?: "relevance" | "name" | "domain";
   sort_order?: "asc" | "desc";
-}
-
-// ================================================
-// Extraction Job types
-// ================================================
-
-export interface ExtractionJobStartResponse {
-  job_id: string;
-}
-
-export interface ExtractionJobStatusResponse {
-  job_id: string;
-  status: "queued" | "running" | "completed" | "failed";
-  processed: number;
-  total: number;
-  message?: string;
 }
 
 // ================================================

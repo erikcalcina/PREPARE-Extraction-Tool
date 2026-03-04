@@ -325,6 +325,124 @@ def accept_merge_suggestion(
     return MessageOutput(message="Clusters merged (accepted suggestion)")
 
 
+@router.post(
+    "/datasets/{dataset_id}/clusters/merge-suggestions/accept-all",
+    response_model=MessageOutput,
+)
+def accept_all_merge_suggestions(
+    dataset_id: int,
+    label: str,
+    status_filter: str = "pending",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Accept (merge) ALL merge suggedtions for dataset+label with status=pending.
+    Merges clusters and marks suggestions as accepted.
+    """
+
+    # 1) dataset ownership!
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    # 2) load pending suggestions
+    suggestions = db.exec(
+        select(ClusterMergeSuggestion)
+        .where(ClusterMergeSuggestion.dataset_id == dataset_id)
+        .where(ClusterMergeSuggestion.label == label)
+        .where(ClusterMergeSuggestion.status == status_filter)
+        .order_by(ClusterMergeSuggestion.score.desc())
+    ).all()
+
+    if not suggestions:
+        return MessageOutput(message="No pending suggestions to accept")
+
+    now = datetime.now(timezone.utc)
+    accepted = 0
+    skipped = 0
+
+    for s in suggestions:
+        # Clusters might already be merged/deleted by earlieriterations
+        cluster_a = db.get(Cluster, s.cluster_a_id)
+        cluster_b = db.get(Cluster, s.cluster_b_id)
+
+        # If one cluster is missing -> cannot merge; mark as rejected or skip
+        if not cluster_a or not cluster_b:
+            skipped += 1
+            # Option A: mark rejrcted so it doesn't stay pending forever? 
+            s.status = "rejected"
+            s.reviewed_at = now
+            s.reviewed_by_user_id = current_user.id
+            db.add(s)
+            continue
+
+        # Move all terms from B to A
+        terms_b = db.exec(
+            select(SourceTerm).where(SourceTerm.cluster_id == cluster_b.id)
+        ).all()
+        for t in terms_b:
+            t.cluster_id = cluster_a.id
+            db.add(t)
+
+        # Delete cluster B
+        db.delete(cluster_b)
+
+        # Mark suggestion accepted
+        s.status = "accepted"
+        s.reviewed_at = now
+        s.reviewed_by_user_id = current_user.id
+        db.add(s)
+
+        accepted += 1
+
+    db.commit()
+    return MessageOutput(message=f"Accepted {accepted} suggestions, skipped {skipped}")
+
+@router.post(
+    "/datasets/{dataset_id}/clusters/merge-suggestions/reject-all",
+    response_model=MessageOutput,
+)
+def reject_all_merge_suggestions(
+    dataset_id: int,
+    label: str,
+    status_filter: str = "pending",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    """
+    Reject ALL merge suggestions for dataset+label with status=pending.
+    Does not merge anything.
+    """
+
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    verify_dataset_ownership(dataset, current_user.id)
+
+    suggestions = db.exec(
+        select(ClusterMergeSuggestion)
+        .where(ClusterMergeSuggestion.dataset_id == dataset_id)
+        .where(ClusterMergeSuggestion.label == label)
+        .where(ClusterMergeSuggestion.status == status_filter)
+    ).all()
+
+    if not suggestions:
+        return MessageOutput(message="No pending suggestions to reject")
+
+    now = datetime.now(timezone.utc)
+    for s in suggestions:
+        s.status = "rejected"
+        s.reviewed_at = now
+        s.reviewed_by_user_id = current_user.id
+        db.add(s)
+
+    db.commit()
+    return MessageOutput(message=f"Rejected {len(suggestions)} suggestions")
+
+
+
 @router.get("/{cluster_id}", response_model=ClusterOutput)
 def get_cluster(
     cluster_id: int,

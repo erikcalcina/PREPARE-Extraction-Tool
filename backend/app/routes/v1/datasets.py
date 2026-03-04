@@ -15,7 +15,7 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func, update, delete
+from sqlmodel import Session, select, func, update
 from collections import defaultdict, Counter
 
 from hdbscan import HDBSCAN
@@ -32,6 +32,11 @@ from app.models_db import (
     ProcessingStatus,
 )
 from app.library.file_parser import parse_records_file
+from app.library.record_processing import (
+    bulk_insert_records_with_segments,
+    regenerate_record_segments,
+    link_dates_for_record,
+)
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     DatasetResponse,
@@ -64,6 +69,12 @@ from app.schemas import (
 from app.library.file_parser import (
     download_annotated_dataset,
     build_clusters_download_json,
+)
+
+from app.utils.value_typing import (
+    detect_value_type,
+    normalize_date_to_key,
+    normalize_measure_to_key,
 )
 
 # ================================================
@@ -127,6 +138,7 @@ def get_datasets(
             uploaded=dataset.uploaded,
             last_modified=dataset.last_modified,
             labels=dataset.labels,
+            date_label=dataset.date_label,
             status=dataset.status,
             error_message=dataset.error_message,
             record_count=db.query(func.count(Record.id))
@@ -156,6 +168,7 @@ async def create_dataset(
     background_tasks: BackgroundTasks,
     name: str = Form(...),
     labels: str = Form(...),
+    date_label: Optional[str] = Form(None),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
@@ -177,7 +190,8 @@ async def create_dataset(
         file_path, 
         name,
         label_list, 
-        current_user.id
+        current_user.id,
+        date_label,
     )
 
     dataset_response = DatasetUploadResponse(
@@ -186,38 +200,55 @@ async def create_dataset(
     )
     return dataset_response
 
-def ingest_dataset_background(file_path: str, name: str, label_list: list, user_id: int):
+def ingest_dataset_background(
+    file_path: str,
+    name: str,
+    label_list: list,
+    user_id: int,
+    date_label: Optional[str] = None,
+):
     db = Session(engine)
 
     # create a new Dataset
     REQUIRED_COLUMNS = ["text", "patient_id"]
-    dataset = Dataset(name=name, labels=label_list, user_id=user_id)
+    dataset = Dataset(
+        name=name,
+        labels=label_list,
+        user_id=user_id,
+        date_label=date_label,
+    )
     db.add(dataset)
     db.commit()
     # Refresh the instance so database now has its generated ID
     db.refresh(dataset)
 
     dataset_id = dataset.id
+    default_visit_date = None
 
     try:
         BATCH_SIZE = 2000
         batch = []
         total = 0
-        for record in parse_records_file(file_path, REQUIRED_COLUMNS):
+        for record in parse_records_file(
+            file_path,
+            REQUIRED_COLUMNS,
+            default_visit_date=default_visit_date,
+        ):
             record.dataset_id = dataset_id
             batch.append(record)
 
             if len(batch) >= BATCH_SIZE:
-                db.bulk_save_objects(batch, return_defaults=True)
-                db.commit()
-                total += len(batch)
+                chunk_len = len(batch)
+                bulk_insert_records_with_segments(db, batch)
+                total += chunk_len
                 batch.clear()
                 print("Rows saved:", total)
 
         if batch:
-            db.bulk_save_objects(batch, return_defaults=True)
-            db.commit()
-            total += len(batch)
+            chunk_len = len(batch)
+            bulk_insert_records_with_segments(db, batch)
+            total += chunk_len
+            batch.clear()
             print("All rows saved.")
 
         db.exec(
@@ -281,6 +312,7 @@ def get_dataset(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
+        date_label=dataset.date_label,
         status=dataset.status,
         error_message=dataset.error_message,
         record_count=db.query(func.count(Record.id))
@@ -374,6 +406,7 @@ def get_dataset_overview(
         uploaded=dataset.uploaded,
         last_modified=dataset.last_modified,
         labels=dataset.labels,
+        date_label=dataset.date_label,
         status=dataset.status,
         error_message=dataset.error_message,
         record_count=len(dataset.records),
@@ -591,11 +624,15 @@ def add_record(
     new_record = Record(
         patient_id=record.patient_id,
         seq_number=record.seq_number,
-        date=record.date,
+        visit_date=record.visit_date,
         text=record.text,
         dataset_id=dataset_id,
     )
     db.add(new_record)
+
+    db.flush()
+    regenerate_record_segments(db, new_record)
+    link_dates_for_record(db, new_record, dataset)
 
     # Update dataset's last_modified timestamp
     dataset.last_modified = datetime.now(timezone.utc)
@@ -674,7 +711,7 @@ def get_records(
             id=r.id,
             patient_id=r.patient_id,
             seq_number=r.seq_number,
-            date=r.date,
+            visit_date=r.visit_date,
             text=r.text,
             uploaded=r.uploaded,
             dataset_id=r.dataset_id,
@@ -763,6 +800,11 @@ def update_record(
         )
 
     db_record.text = record.text
+    db_record.visit_date = record.visit_date
+
+    db.flush()
+    regenerate_record_segments(db, db_record)
+    link_dates_for_record(db, db_record, dataset)
 
     # Update dataset's last_modified timestamp
     dataset.last_modified = datetime.now(timezone.utc)
@@ -917,6 +959,8 @@ def create_source_term_for_record(
         end_position=term.end_position,
     )
     db.add(source_term)
+    db.flush()
+    link_dates_for_record(db, record, dataset)
     db.commit()
     db.refresh(source_term)
     return SourceTermOutput(source_term=source_term)
@@ -1402,13 +1446,23 @@ def create_clusters_for_dataset(
     measure_keys = []
 
     for t in raw_texts:
-        tp = _detect_value_type(t)
+        tp = detect_value_type(t)
+
+        dt_key = normalize_date_to_key(t) if tp == "date" else None
+        ms_key = normalize_measure_to_key(t) if tp == "measure" else None
+
+        if tp == "date" and dt_key is None:
+            tp = "text"
+        if tp == "measure" and ms_key is None:
+            tp = "text"
+
         types.append(tp)
-        date_keys.append(_normalize_date_to_key(t) if tp == "date" else None)
-        measure_keys.append(_normalize_measure_to_key(t) if tp == "measure" else None)
+        date_keys.append(dt_key)
+        measure_keys.append(ms_key)
 
     type_counts = Counter(types)
     major_type = type_counts.most_common(1)[0][0]
+
 
     # 2) If it's dates: cluster by exact canonical key
     if major_type == "date":
@@ -1549,97 +1603,6 @@ MEASURE_RE = re.compile(
     r"^\s*\d+(?:\s*/\s*\d+)?(?:[.,]\d+)?\s*(mg|ml|g|mcg|µg|kg|iu|%)\s*$",
     re.IGNORECASE,
 )
-
-
-def _detect_value_type(text: str) -> str:
-    """
-    Rough detector:
-    - date: looks like a date and can be normalized
-    - measure: looks like dosage/quantity with units
-    - id: mostly alnum with digits and separators (optional i guess)
-    - text: default
-    """
-    s = (text or "").strip()
-    if not s:
-        return "text"
-
-    # quick date-like check
-    if any(ch.isdigit() for ch in s) and DATE_SEPARATORS_RE.search(s):
-        # we'll confirm later by trying to normalize
-        return "date"
-
-    # measure-like check
-    if MEASURE_RE.match(s.replace(" ", "")) or MEASURE_RE.match(s):
-        return "measure"
-
-    return "text"
-
-
-def _normalize_date_to_key(text: str) -> Optional[str]:
-    """
-    Convert many date formats to canonical YYYY-MM-DD.
-    If we can't confidently parse -> return None.
-    """
-    s = (text or "").strip()
-
-    # supports: DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
-    m = re.match(r"^\s*(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\s*$", s)
-    if not m:
-        return None
-
-    a, b, c = m.group(1), m.group(2), m.group(3)
-
-    # Heuristic:
-    # if first part has 4 digits -> YYYY-MM-DD
-    if len(a) == 4:
-        year = int(a)
-        month = int(b)
-        day = int(c)
-    else:
-        # assume DD.MM.YYYY
-        day = int(a)
-        month = int(b)
-        year = int(c)
-
-    # basic validation
-    if not (1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100):
-        return None
-
-    return f"{year:04d}-{month:02d}-{day:02d}"
-
-
-def _normalize_measure_to_key(text: str) -> Optional[str]:
-    """
-    Normalize measures but keep numeric meaning:
-    - collapse spaces
-    - turn separators into spaces
-    - ensure unit separated
-    Example:
-      '2/50mg' -> '2 50 mg'
-      '2   50mg' -> '2 50 mg'
-    """
-    s = (text or "").strip().lower()
-    if not s:
-        return None
-    s = s.replace("/", " ")
-    s = re.sub(r"\s+", " ", s).strip()
-
-    # ensure space before unit: "50mg" -> "50 mg"
-    s = re.sub(r"(\d)(mg|ml|g|mcg|µg|kg|iu|%)\b", r"\1 \2", s)
-
-    # remove spaces around dots/commas in decimals (optional)
-    s = s.replace(" ,", ",").replace(", ", ",").replace(" .", ".").replace(". ", ".")
-
-    if not re.search(r"\b(mg|ml|g|mcg|µg|kg|iu|%)\b", s):
-        return None
-
-    return s
-
-
-# ================================================
-# New enhanced clustering routes
-# ================================================
-
 
 @router.post("/{dataset_id}/clusters", response_model=ClusterResponse)
 def create_cluster_endpoint(
