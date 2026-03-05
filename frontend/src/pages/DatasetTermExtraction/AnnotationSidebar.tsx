@@ -153,7 +153,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
   return (
     <Sidebar isOpen={isOpen} onClose={onClose} title="Annotation Panel" width="75vw">
-      <div className={styles["annotation-sidebar"]}>
+      <div className={styles["annotation-sidebar"]} onClick={() => onSelectAnnotation(null)}>
         {/* Left side - Text to annotate */}
         <div>
           {/* Label selector */}
@@ -319,9 +319,10 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                     className={classNames(styles["annotation-item"], {
                       [styles["annotation-item--selected"]]: selectedAnnotation === annotation.id,
                     })}
-                    onClick={() =>
-                      !readOnly && onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!readOnly) onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id);
+                    }}
                   >
                     <div className={styles["annotation-item__content"]}>
                       <span className={styles["annotation-item__value"]}>{annotation.value}</span>
@@ -383,13 +384,13 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                         </>
                       ) : (
                         <span className={styles["annotation-item__date"]}>
-                          {annotation.linked_visit_date ? (
-                            new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            })) : ("No date")
-                          }
+                          {annotation.linked_visit_date
+                            ? new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })
+                            : "No date"}
                         </span>
                       )}
                       {annotation.linked_date_term_id &&
@@ -431,7 +432,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
           </div>
         </div>
       </div>
-    </Sidebar >
+    </Sidebar>
   );
 };
 
