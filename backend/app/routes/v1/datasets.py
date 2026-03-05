@@ -111,17 +111,19 @@ def get_datasets(
     db: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
 ):
-    # Get total count
+    # Get total count (exclude DELETED)
     total = db.exec(
         select(func.count())
         .select_from(Dataset)
         .where(Dataset.user_id == current_user.id)
+        .where(Dataset.status != ProcessingStatus.DELETED)
     ).one()
 
-    # Get paginated datasets
+    # Get paginated datasets (exclude DELETED)
     datasets = db.exec(
         select(Dataset)
         .where(Dataset.user_id == current_user.id)
+        .where(Dataset.status != ProcessingStatus.DELETED)
         .order_by(Dataset.id)
         .offset(pagination.offset)
         .limit(pagination.limit)

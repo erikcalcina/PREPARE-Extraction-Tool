@@ -23,7 +23,7 @@ function normalizeStatus(v: Vocabulary): Vocabulary {
 }
 
 function hasActiveProcessing(items: Vocabulary[]): boolean {
-  return items.some((v) => v.status === "PENDING" || v.status === "PROCESSING");
+  return items.some((v) => v.status === "PENDING" || v.status === "PROCESSING" || v.status === "DELETED");
 }
 
 export function useVocabularies() {

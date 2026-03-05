@@ -35,7 +35,7 @@ const Datasets = () => {
     }
   };
 
-  const isReady = (item: Dataset) => item.status === "DONE" || item.status === "DELETED" || item.status === "FAILED";
+  const isReady = (item: Dataset) => item.status === "DONE" || item.status === "FAILED";
 
   const columns = [
     {

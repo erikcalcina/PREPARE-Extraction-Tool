@@ -143,11 +143,12 @@ def get_vocabularies(
     db: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
 ):
-    # Get total count
+    # Get total count (exclude DELETED)
     total = db.exec(
         select(func.count())
         .select_from(Vocabulary)
         .where(Vocabulary.user_id == current_user.id)
+        .where(Vocabulary.status != ProcessingStatus.DELETED)
     ).one()
 
     # Subquery: only count concepts for this user's vocabularies
@@ -170,6 +171,7 @@ def get_vocabularies(
             Vocabulary.id == concept_counts_subquery.c.vocabulary_id,
         )
         .where(Vocabulary.user_id == current_user.id)
+        .where(Vocabulary.status != ProcessingStatus.DELETED)
         .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)

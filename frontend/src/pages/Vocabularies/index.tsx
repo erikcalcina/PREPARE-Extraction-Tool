@@ -31,7 +31,7 @@ const Vocabularies = () => {
     }
   };
 
-  const isReady = (item: Vocabulary) => item.status === "DONE" || item.status === "DELETED" || item.status === "FAILED";
+  const isReady = (item: Vocabulary) => item.status === "DONE" || item.status === "FAILED";
 
   const columns = [
     {

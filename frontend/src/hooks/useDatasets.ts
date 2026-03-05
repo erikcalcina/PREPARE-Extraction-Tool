@@ -18,7 +18,7 @@ function normalizeStatus(d: Dataset): Dataset {
 }
 
 function hasActiveProcessing(items: Dataset[]): boolean {
-  return items.some((d) => d.status === "PENDING" || d.status === "PROCESSING");
+  return items.some((d) => d.status === "PENDING" || d.status === "PROCESSING" || d.status === "DELETED");
 }
 
 export function useDatasets() {
