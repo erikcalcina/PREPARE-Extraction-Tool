@@ -121,7 +121,7 @@ To start the app in development mode, run the following command in the terminal:
 fastapi dev ./app/main.py --port 8000
 ```
 
-This will start the app and listen it on port 8000.
+The app will be available at **http://localhost:8000** by default.
 
 ### API Docs
 
