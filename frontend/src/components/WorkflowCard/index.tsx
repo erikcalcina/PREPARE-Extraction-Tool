@@ -14,7 +14,7 @@ interface WorkflowCardProps {
 }
 
 const WorkflowCard = ({ title, description, icon, stats, progress, actions }: WorkflowCardProps) => {
-  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
+  const progressPercentage = progress && progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
 
   return (
     <div className={styles["workflow-card"]}>
