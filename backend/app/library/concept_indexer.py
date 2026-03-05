@@ -63,7 +63,7 @@ class ConceptIndexer:
             mapping = {
                 "mappings": {
                     "_source": {
-                        "enabled": False
+                        "excludes": ["embedding"]
                     },
                     "properties": {
                         "vocab_term_id": {"type": "keyword"},
