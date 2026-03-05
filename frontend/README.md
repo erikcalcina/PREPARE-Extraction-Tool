@@ -23,8 +23,6 @@ Start the dev server with hot module replacement (changes reflect instantly in t
 npm run dev
 ```
 
-The app will be available at **http://localhost:5173** by default.
-
 > The frontend talks to the backend API at `http://localhost:8000`. Make sure the backend is also running in a separate terminal — see [backend/README.md](../backend/README.md).
 
 ## 🚀 Production
