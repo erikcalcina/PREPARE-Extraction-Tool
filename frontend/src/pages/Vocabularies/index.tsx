@@ -53,7 +53,7 @@ const Vocabularies = () => {
     },
     {
       key: "concept_count",
-      header: "Concepts",
+      header: "No. of concepts",
       width: "20%",
       render: (item: Vocabulary) => item.concept_count.toLocaleString(),
     },
