@@ -62,6 +62,8 @@ The frontend is built with **TypeScript** and **React 19** using:
 
 ### Using Docker (Recommended)
 
+This is the easiest way to run the full stack.
+
 1. **Clone the repository:**
 
     ```bash
@@ -89,8 +91,14 @@ The frontend is built with **TypeScript** and **React 19** using:
     ```bash
     docker-compose up -d
     ```
+    
+**4. Apply database migrations (first time only):**
 
-4. **Access the application:** (using default host values)
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+5. **Access the application** by opening http://localhost:3000 in your browser (using default host values):
 
     - Frontend: http://localhost:3000 (configured via `FRONTEND_HOST`)
     - Backend API: http://localhost:8000 (configured via `BACKEND_HOST`)
