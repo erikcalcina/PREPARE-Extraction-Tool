@@ -10,13 +10,15 @@ import Layout from "@components/Layout";
 import Button from "@components/Button";
 import { Select } from "@components/Select";
 import StatCard from "@components/StatCard";
+import ConfirmDialog from "@components/ConfirmDialog";
+import { ToastContainer } from "@components/Toast/ToastContainer";
 import WorkflowPageHeader from "@components/WorkflowPageHeader";
 import ClusterCard from "@components/ClusterCard";
 import ClusterOverlay from "@components/ClusterOverlay";
 import DroppableUnclusteredArea from "@components/DroppableUnclusteredArea";
 import TermOverlay from "@components/TermOverlay";
-
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useToast } from "@/hooks/useToast";
 import * as api from "@/api";
 
 import type { ClusterData, ClusteredTerm } from "@/types";
@@ -41,6 +43,16 @@ export default function DatasetTermClustering() {
   const [activeLetter, setActiveLetter] = useState("");
   const [labelReviewed, setLabelReviewed] = useState(false);
   const [isTogglingReview, setIsTogglingReview] = useState(false);
+
+  const toast = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: "danger" | "warning" | "info";
+    showInput?: boolean;
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   usePageTitle(datasetName ? `Term Clustering - ${datasetName}` : "Term Clustering");
 
@@ -91,26 +103,29 @@ export default function DatasetTermClustering() {
   }, [datasetId]);
 
   // Fetch clusters when label is selected
-  const fetchClusters = async (silent = false) => {
-    if (!datasetId || !selectedLabel) return;
+  const fetchClusters = useCallback(
+    async (silent = false) => {
+      if (!datasetId || !selectedLabel) return;
 
-    try {
-      if (!silent) setIsLoading(true);
-      setError(null);
-      const data = await api.getClusters(parseInt(datasetId), selectedLabel);
-      setClusters(data.clusters);
-      setUnclusteredTerms(data.unclustered_terms);
-      setLabelReviewed(data.label_reviewed);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load clusters");
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  };
+      try {
+        if (!silent) setIsLoading(true);
+        setError(null);
+        const data = await api.getClusters(parseInt(datasetId), selectedLabel);
+        setClusters(data.clusters);
+        setUnclusteredTerms(data.unclustered_terms);
+        setLabelReviewed(data.label_reviewed);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load clusters");
+      } finally {
+        if (!silent) setIsLoading(false);
+      }
+    },
+    [datasetId, selectedLabel]
+  );
 
   useEffect(() => {
     fetchClusters();
-  }, [datasetId, selectedLabel]);
+  }, [fetchClusters]);
 
   // Handle auto-clustering
   const handleAutoClustering = async () => {
@@ -137,7 +152,7 @@ export default function DatasetTermClustering() {
     } finally {
       setIsDownloadingClusters(false);
     }
-  }, [datasetId, selectedLabel]);
+  }, [datasetId]);
 
   const handleToggleReview = useCallback(async () => {
     if (!datasetId || !selectedLabel) return;
@@ -426,7 +441,7 @@ export default function DatasetTermClustering() {
 
     // Scroll to the renamed cluster after React re-renders with the new sort order
     setTimeout(() => {
-      const element = document.querySelector(`[data-cluster-id="${clusterId}"]`);
+      const element = document.querySelector(`[data-cluster-id="${CSS.escape(String(clusterId))}"]`);
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -442,30 +457,34 @@ export default function DatasetTermClustering() {
   };
 
   // Handle cluster delete
-  const handleDelete = async (clusterId: number) => {
-    if (!confirm("Are you sure you want to delete this cluster? Terms will become unclustered.")) {
-      return;
-    }
+  const handleDelete = (clusterId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Cluster",
+      message: "Are you sure you want to delete this cluster? Terms will become unclustered.",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
 
-    const originalClusters = clusters;
-    const originalUnclustered = unclusteredTerms;
+        const originalClusters = clusters;
+        const originalUnclustered = unclusteredTerms;
 
-    // Find cluster and move its terms to unclustered
-    const clusterToDelete = clusters.find((c) => c.id === clusterId);
-    if (!clusterToDelete) return;
+        const clusterToDelete = clusters.find((c) => c.id === clusterId);
+        if (!clusterToDelete) return;
 
-    // Optimistic update
-    setClusters((prev) => prev.filter((c) => c.id !== clusterId));
-    setUnclusteredTerms((prev) => [...prev, ...clusterToDelete.terms]);
+        // Optimistic update
+        setClusters((prev) => prev.filter((c) => c.id !== clusterId));
+        setUnclusteredTerms((prev) => [...prev, ...clusterToDelete.terms]);
 
-    try {
-      await api.deleteCluster(clusterId);
-    } catch (err) {
-      // Rollback on error
-      setClusters(originalClusters);
-      setUnclusteredTerms(originalUnclustered);
-      setError(err instanceof Error ? err.message : "Failed to delete cluster");
-    }
+        try {
+          await api.deleteCluster(clusterId);
+        } catch (err) {
+          setClusters(originalClusters);
+          setUnclusteredTerms(originalUnclustered);
+          setError(err instanceof Error ? err.message : "Failed to delete cluster");
+        }
+      },
+    });
   };
 
   // Handle term removal from cluster
@@ -534,7 +553,7 @@ export default function DatasetTermClustering() {
       setClusters((prev) => [...prev, newCluster]);
       // Scroll to the new cluster after React re-renders
       setTimeout(() => {
-        const element = document.querySelector(`[data-cluster-id="${newCluster.id}"]`);
+        const element = document.querySelector(`[data-cluster-id="${CSS.escape(String(newCluster.id))}"]`);
         if (element) {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
         }
@@ -629,7 +648,7 @@ export default function DatasetTermClustering() {
       return firstChar === letter;
     });
     if (cluster) {
-      const element = document.querySelector(`[data-cluster-id="${cluster.id}"]`);
+      const element = document.querySelector(`[data-cluster-id="${CSS.escape(String(cluster.id))}"]`);
       element?.scrollIntoView({ behavior: "instant", block: "start" });
     }
   };
@@ -835,6 +854,19 @@ export default function DatasetTermClustering() {
               <FontAwesomeIcon icon={faArrowUp} />
             </Button>
           )}
+
+          {/* Toast notifications */}
+          <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
+
+          {/* Confirm dialog */}
+          <ConfirmDialog
+            isOpen={confirmDialog.isOpen}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            variant={confirmDialog.variant}
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+          />
         </div>
       </DndContext>
     </Layout>
