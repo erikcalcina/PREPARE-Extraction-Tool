@@ -146,6 +146,8 @@ or, alternatively,
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
+> For a full production setup, use Docker instead — see the root [README.md](../README.md).
+
 ## 🐳 Dockerize
 
 To dockerize the app, run the following command in the terminal:
