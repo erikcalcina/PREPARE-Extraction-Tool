@@ -664,12 +664,12 @@ export default function DatasetTermClustering() {
             datasetId={datasetId!}
             datasetName={datasetName}
             backButton={{
-              label: "Back to Extraction",
+              label: "Back to Term Extraction",
               to: `/datasets/${datasetId}/records`,
               title: "Back to Term Extraction",
             }}
             forwardButton={{
-              label: "Mapping",
+              label: "Go to Concept Mapping",
               to: `/datasets/${datasetId}/mapping`,
               title: "Go to Concept Mapping",
             }}

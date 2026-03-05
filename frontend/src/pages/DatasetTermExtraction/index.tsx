@@ -351,7 +351,7 @@ const DatasetTermExtraction: React.FC = () => {
             title: "Back to Dataset Overview",
           }}
           forwardButton={{
-            label: "Clustering",
+            label: "Go to Term Clustering",
             to: `/datasets/${datasetId}/clusters`,
             title: "Go to Term Clustering",
           }}
@@ -589,19 +589,9 @@ const DatasetTermExtraction: React.FC = () => {
                     ) : (
                       <div className={styles["terms-list"]}>
                         {selectedRecordTerms.map((term) => (
-                          <div key={term.id} className={styles["term-item"]}>
+                          <div key={term.id} className={styles["term-item"]} onClick={() => scrollToTerm(term.id)}>
                             <div className={styles["term-item__info"]}>
-                              <div className={styles["term-item__meta"]}>
-                                <span className={styles["term-item__value"]}>{term.value}</span>
-                                {term.start_position !== null && (
-                                  <span className={styles["term-item__position"]}>
-                                    [{term.start_position}-{term.end_position}]
-                                  </span>
-                                )}
-                                <Button variant="ghost" size="small" onClick={() => scrollToTerm(term.id)}>
-                                  View
-                                </Button>
-                              </div>
+                              <span className={styles["term-item__value"]}>{term.value}</span>
                               <span
                                 className={classNames(
                                   styles["term-item__label"],
@@ -610,6 +600,25 @@ const DatasetTermExtraction: React.FC = () => {
                               >
                                 {term.label}
                               </span>
+                              <span className={styles["term-item__date"]}>
+                                {term.linked_visit_date
+                                  ? new Date(term.linked_visit_date).toLocaleDateString("en-GB", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  })
+                                  : "No date"}
+                              </span>
+                              {term.linked_date_term_id &&
+                                (() => {
+                                  const dateTerm = selectedRecordTerms.find((t) => t.id === term.linked_date_term_id);
+                                  if (!dateTerm) return null;
+                                  return (
+                                    <span className={styles["annotation-item__date-id"]}>
+                                      ↳ linked to {dateTerm.value}
+                                    </span>
+                                  );
+                                })()}
                             </div>
                           </div>
                         ))}

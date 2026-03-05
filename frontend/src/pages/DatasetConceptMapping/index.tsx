@@ -76,7 +76,7 @@ export default function DatasetConceptMapping() {
     message: string;
     onConfirm: () => void;
     variant?: "danger" | "warning" | "info";
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => { } });
 
   usePageTitle(datasetName ? `Concept Mapping - ${datasetName}` : "Concept Mapping");
 
@@ -457,14 +457,14 @@ export default function DatasetConceptMapping() {
           datasetId={datasetId!}
           datasetName={datasetName}
           backButton={{
-            label: "Back to Clustering",
+            label: "Back to Term Clustering",
             to: `/datasets/${datasetId}/clusters`,
-            title: "Back to Clustering",
+            title: "Back to Term Clustering",
           }}
           forwardButton={{
-            label: "Overview",
+            label: "Back to Dataset Overview",
             to: `/datasets/${datasetId}`,
-            title: "Go to Overview",
+            title: "Go to Dataset Overview",
           }}
           helpContent={
             <>
