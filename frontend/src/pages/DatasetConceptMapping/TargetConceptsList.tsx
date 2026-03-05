@@ -49,7 +49,7 @@ const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
       {
         key: "concept_id",
         header: "Concept ID",
-        render: (result: ConceptSearchResult) => result.concept.id,
+        render: (result: ConceptSearchResult) => result.concept.vocab_term_id,
       },
       {
         key: "vocab_term_name",
