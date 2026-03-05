@@ -165,6 +165,7 @@ class DatasetCreate(BaseModel):
 
     name: str
     labels: List[str] = Field(default_factory=list)
+    date_label: Optional[str] = None
     records: List["RecordCreate"] = Field(default_factory=list)
 
 
@@ -181,6 +182,7 @@ class DatasetResponse(BaseModel):
     uploaded: datetime
     last_modified: datetime
     labels: List[str]
+    date_label: Optional[str] = None
     status: ProcessingStatus
     error_message: Optional[str] = None
     record_count: int
@@ -243,7 +245,7 @@ class RecordCreate(BaseModel):
 
     patient_id: str
     seq_number: Optional[str] = None
-    date: Optional[datetime] = None
+    visit_date: Optional[datetime] = None
     text: str
 
 
@@ -253,7 +255,7 @@ class RecordResponse(BaseModel):
     id: int
     patient_id: str
     seq_number: Optional[str] = None
-    date: Optional[datetime] = None
+    visit_date: Optional[datetime] = None
     text: str
     uploaded: datetime
     dataset_id: int
@@ -368,6 +370,7 @@ class SourceTermUpdate(BaseModel):
     """Model for updating a source term."""
 
     label: Optional[str] = None
+    linked_visit_date: Optional[datetime] = None
 
 
 class SourceTermOutput(BaseModel):

@@ -23,7 +23,8 @@
     "classnames": "^2.5.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "date-fns": "^2.30.0"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.1",

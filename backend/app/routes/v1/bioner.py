@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from app.core.settings import settings
 from app.core.database import engine, get_session, User, Dataset
 from app.models_db import Record, SourceTerm, ExtractionJob
+from app.library.record_processing import link_dates_for_record
 from app.schemas import (
     MessageOutput,
     ExtractionJobStartResponse,
@@ -123,6 +124,8 @@ def extract_entities_from_record(
 
     if new_terms:
         db.add_all(new_terms)
+        db.flush()
+        link_dates_for_record(db, record, dataset)
         db.commit()
 
     return MessageOutput(
@@ -373,6 +376,8 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
 
             if new_terms:
                 session.add_all(new_terms)
+                session.flush()
+                link_dates_for_record(session, record)
             job.completed += 1
             job.updated_at = datetime.now(timezone.utc)
             session.add(job)
