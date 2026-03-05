@@ -166,7 +166,7 @@ const DatasetUpload = () => {
                 <p className={styles["upload__dropzone-label"]}>Upload dataset file</p>
                 <FileDropzone
                   onFileSelect={handleFileSelect}
-                  accept=".csv"
+                  accept=".csv,.json"
                   maxSize={2 * 1024 * 1024 * 1024}
                   disabled={isUploading}
                 />
@@ -208,10 +208,11 @@ const DatasetUpload = () => {
                 comma-separated values.
               </p>
               <p>
-                <strong>Date label:</strong> (optional) Pick which label corresponds to dates so extracted terms can inherit
-                the right timestamp. Leave it blank to fall back to each record&rsquo;s visit_date or the upload time.
+                <strong>Date label:</strong> (optional) Pick which label corresponds to dates so extracted terms can
+                inherit the right timestamp. Leave it blank to fall back to each record&rsquo;s visit_date or the upload
+                time.
               </p>
-              <p>Maximum file size: 2GB. Supported format: .csv</p>
+              <p>Maximum file size: 2GB. Supported formats: .csv, .json</p>
             </div>
           </aside>
         </div>
