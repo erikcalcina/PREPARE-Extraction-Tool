@@ -1449,6 +1449,7 @@ def create_clusters_for_dataset(
         select(SourceTerm)
         .join(Record)
         .where(Record.dataset_id == dataset_id)
+        .where(Record.reviewed == True)  # noqa: E712
         .where(SourceTerm.label == label)
     ).all()
 
