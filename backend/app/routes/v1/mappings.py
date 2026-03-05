@@ -571,6 +571,8 @@ def export_mappings(
             "source_code_description",
             "target_concept_id",
             "target_vocabulary_id",
+            "mapping_type",
+            "primary_map",
             "valid_start_date",
             "valid_end_date",
             "invalid_reason",
@@ -599,8 +601,10 @@ def export_mappings(
                     source_term.value,
                     concept.vocab_term_id if concept else "",
                     vocabulary.name if vocabulary else "",
-                    concept.valid_start_date.strftime("%Y-%m-%d") if concept and concept.valid_start_date else "",
-                    concept.valid_end_date.strftime("%Y-%m-%d") if concept and concept.valid_end_date else "",
+                    cluster.label or "",
+                    "Y",
+                    concept.valid_start_date.strftime("%Y%m%d") if concept and concept.valid_start_date else "19700101",
+                    concept.valid_end_date.strftime("%Y%m%d") if concept and concept.valid_end_date else "20991231",
                     concept.invalid_reason if concept and concept.invalid_reason else "",
                 ]
             )
