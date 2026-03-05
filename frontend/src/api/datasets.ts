@@ -27,6 +27,9 @@ export async function createDataset(
     formData.append("name", data.name);
     formData.append("labels", data.labels);
     formData.append("file", data.file);
+    if (data.date_label) {
+      formData.append("date_label", data.date_label);
+    }
 
     const xhr = new XMLHttpRequest();
     xhr.timeout = 600_000; // 10 minutes

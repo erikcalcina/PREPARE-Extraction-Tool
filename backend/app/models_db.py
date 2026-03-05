@@ -74,6 +74,7 @@ class Dataset(SQLModel, table=True):
     last_modified: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # TODO: need to specify a structure for the labels
     labels: List[str] = Field(sa_column=Column(JSON))
+    date_label: Optional[str] = Field(default=None, nullable=True)
     status: ProcessingStatus = Field(
         default=ProcessingStatus.PROCESSING,
         index=True
@@ -107,7 +108,7 @@ class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_id: str
     seq_number: Optional[str] = Field(default=None)
-    date: Optional[datetime]
+    visit_date: Optional[datetime] = Field(default=None)
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed: bool = Field(default=False)
@@ -123,6 +124,28 @@ class Record(SQLModel, table=True):
         back_populates="record",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+
+    sentence_segments: list["SentenceSegment"] = Relationship(
+        back_populates="record",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class SentenceSegment(SQLModel, table=True):
+    """Normalized spans representing sentences or line segments within a record."""
+
+    __tablename__ = "sentence_segment"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    record_id: int = Field(
+        foreign_key="record.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    sequence_index: int = Field(default=0)
+    start_offset: int = Field(ge=0)
+    end_offset: int = Field(ge=0)
+
+    record: Optional["Record"] = Relationship(back_populates="sentence_segments")
+    source_terms: list["SourceTerm"] = Relationship(back_populates="sentence_segment")
 
 
 class SourceTerm(SQLModel, table=True):
@@ -158,6 +181,23 @@ class SourceTerm(SQLModel, table=True):
     # Relationship back to Record (many-to-one)
     record_id: int = Field(foreign_key="record.id", ondelete="CASCADE", nullable=False)
     record: Optional["Record"] = Relationship(back_populates="source_terms")
+
+    sentence_segment_id: Optional[int] = Field(
+        default=None,
+        foreign_key="sentence_segment.id",
+        nullable=True,
+        ondelete="SET NULL",
+    )
+    sentence_segment: Optional["SentenceSegment"] = Relationship(back_populates="source_terms")
+
+    linked_date_term_id: Optional[int] = Field(
+        default=None,
+        foreign_key="source_term.id",
+        nullable=True,
+        ondelete="SET NULL",
+    )
+    linked_visit_date: Optional[datetime] = Field(default=None)
+    manual_linked_visit_date: bool = Field(default=False)
 
     cluster_id: Optional[int] = Field(
         default=None,

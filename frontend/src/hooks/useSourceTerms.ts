@@ -25,9 +25,12 @@ export function useSourceTerms({
         throw new Error("No record selected");
       }
       const response = await createSourceTermAPI(datasetId, selectedRecordId, term);
-      setSelectedRecordTerms((prev) => [...prev, response.source_term]);
+      // After creating, re-fetch all source terms to get backend-calculated fields (like linked dates)
+      const refreshed = await import("@/api/sourceTerms").then(m => m.getRecordSourceTerms(datasetId, selectedRecordId, 500));
+      setSelectedRecordTerms(refreshed.source_terms);
       await fetchStats();
-      return response.source_term;
+      // Optionally, return the new term (find by value/label)
+      return refreshed.source_terms.find(t => t.value === response.source_term.value && t.label === response.source_term.label) ?? response.source_term;
     },
     [datasetId, selectedRecordId, setSelectedRecordTerms, fetchStats]
   );
@@ -35,10 +38,16 @@ export function useSourceTerms({
   const removeSourceTerm = useCallback(
     async (termId: number) => {
       await deleteSourceTermAPI(termId);
-      setSelectedRecordTerms((prev) => prev.filter((t) => t.id !== termId));
+      // After deleting, re-fetch all source terms to get backend-calculated fields (like linked dates)
+      if (selectedRecordId) {
+        const refreshed = await import("@/api/sourceTerms").then(m => m.getRecordSourceTerms(datasetId, selectedRecordId, 500));
+        setSelectedRecordTerms(refreshed.source_terms);
+      } else {
+        setSelectedRecordTerms((prev) => prev.filter((t) => t.id !== termId));
+      }
       await fetchStats();
     },
-    [setSelectedRecordTerms, fetchStats]
+    [datasetId, selectedRecordId, setSelectedRecordTerms, fetchStats]
   );
 
   const updateSourceTermLabel = useCallback(
@@ -50,9 +59,21 @@ export function useSourceTerms({
     [setSelectedRecordTerms]
   );
 
+  const updateSourceTermDate = useCallback(
+    async (termId: number, newDate: string | null) => {
+      // Send null to clear date, or YYYY-MM-DD string to set
+      const payload = { linked_visit_date: newDate } as any;
+      const response = await updateSourceTermAPI(termId, payload);
+      setSelectedRecordTerms((prev) => prev.map((t) => (t.id === termId ? response.source_term : t)));
+      return response.source_term;
+    },
+    [setSelectedRecordTerms]
+  );
+
   return {
     addSourceTerm,
     removeSourceTerm,
     updateSourceTermLabel,
+    updateSourceTermDate,
   };
 }

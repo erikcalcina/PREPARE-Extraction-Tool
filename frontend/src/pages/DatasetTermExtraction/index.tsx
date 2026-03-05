@@ -59,6 +59,7 @@ const DatasetTermExtraction: React.FC = () => {
     addSourceTerm,
     removeSourceTerm,
     updateSourceTermLabel,
+    updateSourceTermDate,
     extractTermsForDataset,
     cancelDatasetExtraction,
     deleteExtractedTermsForDataset,
@@ -190,6 +191,19 @@ const DatasetTermExtraction: React.FC = () => {
       }
     },
     [updateSourceTermLabel]
+  );
+
+  const handleUpdateAnnotationDate = useCallback(
+    async (termId: number, newDate: string) => {
+      try {
+        // newDate expected in YYYY-MM-DD or empty string
+        const payload = newDate === "" ? null : newDate;
+        await updateSourceTermDate(termId, payload);
+      } catch (err) {
+        console.error("Failed to update annotation date:", err);
+      }
+    },
+    [updateSourceTermDate]
   );
 
   // Navigation handlers for annotation sidebar
@@ -627,6 +641,7 @@ const DatasetTermExtraction: React.FC = () => {
           onCreateAnnotation={handleCreateAnnotation}
           onDeleteAnnotation={handleDeleteAnnotation}
           onUpdateAnnotationLabel={handleUpdateAnnotationLabel}
+          onUpdateAnnotationDate={handleUpdateAnnotationDate}
           onClose={handleCloseAnnotation}
           onPreviousRecord={handlePreviousRecord}
           onNextRecord={handleNextRecord}
