@@ -11,16 +11,16 @@ import { usePageTitle } from "@hooks/usePageTitle";
 import { useToast } from "@hooks/useToast";
 import * as api from "@/api";
 
-import ConceptDetailModal from "./ConceptDetailModal";
 import SourceTermsTable from "./SourceTermsTable";
 import SearchFiltersPanel from "./SearchFiltersPanel";
 import TargetConceptsList from "./TargetConceptsList";
 
-import type { ClusterMapping, Vocabulary, ConceptSearchResult, AutoMapRequest, PaginationMetadata } from "@/types";
-
-import styles from "./styles.module.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRightLong } from "@fortawesome/free-solid-svg-icons";
+
+import type { ClusterMapping, ConceptSearchResult, Vocabulary, AutoMapRequest, PaginationMetadata } from "@/types";
+
+import styles from "./styles.module.css";
 
 export default function DatasetConceptMapping() {
   const { datasetId } = useParams<{ datasetId: string }>();
@@ -64,11 +64,6 @@ export default function DatasetConceptMapping() {
   const [isMapping, setIsMapping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO: Wire up concept detail modal trigger from TargetConceptsList
-  const [selectedConcept, setSelectedConcept] = useState<ConceptSearchResult | null>(null);
-  const [showConceptModal, setShowConceptModal] = useState(false);
-  void setSelectedConcept;
-
   const toast = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -76,7 +71,7 @@ export default function DatasetConceptMapping() {
     message: string;
     onConfirm: () => void;
     variant?: "danger" | "warning" | "info";
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => { } });
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   usePageTitle(datasetName ? `Concept Mapping - ${datasetName}` : "Concept Mapping");
 
@@ -154,6 +149,11 @@ export default function DatasetConceptMapping() {
     }
   }, [datasetId, selectedLabel, labelsLoaded]);
 
+  // Sync comment field when selecting a different mapping
+  useEffect(() => {
+    setComment(selectedMapping?.comment ?? "");
+  }, [selectedMapping?.cluster_id]);
+
   // Reset view when label changes
   useEffect(() => {
     hasLoadedOnce.current = false;
@@ -168,34 +168,8 @@ export default function DatasetConceptMapping() {
     fetchMappings();
   }, [fetchMappings]);
 
-  // Auto-search when cluster is selected
-  useEffect(() => {
-    if (selectedMapping) {
-      handleAutoSearch();
-    }
-  }, [selectedMapping?.cluster_id, vocabularies]);
-
-  // Re-search when any filter or query mode changes
-  useEffect(() => {
-    if (!selectedMapping) return;
-    if (useSourceTerm) {
-      handleAutoSearch();
-    } else if (searchQuery) {
-      handleManualSearch(1);
-    }
-  }, [
-    useSourceTerm,
-    standardOnly,
-    domainFilter,
-    domainFilterEnabled,
-    conceptClassFilter,
-    conceptClassFilterEnabled,
-    vocabularyFilterEnabled,
-    selectedVocabularies,
-  ]);
-
   // Handle auto-search
-  const handleAutoSearch = async () => {
+  const handleAutoSearch = useCallback(async () => {
     if (!selectedMapping || !datasetId) return;
 
     // Use all vocabularies if filter is disabled, otherwise use selected
@@ -206,7 +180,7 @@ export default function DatasetConceptMapping() {
       setIsSearching(true);
       const request: AutoMapRequest = {
         vocabulary_ids: vocabIdsToUse,
-        use_cluster_terms: true,
+        use_cluster_terms: !includeSourceTerms,
         domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
         concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
         standard_concept: standardOnly ? "S" : undefined,
@@ -220,43 +194,87 @@ export default function DatasetConceptMapping() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [
+    selectedMapping,
+    datasetId,
+    vocabularyFilterEnabled,
+    selectedVocabularies,
+    vocabularies,
+    domainFilterEnabled,
+    domainFilter,
+    conceptClassFilterEnabled,
+    conceptClassFilter,
+    standardOnly,
+    includeSourceTerms,
+  ]);
 
   // Handle manual search
-  const handleManualSearch = async (page = 1) => {
-    if (!searchQuery) return;
+  const handleManualSearch = useCallback(
+    async (page = 1) => {
+      if (!searchQuery) return;
 
-    // Use all vocabularies if filter is disabled, otherwise use selected
-    const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
-    if (vocabIdsToUse.length === 0) return;
+      // Use all vocabularies if filter is disabled, otherwise use selected
+      const vocabIdsToUse = vocabularyFilterEnabled ? selectedVocabularies : vocabularies.map((v) => v.id);
+      if (vocabIdsToUse.length === 0) return;
 
-    const limit = 10;
-    const offset = (page - 1) * limit;
+      const limit = 10;
+      const offset = (page - 1) * limit;
 
-    try {
-      setIsSearching(true);
-      const results = await api.searchConcepts({
-        query: searchQuery,
-        vocabulary_ids: vocabIdsToUse,
-        domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
-        concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
-        standard_concept: standardOnly ? "S" : undefined,
-        search_type: "hybrid",
-        limit,
-        offset,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      });
+      try {
+        setIsSearching(true);
+        const results = await api.searchConcepts({
+          query: searchQuery,
+          vocabulary_ids: vocabIdsToUse,
+          domain_id: domainFilterEnabled && domainFilter ? domainFilter : undefined,
+          concept_class_id: conceptClassFilterEnabled && conceptClassFilter ? conceptClassFilter : undefined,
+          standard_concept: standardOnly ? "S" : undefined,
+          search_type: "hybrid",
+          limit,
+          offset,
+          sort_by: sortBy,
+          sort_order: sortOrder,
+        });
 
-      setSearchResults(results.results);
-      setSearchPagination(results.pagination || null);
-      setSearchPage(page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
-    } finally {
-      setIsSearching(false);
+        setSearchResults(results.results);
+        setSearchPagination(results.pagination || null);
+        setSearchPage(page);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [
+      searchQuery,
+      vocabularyFilterEnabled,
+      selectedVocabularies,
+      vocabularies,
+      domainFilterEnabled,
+      domainFilter,
+      conceptClassFilterEnabled,
+      conceptClassFilter,
+      standardOnly,
+      sortBy,
+      sortOrder,
+    ]
+  );
+
+  // Auto-search when cluster is selected
+  useEffect(() => {
+    if (selectedMapping) {
+      handleAutoSearch();
     }
-  };
+  }, [selectedMapping?.cluster_id, handleAutoSearch]);
+
+  // Re-search when any filter or query mode changes
+  useEffect(() => {
+    if (!selectedMapping) return;
+    if (useSourceTerm) {
+      handleAutoSearch();
+    } else if (searchQuery) {
+      handleManualSearch(1);
+    }
+  }, [selectedMapping, useSourceTerm, handleAutoSearch, handleManualSearch, searchQuery]);
 
   // Handle search (triggered by Enter key or search button)
   const handleSearch = () => {
@@ -275,15 +293,11 @@ export default function DatasetConceptMapping() {
     }
   };
 
-  // Handle sort change
+  // Handle sort change — re-search triggers automatically via handleManualSearch dep on sortBy/sortOrder
   const handleSortChange = (newSortBy: "relevance" | "name" | "domain") => {
     const newOrder = sortBy === newSortBy && sortOrder === "desc" ? "asc" : "desc";
     setSortBy(newSortBy);
     setSortOrder(newOrder);
-    // Re-search with new sort
-    if (!useSourceTerm && searchQuery) {
-      handleManualSearch(1);
-    }
   };
 
   // Handle map cluster to concept
@@ -292,9 +306,14 @@ export default function DatasetConceptMapping() {
 
     try {
       setIsMapping(true);
-      await api.mapClusterToConcept(parseInt(datasetId), selectedMapping.cluster_id, { concept_id: conceptId, status });
+      await api.mapClusterToConcept(parseInt(datasetId), selectedMapping.cluster_id, {
+        concept_id: conceptId,
+        status,
+        comment: comment || undefined,
+      });
       const freshMappings = await fetchMappings();
       toast.success(status === "approved" ? "Mapping approved" : "Concept mapped successfully");
+      setComment("");
 
       const updated = freshMappings.find((m) => m.cluster_id === selectedMapping.cluster_id);
       if (updated) {
@@ -651,18 +670,6 @@ export default function DatasetConceptMapping() {
             />
           </div>
         </div>
-
-        {/* Concept Detail Modal */}
-        {showConceptModal && selectedConcept && (
-          <ConceptDetailModal
-            conceptId={selectedConcept.concept.id}
-            onClose={() => setShowConceptModal(false)}
-            onMap={() => {
-              handleMapConcept(selectedConcept.concept.id);
-              setShowConceptModal(false);
-            }}
-          />
-        )}
 
         {/* Toast notifications */}
         <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
