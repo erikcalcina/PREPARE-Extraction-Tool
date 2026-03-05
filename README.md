@@ -62,7 +62,7 @@ The frontend is built with **TypeScript** and **React 19** using:
 
 ### Using Docker (Recommended)
 
-This is the easiest way to run the full stack.
+This is the easiest way to run the full stack. Open a terminal in the project root and follow the steps below.
 
 1. **Clone the repository:**
 
