@@ -382,5 +382,6 @@ class SourceToConceptMap(SQLModel, table=True):
     status: str = Field(
         default="pending", index=True
     )  # 'pending', 'approved', 'rejected'
+    comment: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

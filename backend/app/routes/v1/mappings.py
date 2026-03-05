@@ -117,6 +117,7 @@ def get_dataset_mappings(
                 vocabulary_id=vocabulary.id if vocabulary else None,
                 vocabulary_name=vocabulary.name if vocabulary else None,
                 status=mapping_entry.status,
+                comment=mapping_entry.comment,
                 created_at=mapping_entry.created_at,
                 updated_at=mapping_entry.updated_at,
             )
@@ -273,6 +274,7 @@ def map_cluster_to_concept(
         # Update existing mapping
         existing_mapping.concept_id = request.concept_id
         existing_mapping.status = request.status
+        existing_mapping.comment = request.comment
         existing_mapping.updated_at = datetime.now(timezone.utc)
         db.add(existing_mapping)
     else:
@@ -281,6 +283,7 @@ def map_cluster_to_concept(
             cluster_id=cluster_id,
             concept_id=request.concept_id,
             status=request.status,
+            comment=request.comment,
         )
         db.add(new_mapping)
 
