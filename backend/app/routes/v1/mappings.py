@@ -579,6 +579,8 @@ def export_mappings(
         ]
     )
 
+    seen = set()
+
     for cluster in clusters:
         if not cluster.mapping:
             continue
@@ -593,6 +595,10 @@ def export_mappings(
 
         # One row per source term in the cluster
         for source_term in cluster.source_terms:
+            key = (source_term.value, cluster.label or "")
+            if key in seen:
+                continue
+            seen.add(key)
             writer.writerow(
                 [
                     source_term.value,
