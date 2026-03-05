@@ -10,38 +10,9 @@ import AnnotatableText from "./AnnotatableText";
 
 import type { SourceTerm, SourceTermCreate } from "@/types";
 
-import { parse, isValid, format } from "date-fns";
+import { format } from "date-fns";
+import { tryParseWithDateFns } from "@/utils/dateUtils";
 import styles from "./styles.module.css";
-
-function tryParseWithDateFns(input: string): Date | null {
-  const s = input.trim();
-  if (!s) return null;
-
-  const formats = [
-    "yyyy-MM-dd",
-    "yyyy/MM/dd",
-    "dd/MM/yyyy",
-    "d/M/yyyy",
-    "dd-MM-yyyy",
-    "d-M-yy",
-    "d-M-yyyy",
-    "ddMMyyyy",
-    "ddMMyy",
-    "yyyyMMdd",
-    "d/M/yy",
-  ];
-
-  for (const fmt of formats) {
-    try {
-      const parsed = parse(s, fmt, new Date());
-      if (isValid(parsed)) return parsed;
-    } catch (e) {
-      // ignore and try next format
-    }
-  }
-
-  return null;
-}
 export interface AnnotationSidebarProps {
   isOpen: boolean;
   text: string;
@@ -353,7 +324,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                     }
                   >
                     <div className={styles["annotation-item__content"]}>
-                      <span className={styles["annotation-item__value"]}>"{annotation.value}"</span>
+                      <span className={styles["annotation-item__value"]}>{annotation.value}</span>
                       <span
                         className={classNames(
                           styles["annotation-item__label"],
@@ -407,21 +378,19 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                             }}
                           />
                           {editingDateError ? (
-                            <span style={{ color: "#c92a2a", fontSize: "0.85em", marginLeft: 8 }}>
-                              {editingDateError}
-                            </span>
+                            <span className={styles["annotation-item__date-error"]}>{editingDateError}</span>
                           ) : null}
                         </>
                       ) : (
-                        annotation.linked_visit_date && (
-                          <span className={styles["annotation-item__date"]}>
-                            {new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {
+                        <span className={styles["annotation-item__date"]}>
+                          {annotation.linked_visit_date ? (
+                            new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {
                               day: "2-digit",
                               month: "2-digit",
                               year: "numeric",
-                            })}
-                          </span>
-                        )
+                            })) : ("No date")
+                          }
+                        </span>
                       )}
                       {annotation.linked_date_term_id &&
                         (() => {
@@ -462,7 +431,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
           </div>
         </div>
       </div>
-    </Sidebar>
+    </Sidebar >
   );
 };
 
