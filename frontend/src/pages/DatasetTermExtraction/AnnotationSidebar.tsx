@@ -3,16 +3,18 @@ import classNames from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight, faCheck } from "@fortawesome/free-solid-svg-icons";
 
-import Sidebar from "@/components/Sidebar";
-import Button from "@/components/Button";
+import { format } from "date-fns";
+
+import Sidebar from "@components/Sidebar";
+import Button from "@components/Button";
 import { getLabelColorClass } from "@/utils/labelColors";
+import { tryParseWithDateFns } from "@/utils/dateUtils";
 import AnnotatableText from "./AnnotatableText";
 
 import type { SourceTerm, SourceTermCreate } from "@/types";
 
-import { format } from "date-fns";
-import { tryParseWithDateFns } from "@/utils/dateUtils";
 import styles from "./styles.module.css";
+
 export interface AnnotationSidebarProps {
   isOpen: boolean;
   text: string;
@@ -47,7 +49,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
   onSelectAnnotation,
   onCreateAnnotation,
   onDeleteAnnotation,
-  onUpdateAnnotationLabel,
+  onUpdateAnnotationLabel: _onUpdateAnnotationLabel,
   onUpdateAnnotationDate,
   onClose,
   onPreviousRecord,
@@ -64,7 +66,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
       if (selectedAnnotation !== null) return;
       onSelectLabel(label);
     },
-    [selectedAnnotation, onUpdateAnnotationLabel, onSelectLabel]
+    [selectedAnnotation, onSelectLabel]
   );
 
   // Local editing state for the date input so typing isn't immediately overwritten
