@@ -64,6 +64,8 @@ The frontend is built with **TypeScript** and **React 19** using:
 
 This is the easiest way to run the full stack. Open a terminal in the project root and follow the steps below.
 
+#### First Time Setup
+
 1. **Clone the repository:**
 
     ```bash
@@ -92,7 +94,7 @@ This is the easiest way to run the full stack. Open a terminal in the project ro
     docker-compose up -d
     ```
     
-4. **Apply database migrations (first time only):**
+4. **Apply database migrations:**
 
     ```bash
     docker compose exec backend alembic upgrade head
@@ -104,3 +106,13 @@ This is the easiest way to run the full stack. Open a terminal in the project ro
     - Backend API: http://localhost:8000 (configured via `BACKEND_HOST`)
     - API Documentation: http://localhost:8000/docs
     - Database Admin: http://localhost:8080
+
+#### Every Time After That
+
+If your containers are still running (e.g. you haven't restarted your computer), just open http://localhost:3000 in your browser — nothing else needed.
+
+If you restarted your computer or stopped Docker, simply run:
+```bash
+docker-compose up -d
+```
+Then open http://localhost:3000.
