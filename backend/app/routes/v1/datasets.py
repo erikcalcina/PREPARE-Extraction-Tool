@@ -1121,6 +1121,7 @@ def get_clusters_of_dataset(
         select(SourceTerm)
         .join(Record)
         .where(Record.dataset_id == dataset_id)
+        .where(Record.reviewed == True)
         .where(SourceTerm.cluster_id == None)
     )
     if label:
