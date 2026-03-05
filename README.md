@@ -92,11 +92,11 @@ This is the easiest way to run the full stack.
     docker-compose up -d
     ```
     
-**4. Apply database migrations (first time only):**
+4. **Apply database migrations (first time only):**
 
-```bash
-docker compose exec backend alembic upgrade head
-```
+    ```bash
+    docker compose exec backend alembic upgrade head
+    ```
 
 5. **Access the application** by opening http://localhost:3000 in your browser (using default host values):
 
