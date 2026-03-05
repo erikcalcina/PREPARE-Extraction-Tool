@@ -347,6 +347,7 @@ export interface ClusterMapping {
   vocabulary_id: number | null;
   vocabulary_name: string | null;
   status: "unmapped" | "pending" | "approved" | "rejected";
+  comment: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -400,6 +401,7 @@ export interface AutoMapRequest {
 export interface MapClusterRequest {
   concept_id: number;
   status?: "pending" | "approved" | "rejected";
+  comment?: string;
 }
 
 export interface AutoMapAllRequest {
