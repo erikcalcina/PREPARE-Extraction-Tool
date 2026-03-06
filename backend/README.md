@@ -121,7 +121,7 @@ To start the app in development mode, run the following command in the terminal:
 fastapi dev ./app/main.py --port 8000
 ```
 
-This will start the app and listen it on port 8000.
+The app will be available at **http://localhost:8000** by default.
 
 ### API Docs
 
@@ -145,6 +145,8 @@ or, alternatively,
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+> For a full production setup, use Docker instead — see the root [README.md](../README.md).
 
 ## 🐳 Dockerize
 
