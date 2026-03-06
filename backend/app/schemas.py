@@ -285,7 +285,6 @@ class VocabularyCreate(BaseModel):
     """Model for creating a new vocabulary with concepts."""
 
     name: str
-    version: str
     concepts: List["ConceptCreate"] = Field(default_factory=list)
 
 class VocabularyUploadResponse(BaseModel):
@@ -544,6 +543,7 @@ class ClusterMappingResponse(BaseModel):
     vocabulary_id: Optional[int] = None
     vocabulary_name: Optional[str] = None
     status: str = "unmapped"  # 'unmapped', 'pending', 'approved', 'rejected'
+    comment: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -574,6 +574,7 @@ class MapClusterRequest(BaseModel):
 
     concept_id: int
     status: str = "pending"  # 'pending', 'approved', 'rejected'
+    comment: Optional[str] = None
 
 
 class AutoMapAllRequest(BaseModel):

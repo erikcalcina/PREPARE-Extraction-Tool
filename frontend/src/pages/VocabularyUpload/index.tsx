@@ -21,7 +21,6 @@ const VocabularyUpload = () => {
 
   const [file, setFile] = useState<File | null>(null);
   const [vocabularyName, setVocabularyName] = useState("");
-  const [version] = useState("1.0");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +54,6 @@ const VocabularyUpload = () => {
       return;
     }
 
-    if (!version.trim()) {
-      setError("Please enter a version");
-      return;
-    }
-
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
@@ -69,7 +63,6 @@ const VocabularyUpload = () => {
       await addVocabulary(
         {
           name: vocabularyName.trim(),
-          version: version.trim(),
           file: file,
         },
         (progress) => {

@@ -1,3 +1,4 @@
+import os
 from uuid import uuid4
 
 from fastapi import (
@@ -12,6 +13,7 @@ from fastapi import (
 from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
+from app.core.settings import settings
 from app.library.file_parser import parse_concepts_file
 from app.models_db import ProcessingStatus
 from app.routes.v1.auth import get_current_user
@@ -141,11 +143,12 @@ def get_vocabularies(
     db: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
 ):
-    # Get total count
+    # Get total count (exclude DELETED)
     total = db.exec(
         select(func.count())
         .select_from(Vocabulary)
         .where(Vocabulary.user_id == current_user.id)
+        .where(Vocabulary.status != ProcessingStatus.DELETED)
     ).one()
 
     # Subquery: only count concepts for this user's vocabularies
@@ -168,6 +171,7 @@ def get_vocabularies(
             Vocabulary.id == concept_counts_subquery.c.vocabulary_id,
         )
         .where(Vocabulary.user_id == current_user.id)
+        .where(Vocabulary.status != ProcessingStatus.DELETED)
         .order_by(Vocabulary.id)
         .offset(pagination.offset)
         .limit(pagination.limit)
@@ -213,8 +217,16 @@ async def create_vocabulary(
             detail="Unsupported file type.",
         )
 
+    # Reject obviously oversized uploads via Content-Length header
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if file.size and file.size > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB} MB.",
+        )
+
     # save file to disk
-    file_path = await save_upload_to_disk(file)
+    file_path = await save_upload_to_disk(file, ".csv")
 
     # start background ingestion
     background_tasks.add_task(ingest_vocabulary_background, file_path, current_user.id)
@@ -226,12 +238,21 @@ async def create_vocabulary(
     return vocabulary_response
 
 
-async def save_upload_to_disk(file: UploadFile) -> str:
-    path = f"/tmp/{uuid4()}.csv"
+async def save_upload_to_disk(file: UploadFile, suffix: str) -> str:
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    path = f"/tmp/{uuid4()}{suffix}"
+    total = 0
 
     with open(path, "wb") as out:
         # read 1 MB at a time
         while chunk := await file.read(1024 * 1024):
+            total += len(chunk)
+            if total > max_bytes:
+                os.unlink(path)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB} MB.",
+                )
             out.write(chunk)
 
     return path

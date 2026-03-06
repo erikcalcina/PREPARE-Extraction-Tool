@@ -1,6 +1,7 @@
 import type {
   DatasetsOutput,
   DatasetOutput,
+  DatasetUploadResponse,
   DatasetCreate,
   DatasetStats,
   DatasetOverviewOutput,
@@ -20,7 +21,7 @@ export async function getDataset(id: number): Promise<DatasetOutput> {
 export async function createDataset(
   data: DatasetCreate,
   onProgress?: (progress: number) => void
-): Promise<DatasetOutput> {
+): Promise<DatasetUploadResponse> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("name", data.name);
@@ -31,6 +32,11 @@ export async function createDataset(
     }
 
     const xhr = new XMLHttpRequest();
+    xhr.timeout = 600_000; // 10 minutes
+
+    xhr.addEventListener("timeout", () => {
+      reject(new Error("Upload timed out — please check your connection and try again"));
+    });
 
     // Track upload progress
     xhr.upload.addEventListener("progress", (e) => {

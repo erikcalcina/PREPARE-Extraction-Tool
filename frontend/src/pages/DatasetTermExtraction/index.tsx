@@ -1,26 +1,28 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import classNames from "classnames";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
 
-import Layout from "@/components/Layout";
-import Button from "@/components/Button";
-import StatCard from "@/components/StatCard";
-import WorkflowPageHeader from "@/components/WorkflowPageHeader";
+import Layout from "@components/Layout";
+import Button from "@components/Button";
+import StatCard from "@components/StatCard";
+import ConfirmDialog from "@components/ConfirmDialog";
+import { ToastContainer } from "@components/Toast/ToastContainer";
+import ProgressBar from "@components/ProgressBar";
+import WorkflowPageHeader from "@components/WorkflowPageHeader";
 import { useRecords } from "@/hooks/useRecords";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useToast } from "@/hooks/useToast";
 import { getLabelColorClass } from "@/utils/labelColors";
+import { downloadDataset as downloadDatasetAPI } from "@/api";
 import HighlightedText from "./HighlightedText";
 import RecordItem from "./RecordItem";
 import AnnotationSidebar from "./AnnotationSidebar";
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck } from "@fortawesome/free-solid-svg-icons";
-
 import type { SourceTermCreate } from "@/types";
 
 import styles from "./styles.module.css";
-import ProgressBar from "@/components/ProgressBar";
-import { downloadDataset as downloadDatasetAPI } from "@/api";
 
 const DatasetTermExtraction: React.FC = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
@@ -36,6 +38,15 @@ const DatasetTermExtraction: React.FC = () => {
 
   // Focused term state (for scrolling to terms)
   const [focusedTermId, setFocusedTermId] = useState<number | null>(null);
+
+  const toast = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: "danger" | "warning" | "info";
+  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   const parsedDatasetId = datasetId ? parseInt(datasetId, 10) : 0;
 
@@ -232,15 +243,6 @@ const DatasetTermExtraction: React.FC = () => {
     }
   }, [selectedRecord, records, selectRecord, hasMore, loadMoreRecords]);
 
-  const handleMarkReviewedInSidebar = useCallback(async () => {
-    if (!selectedRecord) return;
-    try {
-      await markRecordReviewed(selectedRecord.id, !selectedRecord.reviewed);
-    } catch (err) {
-      console.error("Failed to update review status:", err);
-    }
-  }, [selectedRecord, markRecordReviewed]);
-
   // Compute navigation availability
   const currentRecordIndex = useMemo(() => {
     if (!selectedRecord || records.length === 0) return -1;
@@ -269,7 +271,7 @@ const DatasetTermExtraction: React.FC = () => {
 
   // Scroll to a term in the text
   const scrollToTerm = useCallback((termId: number) => {
-    const termElement = document.querySelector(`[data-term-id="${termId}"]`);
+    const termElement = document.querySelector(`[data-term-id="${CSS.escape(String(termId))}"]`);
     if (termElement) {
       termElement.scrollIntoView({ behavior: "smooth", block: "center" });
       setFocusedTermId(termId);
@@ -278,49 +280,55 @@ const DatasetTermExtraction: React.FC = () => {
     }
   }, []);
 
-  const handleExtractTermsForDataset = useCallback(async () => {
+  const handleExtractTermsForDataset = useCallback(() => {
     if (!stats?.total_records) return;
 
-    const confirmed = window.confirm(
-      `This will extract terms from all ${stats.total_records} record${stats.total_records !== 1 ? "s" : ""} in the dataset. This may take several minutes. Continue?`
-    );
+    setConfirmDialog({
+      isOpen: true,
+      title: "Extract Terms",
+      message: `This will extract terms from all ${stats.total_records} record${stats.total_records !== 1 ? "s" : ""} in the dataset. This may take several minutes. Continue?`,
+      variant: "warning",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          const result = await extractTermsForDataset();
+          if (result.status === "cancelled") {
+            toast.warning("Extraction was cancelled by the user");
+          } else {
+            toast.success("Terms extracted successfully for all records");
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Failed to extract terms");
+        }
+      },
+    });
+  }, [stats, extractTermsForDataset, toast]);
 
-    if (!confirmed) return;
-
-    try {
-      const result = await extractTermsForDataset();
-      if (result.status === "cancelled") {
-        alert("Extraction was cancelled by the user");
-      } else {
-        alert("Terms extracted successfully for all records");
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to extract terms";
-      alert(`Error: ${errorMessage}`);
-    }
-  }, [stats, extractTermsForDataset]);
-
-  const handleDeleteExtractedTerms = useCallback(async () => {
-    const confirmed = window.confirm("This will delete all automatically extracted terms in this dataset. Continue?");
-    if (!confirmed) return;
-
-    try {
-      const res = await deleteExtractedTermsForDataset();
-      alert(res.message || "Deleted extracted terms");
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete extracted terms";
-      alert(`Error: ${errorMessage}`);
-    }
-  }, [deleteExtractedTermsForDataset]);
+  const handleDeleteExtractedTerms = useCallback(() => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Extracted Terms",
+      message: "This will delete all automatically extracted terms in this dataset. Continue?",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          const res = await deleteExtractedTermsForDataset();
+          toast.success(res.message || "Deleted extracted terms");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Failed to delete extracted terms");
+        }
+      },
+    });
+  }, [deleteExtractedTermsForDataset, toast]);
 
   const handleTermDownload = useCallback(async () => {
     try {
       await downloadDatasetAPI(parsedDatasetId, "gliner");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to download GLiNER file";
-      alert(`Error: ${errorMessage}`);
+      toast.error(err instanceof Error ? err.message : "Failed to download GLiNER file");
     }
-  }, [parsedDatasetId]);
+  }, [parsedDatasetId, toast]);
 
   if (!parsedDatasetId) {
     return (
@@ -333,7 +341,7 @@ const DatasetTermExtraction: React.FC = () => {
   }
 
   const totalRecords = stats?.total_records ?? 0;
-  const reviewedRecords = records.filter((r) => r.reviewed).length;
+  const reviewedRecords = totalRecords - (stats?.pending_review_count ?? totalRecords);
 
   const reviewedPercentage = totalRecords > 0 ? `${((reviewedRecords / totalRecords) * 100).toFixed(1)}%` : "0.0%";
 
@@ -351,7 +359,7 @@ const DatasetTermExtraction: React.FC = () => {
             title: "Back to Dataset Overview",
           }}
           forwardButton={{
-            label: "Clustering",
+            label: "Go to Term Clustering",
             to: `/datasets/${datasetId}/clusters`,
             title: "Go to Term Clustering",
           }}
@@ -589,19 +597,9 @@ const DatasetTermExtraction: React.FC = () => {
                     ) : (
                       <div className={styles["terms-list"]}>
                         {selectedRecordTerms.map((term) => (
-                          <div key={term.id} className={styles["term-item"]}>
+                          <div key={term.id} className={styles["term-item"]} onClick={() => scrollToTerm(term.id)}>
                             <div className={styles["term-item__info"]}>
-                              <div className={styles["term-item__meta"]}>
-                                <span className={styles["term-item__value"]}>{term.value}</span>
-                                {term.start_position !== null && (
-                                  <span className={styles["term-item__position"]}>
-                                    [{term.start_position}-{term.end_position}]
-                                  </span>
-                                )}
-                                <Button variant="ghost" size="small" onClick={() => scrollToTerm(term.id)}>
-                                  View
-                                </Button>
-                              </div>
+                              <span className={styles["term-item__value"]}>{term.value}</span>
                               <span
                                 className={classNames(
                                   styles["term-item__label"],
@@ -610,6 +608,25 @@ const DatasetTermExtraction: React.FC = () => {
                               >
                                 {term.label}
                               </span>
+                              <span className={styles["term-item__date"]}>
+                                {term.linked_visit_date
+                                  ? new Date(term.linked_visit_date).toLocaleDateString("en-GB", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      year: "numeric",
+                                    })
+                                  : "No date"}
+                              </span>
+                              {term.linked_date_term_id &&
+                                (() => {
+                                  const dateTerm = selectedRecordTerms.find((t) => t.id === term.linked_date_term_id);
+                                  if (!dateTerm) return null;
+                                  return (
+                                    <span className={styles["annotation-item__date-id"]}>
+                                      ↳ linked to {dateTerm.value}
+                                    </span>
+                                  );
+                                })()}
                             </div>
                           </div>
                         ))}
@@ -647,9 +664,22 @@ const DatasetTermExtraction: React.FC = () => {
           onNextRecord={handleNextRecord}
           hasPreviousRecord={hasPreviousRecord}
           hasNextRecord={hasNextRecord}
-          onMarkReviewed={handleMarkReviewedInSidebar}
+          onMarkReviewed={handleMarkReviewed}
           isReviewed={selectedRecord?.reviewed ?? false}
           readOnly={selectedRecord?.reviewed ?? false}
+        />
+
+        {/* Toast notifications */}
+        <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
+
+        {/* Confirm dialog */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
         />
       </div>
     </Layout>

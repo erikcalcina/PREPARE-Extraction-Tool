@@ -1,6 +1,7 @@
 import type {
   VocabulariesOutput,
   VocabularyOutput,
+  VocabularyUploadResponse,
   VocabularyCreate,
   MessageOutput,
   ConceptsOutput,
@@ -20,14 +21,18 @@ export async function getVocabulary(id: number): Promise<VocabularyOutput> {
 export async function createVocabulary(
   data: VocabularyCreate,
   onProgress?: (progress: number) => void
-): Promise<VocabularyOutput> {
+): Promise<VocabularyUploadResponse> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("name", data.name);
-    formData.append("version", data.version);
     formData.append("file", data.file);
 
     const xhr = new XMLHttpRequest();
+    xhr.timeout = 600_000; // 10 minutes
+
+    xhr.addEventListener("timeout", () => {
+      reject(new Error("Upload timed out — please check your connection and try again"));
+    });
 
     // Track upload progress
     xhr.upload.addEventListener("progress", (e) => {

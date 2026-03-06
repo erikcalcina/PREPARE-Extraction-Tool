@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
-from typing import List, Optional, Dict
+from typing import List, Dict
 from datetime import datetime, timezone
 import math
 

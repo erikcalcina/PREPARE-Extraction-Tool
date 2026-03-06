@@ -35,10 +35,10 @@ def extract_entities(
         )
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
+    except requests.RequestException:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Extract service unavailable",
+            detail="Extract service unavailable",
         )
 
 
@@ -87,10 +87,10 @@ def extract_entities_from_record(
         )
         response.raise_for_status()
         entities = response.json()
-    except requests.RequestException as e:
+    except requests.RequestException:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Extraction service unavailable",
+            detail="Extraction service unavailable",
         )
 
     existing_keys = {

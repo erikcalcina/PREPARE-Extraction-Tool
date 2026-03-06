@@ -77,8 +77,9 @@ def get_dataset_mappings(
         raise HTTPException(status_code=404, detail="Dataset not found")
     verify_dataset_ownership(dataset, current_user.id)
 
-    # Build cluster query
+    # Build cluster query - only include reviewed clusters
     cluster_query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    cluster_query = cluster_query.where(Cluster.reviewed == True)
     if label:
         cluster_query = cluster_query.where(Cluster.label == label)
 
@@ -116,6 +117,7 @@ def get_dataset_mappings(
                 vocabulary_id=vocabulary.id if vocabulary else None,
                 vocabulary_name=vocabulary.name if vocabulary else None,
                 status=mapping_entry.status,
+                comment=mapping_entry.comment,
                 created_at=mapping_entry.created_at,
                 updated_at=mapping_entry.updated_at,
             )
@@ -168,6 +170,12 @@ def auto_map_cluster(
     cluster = db.get(Cluster, cluster_id)
     if not cluster or cluster.dataset_id != dataset_id:
         raise HTTPException(status_code=404, detail="Cluster not found")
+
+    if not cluster.reviewed:
+        raise HTTPException(
+            status_code=400,
+            detail="Cluster must be reviewed before mapping",
+        )
 
     # Build search query from cluster title and optionally top terms
     search_text = cluster.title
@@ -246,6 +254,12 @@ def map_cluster_to_concept(
     if not cluster or cluster.dataset_id != dataset_id:
         raise HTTPException(status_code=404, detail="Cluster not found")
 
+    if not cluster.reviewed:
+        raise HTTPException(
+            status_code=400,
+            detail="Cluster must be reviewed before mapping",
+        )
+
     # Get concept
     concept = db.get(Concept, request.concept_id)
     if not concept:
@@ -260,6 +274,7 @@ def map_cluster_to_concept(
         # Update existing mapping
         existing_mapping.concept_id = request.concept_id
         existing_mapping.status = request.status
+        existing_mapping.comment = request.comment
         existing_mapping.updated_at = datetime.now(timezone.utc)
         db.add(existing_mapping)
     else:
@@ -268,6 +283,7 @@ def map_cluster_to_concept(
             cluster_id=cluster_id,
             concept_id=request.concept_id,
             status=request.status,
+            comment=request.comment,
         )
         db.add(new_mapping)
 
@@ -335,8 +351,9 @@ def auto_map_all_clusters(
         raise HTTPException(status_code=404, detail="Dataset not found")
     verify_dataset_ownership(dataset, current_user.id)
 
-    # Get all unmapped clusters
+    # Get all unmapped reviewed clusters
     cluster_query = select(Cluster).where(Cluster.dataset_id == dataset_id)
+    cluster_query = cluster_query.where(Cluster.reviewed == True)
     if request.label:
         cluster_query = cluster_query.where(Cluster.label == request.label)
 
@@ -523,7 +540,7 @@ def get_concept_hierarchy(
     response_class=StreamingResponse,
     status_code=status.HTTP_200_OK,
     summary="Export mappings",
-    description="Export cluster-to-concept mappings as CSV",
+    description="Export mappings as OMOP SOURCE_TO_CONCEPT_MAP CSV",
 )
 def export_mappings(
     dataset_id: int,
@@ -531,64 +548,75 @@ def export_mappings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    """Export mappings to CSV format."""
-    # Verify dataset ownership
+    """Export mappings in OMOP SOURCE_TO_CONCEPT_MAP format.
+
+    One row per source term. Each source term in a mapped cluster
+    gets its own row pointing to the cluster's mapped concept.
+    """
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     verify_dataset_ownership(dataset, current_user.id)
 
-    # Get all clusters with mappings
-    clusters = db.exec(select(Cluster).where(Cluster.dataset_id == dataset_id)).all()
+    clusters = db.exec(
+        select(Cluster).where(Cluster.dataset_id == dataset_id)
+    ).all()
 
-    # Build CSV
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Write header
+    # OMOP SOURCE_TO_CONCEPT_MAP columns
     writer.writerow(
         [
             "source_code",
-            "source_name",
-            "source_vocabulary",
+            "source_concept_id",
+            "source_vocabulary_id",
+            "source_code_description",
             "target_concept_id",
-            "target_concept_code",
-            "target_concept_name",
             "target_vocabulary_id",
-            "target_vocabulary_name",
             "mapping_type",
-            "status",
+            "primary_map",
+            "valid_start_date",
+            "valid_end_date",
+            "invalid_reason",
         ]
     )
 
-    # Write data
+    seen = set()
+
     for cluster in clusters:
         if not cluster.mapping:
             continue
 
         mapping = cluster.mapping[0]
 
-        # Apply status filter
         if status_filter and mapping.status != status_filter:
             continue
 
         concept = mapping.concept
         vocabulary = concept.vocabulary if concept else None
 
-        writer.writerow(
-            [
-                cluster.id,
-                cluster.title,
-                dataset.name,
-                concept.id if concept else "",
-                concept.concept_code if concept else "",
-                concept.vocab_term_name if concept else "",
-                vocabulary.id if vocabulary else "",
-                vocabulary.name if vocabulary else "",
-                "automated",
-                mapping.status,
-            ]
-        )
+        # One row per source term in the cluster
+        for source_term in cluster.source_terms:
+            key = (source_term.value, cluster.label or "")
+            if key in seen:
+                continue
+            seen.add(key)
+            writer.writerow(
+                [
+                    source_term.value,
+                    0,
+                    dataset.name,
+                    source_term.value,
+                    concept.vocab_term_id if concept else "",
+                    vocabulary.name if vocabulary else "",
+                    cluster.label or "",
+                    "Y",
+                    concept.valid_start_date.strftime("%Y%m%d") if concept and concept.valid_start_date else "19700101",
+                    concept.valid_end_date.strftime("%Y%m%d") if concept and concept.valid_end_date else "20991231",
+                    concept.invalid_reason if concept and concept.invalid_reason else "",
+                ]
+            )
 
     output.seek(0)
     return StreamingResponse(

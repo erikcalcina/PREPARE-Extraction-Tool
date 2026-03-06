@@ -1,47 +1,20 @@
 import React, { useEffect, useCallback, useState, useRef } from "react";
 import classNames from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faChevronRight, faCheck} from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight, faCheck } from "@fortawesome/free-solid-svg-icons";
 
-import Sidebar from "@/components/Sidebar";
-import Button from "@/components/Button";
+import { format } from "date-fns";
+
+import Sidebar from "@components/Sidebar";
+import Button from "@components/Button";
 import { getLabelColorClass } from "@/utils/labelColors";
+import { tryParseWithDateFns } from "@/utils/dateUtils";
 import AnnotatableText from "./AnnotatableText";
 
 import type { SourceTerm, SourceTermCreate } from "@/types";
 
-import { parse, isValid, format } from "date-fns";
 import styles from "./styles.module.css";
 
-function tryParseWithDateFns(input: string): Date | null {
-  const s = input.trim();
-  if (!s) return null;
-
-  const formats = [
-    "yyyy-MM-dd",
-    "yyyy/MM/dd",
-    "dd/MM/yyyy",
-    "d/M/yyyy",
-    "dd-MM-yyyy",
-    "d-M-yy",
-    "d-M-yyyy",
-    "ddMMyyyy",
-    "ddMMyy",
-    "yyyyMMdd",
-    "d/M/yy",
-  ];
-
-  for (const fmt of formats) {
-    try {
-      const parsed = parse(s, fmt, new Date());
-      if (isValid(parsed)) return parsed;
-    } catch (e) {
-      // ignore and try next format
-    }
-  }
-
-  return null;
-}
 export interface AnnotationSidebarProps {
   isOpen: boolean;
   text: string;
@@ -76,7 +49,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
   onSelectAnnotation,
   onCreateAnnotation,
   onDeleteAnnotation,
-  onUpdateAnnotationLabel,
+  onUpdateAnnotationLabel: _onUpdateAnnotationLabel,
   onUpdateAnnotationDate,
   onClose,
   onPreviousRecord,
@@ -93,7 +66,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
       if (selectedAnnotation !== null) return;
       onSelectLabel(label);
     },
-    [selectedAnnotation, onUpdateAnnotationLabel, onSelectLabel]
+    [selectedAnnotation, onSelectLabel]
   );
 
   // Local editing state for the date input so typing isn't immediately overwritten
@@ -103,7 +76,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
   useEffect(() => {
     if (selectedAnnotation !== null) {
-      const ann = annotations.find(a => a.id === selectedAnnotation);
+      const ann = annotations.find((a) => a.id === selectedAnnotation);
       if (ann && ann.linked_visit_date) {
         const d = new Date(ann.linked_visit_date);
         const formatted = format(d, "dd/MM/yyyy");
@@ -182,7 +155,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
 
   return (
     <Sidebar isOpen={isOpen} onClose={onClose} title="Annotation Panel" width="75vw">
-      <div className={styles["annotation-sidebar"]}>
+      <div className={styles["annotation-sidebar"]} onClick={() => onSelectAnnotation(null)}>
         {/* Left side - Text to annotate */}
         <div>
           {/* Label selector */}
@@ -348,12 +321,13 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                     className={classNames(styles["annotation-item"], {
                       [styles["annotation-item--selected"]]: selectedAnnotation === annotation.id,
                     })}
-                    onClick={() =>
-                      !readOnly && onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id)
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!readOnly) onSelectAnnotation(selectedAnnotation === annotation.id ? null : annotation.id);
+                    }}
                   >
                     <div className={styles["annotation-item__content"]}>
-                      <span className={styles["annotation-item__value"]}>"{annotation.value}"</span>
+                      <span className={styles["annotation-item__value"]}>{annotation.value}</span>
                       <span
                         className={classNames(
                           styles["annotation-item__label"],
@@ -370,10 +344,10 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                             className={styles["annotation-item__date-input"]}
                             value={editingDate}
                             placeholder="DD/MM/YYYY"
-                            onMouseDown={e => e.stopPropagation()}
-                            onClick={e => e.stopPropagation()}
-                            onFocus={e => e.stopPropagation()}
-                            onChange={e => {
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            onFocus={(e) => e.stopPropagation()}
+                            onChange={(e) => {
                               setEditingDate(e.target.value);
                               // Clear previous error while the user is editing
                               if (editingDateError) setEditingDateError(null);
@@ -399,7 +373,7 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                               }
                             }}
                             ref={dateInputRef}
-                            onKeyDown={e => {
+                            onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
                                 dateInputRef.current?.blur();
@@ -407,28 +381,29 @@ const AnnotationSidebar: React.FC<AnnotationSidebarProps> = ({
                             }}
                           />
                           {editingDateError ? (
-                            <span style={{ color: "#c92a2a", fontSize: "0.85em", marginLeft: 8 }}>
-                              {editingDateError}
-                            </span>
+                            <span className={styles["annotation-item__date-error"]}>{editingDateError}</span>
                           ) : null}
                         </>
-                      ) : annotation.linked_visit_date && (
+                      ) : (
                         <span className={styles["annotation-item__date"]}>
-                          {new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {day: "2-digit", month: "2-digit", year: "numeric"})}
+                          {annotation.linked_visit_date
+                            ? new Date(annotation.linked_visit_date).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })
+                            : "No date"}
                         </span>
                       )}
-                    {annotation.linked_date_term_id && (() => {
-                      const dateTerm = annotations.find(
-                        a => a.id === annotation.linked_date_term_id
-                      );
-                      // Only show if found
-                      if (!dateTerm) return null;
-                      return (
-                        <span className={styles["annotation-item__date-id"]}>
-                          ↳ linked to {dateTerm.value}
-                        </span>
-                      );
-                    })()}
+                      {annotation.linked_date_term_id &&
+                        (() => {
+                          const dateTerm = annotations.find((a) => a.id === annotation.linked_date_term_id);
+                          // Only show if found
+                          if (!dateTerm) return null;
+                          return (
+                            <span className={styles["annotation-item__date-id"]}>↳ linked to {dateTerm.value}</span>
+                          );
+                        })()}
                     </div>
                     <Button
                       variant="ghost"

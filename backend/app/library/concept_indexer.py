@@ -62,9 +62,7 @@ class ConceptIndexer:
         if not es_client.indices.exists(index=index_name):
             mapping = {
                 "mappings": {
-                    "_source": {
-                        "excludes": ["embedding"]
-                    },
+                    "_source": {"excludes": ["embedding"]},
                     "properties": {
                         "vocab_term_id": {"type": "keyword"},
                         "vocab_term_name": {"type": "text"},
@@ -80,8 +78,8 @@ class ConceptIndexer:
                                 "m": 12,
                                 "ef_construction": 100,
                             },
-                        }
-                    }
+                        },
+                    },
                 }
             }
             es_client.indices.create(index=index_name, body=mapping)
@@ -218,7 +216,9 @@ class ConceptIndexer:
             es_client.delete(index=index_name, id=concept_id)
             logger.info(f"Document {concept_id} deleted from {index_name} successfully")
         except NotFoundError:
-            logger.info(f"Document {concept_id} not found in {index_name}, skipping deletion")
+            logger.info(
+                f"Document {concept_id} not found in {index_name}, skipping deletion"
+            )
 
     def es_map_term_to_concept(
         self, cluster_db: Cluster, vocab_ids: List[int]
@@ -333,7 +333,9 @@ class ConceptIndexer:
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
-        es_filters = self._build_es_filters(domain_id, concept_class_id, standard_concept)
+        es_filters = self._build_es_filters(
+            domain_id, concept_class_id, standard_concept
+        )
 
         # Pure kNN vector search - no text matching
         knn_clause: Dict[str, Any] = {
@@ -420,7 +422,9 @@ class ConceptIndexer:
             return [], 0
 
         query_embedding = self._calculate_embedding(query_text)
-        es_filters = self._build_es_filters(domain_id, concept_class_id, standard_concept)
+        es_filters = self._build_es_filters(
+            domain_id, concept_class_id, standard_concept
+        )
 
         # Build kNN clause with optional pre-filtering
         knn_clause: Dict[str, Any] = {
@@ -432,31 +436,53 @@ class ConceptIndexer:
         if es_filters:
             knn_clause["filter"] = {"bool": {"must": es_filters}}
 
-        # Build text query — wrap in bool with filter when filters are active
-        text_query: Dict[str, Any] = {
-            "multi_match": {
-                "query": query_text,
-                "fields": ["vocab_term_name^2", "vocab_term_id"],
-                "type": "best_fields",
-                "boost": 0.3,
+        # Detect if query looks like a concept ID (numeric string)
+        stripped_query = query_text.strip()
+        is_id_query = stripped_query.isdigit()
+
+        if is_id_query:
+            # ID search: keyword-only, skip kNN (embeddings are
+            # meaningless for numeric IDs)
+            text_query: Dict[str, Any] = {
+                "wildcard": {"vocab_term_id": {"value": f"*{stripped_query}*"}}
             }
-        }
-        if es_filters:
+            if es_filters:
+                text_query = {
+                    "bool": {
+                        "should": [text_query],
+                        "filter": es_filters,
+                    }
+                }
+            query = {
+                "size": limit,
+                "from": offset,
+                "track_total_hits": True,
+                "query": text_query,
+            }
+        else:
+            # Name/term search: hybrid kNN + text boost
             text_query = {
-                "bool": {
-                    "must": [text_query],
-                    "filter": es_filters,
+                "multi_match": {
+                    "query": query_text,
+                    "fields": ["vocab_term_name^2", "vocab_term_id"],
+                    "type": "best_fields",
+                    "boost": 0.3,
                 }
             }
-
-        # Hybrid search: kNN + text boost (ES 8.x compatible)
-        query = {
-            "size": limit,
-            "from": offset,
-            "track_total_hits": True,
-            "knn": knn_clause,
-            "query": text_query,
-        }
+            if es_filters:
+                text_query = {
+                    "bool": {
+                        "must": [text_query],
+                        "filter": es_filters,
+                    }
+                }
+            query = {
+                "size": limit,
+                "from": offset,
+                "track_total_hits": True,
+                "knn": knn_clause,
+                "query": text_query,
+            }
 
         # Add sorting if not by relevance
         if sort_by == "name":

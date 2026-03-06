@@ -39,6 +39,12 @@ export interface PaginationMetadata {
 }
 
 // ================================================
+// Processing status type
+// ================================================
+
+export type ProcessingStatus = "PENDING" | "PROCESSING" | "DONE" | "FAILED" | "DELETED";
+
+// ================================================
 // Dataset types
 // ================================================
 
@@ -50,6 +56,8 @@ export interface Dataset {
   labels: string[];
   date_label: string | null;
   record_count: number;
+  status: ProcessingStatus;
+  error_message: string | null;
 }
 
 export interface DatasetCreate {
@@ -61,6 +69,11 @@ export interface DatasetCreate {
 
 export interface DatasetOutput {
   dataset: Dataset;
+}
+
+export interface DatasetUploadResponse {
+  status: string;
+  message: string;
 }
 
 export interface DatasetsOutput {
@@ -199,18 +212,23 @@ export interface Vocabulary {
   id: number;
   name: string;
   uploaded: string;
-  version?: string;
   concept_count: number;
+  status: ProcessingStatus;
+  error_message: string | null;
 }
 
 export interface VocabularyCreate {
   name: string;
-  version: string;
   file: File;
 }
 
 export interface VocabularyOutput {
   vocabulary: Vocabulary;
+}
+
+export interface VocabularyUploadResponse {
+  status: string;
+  message: string;
 }
 
 export interface VocabulariesOutput {
@@ -329,6 +347,7 @@ export interface ClusterMapping {
   vocabulary_id: number | null;
   vocabulary_name: string | null;
   status: "unmapped" | "pending" | "approved" | "rejected";
+  comment: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -382,6 +401,7 @@ export interface AutoMapRequest {
 export interface MapClusterRequest {
   concept_id: number;
   status?: "pending" | "approved" | "rejected";
+  comment?: string;
 }
 
 export interface AutoMapAllRequest {

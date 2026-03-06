@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from sqlalchemy import Column, JSON
 from sqlmodel import SQLModel, Field, Relationship
-from pydantic import BaseModel
 
 # ================================================
 # SQLModel table definitions
@@ -383,5 +382,6 @@ class SourceToConceptMap(SQLModel, table=True):
     status: str = Field(
         default="pending", index=True
     )  # 'pending', 'approved', 'rejected'
+    comment: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

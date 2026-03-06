@@ -26,6 +26,12 @@ const SORT_KEY_MAP: Record<string, "relevance" | "name" | "domain"> = {
   domain_id: "domain",
 };
 
+const REVERSE_SORT_MAP: Record<string, string> = {
+  relevance: "score",
+  name: "vocab_term_name",
+  domain: "domain_id",
+};
+
 const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
   selectedMapping,
   searchResults,
@@ -49,7 +55,7 @@ const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
       {
         key: "concept_id",
         header: "Concept ID",
-        render: (result: ConceptSearchResult) => result.concept.id,
+        render: (result: ConceptSearchResult) => result.concept.vocab_term_id,
       },
       {
         key: "vocab_term_name",
@@ -87,13 +93,6 @@ const TargetConceptsList: React.FC<TargetConceptsListProps> = ({
     ],
     []
   );
-
-  // Map sortBy prop to the column key used in the Table
-  const REVERSE_SORT_MAP: Record<string, string> = {
-    relevance: "score",
-    name: "vocab_term_name",
-    domain: "domain_id",
-  };
 
   const sort: SortState = {
     key: REVERSE_SORT_MAP[sortBy] || sortBy,

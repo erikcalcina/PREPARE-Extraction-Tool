@@ -52,3 +52,14 @@
   color: #11415e;
   text-decoration: underline;
 }
+
+.datasets__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.datasets__processing-note {
+  font-size: 12px;
+  color: #6b7280;
+}

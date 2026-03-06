@@ -133,7 +133,6 @@ const VocabularyDetail = () => {
           </Button>
           <div className={styles.headerInfo}>
             <h1 className={styles.title}>{vocabulary?.name || "Loading..."}</h1>
-            {vocabulary?.version && <span className={styles.version}>v{vocabulary.version}</span>}
           </div>
           <Button label="Download" onClick={downloadVocabulary} />
         </div>
