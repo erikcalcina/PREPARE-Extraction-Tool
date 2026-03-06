@@ -4,8 +4,8 @@ services:
     image: postgres:18
     container_name: PREPARE-USAGI-POSTGRESQL
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -26,8 +26,8 @@ services:
     image: adminer
     container_name: PREPARE-USAGI-ADMINER
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     networks:
       - default
     depends_on:
@@ -42,9 +42,9 @@ services:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms4g -Xmx4g
       - xpack.security.enabled=false
-    ports:
-      - "9200:9200"
-      - "9300:9300"
+    expose:
+      - "9200"
+      - "9300"
     volumes:
       - app-es-data:/usr/share/elasticsearch/data
     networks:
@@ -61,8 +61,8 @@ services:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
     container_name: PREPARE-USAGI-BACKEND
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     networks:
       - prepare-usagi-public
       - default
@@ -75,15 +75,17 @@ services:
       - .env
     environment:
       - DOMAIN=${DOMAIN}
-      - EXTRACT_HOST=${EXTRACT_HOST?Variable not set}
+      - EXTRACT_HOST=http://bioner:${BIONER_PORT:-5600}
       - ENVIRONMENT=${ENVIRONMENT}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
       - SECRET_KEY=${SECRET_KEY?Variable not set}
-      - POSTGRES_SERVER=${POSTGRES_SERVER}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - DATABASE_URL=postgresql://${POSTGRES_USER?Variable not set}:${POSTGRES_PASSWORD?Variable not set}@postgres:5432/${POSTGRES_DB?Variable not set}
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/check"]
       interval: 10s
@@ -111,7 +113,6 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_BACKEND_HOST=${BACKEND_HOST?Variable not set}
         - NODE_ENV=production
 
   bioner:
@@ -120,8 +121,8 @@ services:
     image: "${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}"
     container_name: PREPARE-USAGI-BIONER
     restart: unless-stopped
-    ports:
-      - "${BIONER_HOST_PORT:-5600}:${BIONER_PORT:-5600}"
+    expose:
+      - "${BIONER_PORT:-5600}"
     # deploy:
     #   resources:
     #     reservations:
