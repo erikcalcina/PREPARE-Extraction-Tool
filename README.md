@@ -1,56 +1,8 @@
-# PREPARE USAGI Tool
+# PREPARE Extraction Tool
 
-Usagi is an application to help create mappings between coding systems and the Vocabulary standard concepts.
+PREPARE Extraction Tool is an application to help create mappings between coding systems and the Vocabulary standard concepts.
 The tool is an adaptation/extension of the OHDSI Usagi tool, focusing on extracting relevant medical terms
 from unstructured text and mapping them to the OHDSI vocabularies available on OHDSI Athena.
-
-## Project Structure
-
-```text
-PREPARE-Usagi/
-├── backend/               # FastAPI backend service
-│   ├── app/               # Main application code
-│   │   ├── core/          # Core configuration and utilities
-│   │   ├── routes/        # API endpoints
-│   │   ├── models.py      # Data models
-│   │   ├── utils/         # Utility functions
-│   │   └── tests/         # Backend tests
-│   ├── requirements.txt   # Python dependencies
-│   ├── pyproject.toml     # Project configuration
-│   └── Dockerfile         # Backend container
-├── frontend/              # React frontend application
-│   ├── src/               # Source code
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── assets/        # Static assets
-│   ├── package.json       # Node.js dependencies
-│   └── Dockerfile         # Frontend container
-├── scripts/               # Build and deployment scripts
-├── docker-compose.yaml    # Multi-container setup
-└── .env                   # Environment variables (create from .env.example)
-```
-
-## Backend
-
-The backend is built with **Python 3.10+** using the following main technologies:
-
-- **FastAPI**: Modern, fast web framework for building APIs
-- **Uvicorn**: ASGI server for running FastAPI applications
-- **SQLModel**: SQL database integration with Pydantic models
-- **Pydantic**: Data validation and settings management
-- **PostgreSQL**: Primary database (via Docker)
-
-## Frontend
-
-The frontend is built with **TypeScript** and **React 19** using:
-
-- **React 19**: Latest React with concurrent features
-- **TypeScript**: Type-safe JavaScript
-- **Vite**: Fast build tool and dev server
-- **Storybook**: Component development and documentation
-- **Vitest**: Unit testing framework
-- **ESLint + Prettier**: Code quality and formatting
 
 ## Running the Tool
 
@@ -70,7 +22,7 @@ This is the easiest way to run the full stack. Open a terminal in the project ro
 
     ```bash
     git clone <repository-url>
-    cd PREPARE-Usagi
+    cd PREPARE-Extraction-Tool
     ```
 
 2. **Set up environment variables:**
@@ -116,3 +68,51 @@ If you restarted your computer or stopped Docker, simply run:
 docker-compose up -d
 ```
 Then open http://localhost:3000.
+
+## Project Structure
+
+```text
+PREPARE-Extraction-Tool/
+├── backend/               # FastAPI backend service
+│   ├── app/               # Main application code
+│   │   ├── core/          # Core configuration and utilities
+│   │   ├── routes/        # API endpoints
+│   │   ├── models.py      # Data models
+│   │   ├── utils/         # Utility functions
+│   │   └── tests/         # Backend tests
+│   ├── requirements.txt   # Python dependencies
+│   ├── pyproject.toml     # Project configuration
+│   └── Dockerfile         # Backend container
+├── frontend/              # React frontend application
+│   ├── src/               # Source code
+│   │   ├── components/    # React components
+│   │   ├── pages/         # Page components
+│   │   ├── hooks/         # Custom React hooks
+│   │   └── assets/        # Static assets
+│   ├── package.json       # Node.js dependencies
+│   └── Dockerfile         # Frontend container
+├── scripts/               # Build and deployment scripts
+├── docker-compose.yaml    # Multi-container setup
+└── .env                   # Environment variables (create from .env.example)
+```
+
+## Backend
+
+The backend is built with **Python 3.10+** using the following main technologies:
+
+- **FastAPI**: Modern, fast web framework for building APIs
+- **Uvicorn**: ASGI server for running FastAPI applications
+- **SQLModel**: SQL database integration with Pydantic models
+- **Pydantic**: Data validation and settings management
+- **PostgreSQL**: Primary database (via Docker)
+
+## Frontend
+
+The frontend is built with **TypeScript** and **React 19** using:
+
+- **React 19**: Latest React with concurrent features
+- **TypeScript**: Type-safe JavaScript
+- **Vite**: Fast build tool and dev server
+- **Storybook**: Component development and documentation
+- **Vitest**: Unit testing framework
+- **ESLint + Prettier**: Code quality and formatting
