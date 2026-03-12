@@ -10,6 +10,7 @@ from fastapi import (
     UploadFile,
     BackgroundTasks,
 )
+from sqlalchemy import or_
 from sqlmodel import Session, delete, insert, select, func, update
 
 from app.core.database import engine, get_session, Vocabulary, Concept, User
@@ -45,13 +46,36 @@ router = APIRouter()
 # ================================================
 
 
-def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int):
-    """Verify that the user owns the vocabulary."""
-    if vocabulary.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this vocabulary",
+def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int, db: Session):
+    """Verify that the user owns the vocabulary or that it is a seed vocabulary."""
+    seed_user_id = get_seed_user_id(db)
+
+    if vocabulary.user_id == user_id:
+        return
+
+    if seed_user_id and vocabulary.user_id == seed_user_id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to access this vocabulary",
+    )
+
+def get_seed_user_id(db: Session):
+    return db.exec(
+        select(User.id).where(User.username == "seed_system")
+    ).first()
+
+def get_owner_filter(current_user: User, db: Session):
+    seed_user_id = get_seed_user_id(db)
+
+    if seed_user_id:
+        return or_(
+            Vocabulary.user_id == current_user.id,
+            Vocabulary.user_id == seed_user_id,
         )
+
+    return Vocabulary.user_id == current_user.id
 
 
 # ================================================
@@ -72,11 +96,12 @@ def get_distinct_domains(
     db: Session = Depends(get_session),
 ):
     """Get distinct domain values for filter dropdowns."""
+    owner_filter = get_owner_filter(current_user, db)
     query = (
         select(Concept.domain_id)
         .distinct()
         .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
-        .where(Vocabulary.user_id == current_user.id)
+        .where(owner_filter)
         .where(Concept.domain_id.isnot(None))
         .where(Concept.domain_id != "")
     )
@@ -105,11 +130,12 @@ def get_distinct_concept_classes(
     db: Session = Depends(get_session),
 ):
     """Get distinct concept class values for filter dropdowns."""
+    owner_filter = get_owner_filter(current_user, db)
     query = (
         select(Concept.concept_class_id)
         .distinct()
         .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
-        .where(Vocabulary.user_id == current_user.id)
+        .where(owner_filter)
         .where(Concept.concept_class_id.isnot(None))
         .where(Concept.concept_class_id != "")
     )
@@ -143,11 +169,13 @@ def get_vocabularies(
     db: Session = Depends(get_session),
     pagination: PaginationParams = Depends(),
 ):
+    owner_filter = get_owner_filter(current_user, db)
+
     # Get total count (exclude DELETED)
     total = db.exec(
         select(func.count())
         .select_from(Vocabulary)
-        .where(Vocabulary.user_id == current_user.id)
+        .where(owner_filter)
         .where(Vocabulary.status != ProcessingStatus.DELETED)
     ).one()
 
@@ -155,7 +183,7 @@ def get_vocabularies(
     concept_counts_subquery = (
         select(Concept.vocabulary_id, func.count(Concept.id).label("count"))
         .join(Vocabulary, Concept.vocabulary_id == Vocabulary.id)
-        .where(Vocabulary.user_id == current_user.id)
+        .where(owner_filter)
         .group_by(Concept.vocabulary_id)
         .subquery()
     )
@@ -170,7 +198,7 @@ def get_vocabularies(
             concept_counts_subquery,
             Vocabulary.id == concept_counts_subquery.c.vocabulary_id,
         )
-        .where(Vocabulary.user_id == current_user.id)
+        .where(owner_filter)
         .where(Vocabulary.status != ProcessingStatus.DELETED)
         .order_by(Vocabulary.id)
         .offset(pagination.offset)
@@ -229,7 +257,7 @@ async def create_vocabulary(
     file_path = await save_upload_to_disk(file, ".csv")
 
     # start background ingestion
-    background_tasks.add_task(ingest_vocabulary_background, file_path, current_user.id)
+    background_tasks.add_task(ingest_vocabulary_background, file_path, current_user)
 
     vocabulary_response = VocabularyUploadResponse(
         status=ProcessingStatus.PENDING,
@@ -312,7 +340,7 @@ def _insert_and_index_batch(db: Session, batch: list):
     indexer.add_bulk_to_index(batch)
 
 
-def ingest_vocabulary_background(file_path: str, user_id: int):
+def ingest_vocabulary_background(file_path: str, current_user: User):
     db = Session(engine)
 
     REQUIRED_COLUMNS = [
@@ -381,11 +409,12 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
             if vocab_name in vocabularies:
                 concept.vocabulary_id = vocabularies[vocab_name]
             else:
-                # Check for existing vocabulary (same name + user, DONE)
+                # Check for existing vocabulary (same name + (user or seed user), DONE)
+                owner_filter = get_owner_filter(current_user, db)
                 existing = db.exec(
                     select(Vocabulary).where(
                         Vocabulary.name == vocab_name,
-                        Vocabulary.user_id == user_id,
+                        owner_filter,
                         Vocabulary.status == ProcessingStatus.DONE,
                     )
                 ).first()
@@ -395,7 +424,7 @@ def ingest_vocabulary_background(file_path: str, user_id: int):
                     print(f"Reusing existing vocabulary '{vocab_name}' (id={vocab_id})")
                 else:
                     # create a new Vocabulary
-                    vocabulary = Vocabulary(name=vocab_name, user_id=user_id)
+                    vocabulary = Vocabulary(name=vocab_name, user_id=current_user.id)
                     db.add(vocabulary)
                     db.commit()
                     db.refresh(vocabulary)
@@ -510,7 +539,7 @@ def get_vocabulary(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     vocabulary_response = VocabularyResponse(
         id=vocabulary.id,
@@ -545,7 +574,7 @@ def delete_vocabulary(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
 
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
     vocabulary.status = ProcessingStatus.DELETED
     db.commit()
 
@@ -607,7 +636,7 @@ def search_vocabulary_concepts(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     # Search using Elasticsearch
     es_results, total_hits = indexer.search_concepts(
@@ -657,7 +686,7 @@ def get_concepts(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     # Get total count
     total = db.exec(
@@ -702,7 +731,7 @@ def add_concept(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     new_concept = Concept(
         vocabulary_id=vocabulary_id,
@@ -745,7 +774,7 @@ def get_concept(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     statement = (
         select(Concept)
@@ -781,7 +810,7 @@ def delete_concept(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id)
+    verify_vocabulary_ownership(vocabulary, current_user.id, db)
 
     statement = (
         select(Concept)
