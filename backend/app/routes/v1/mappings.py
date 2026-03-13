@@ -111,7 +111,8 @@ def get_dataset_mappings(
                 cluster_term_count=term_count,
                 cluster_total_occurrences=total_occurrences,
                 concept_id=concept.id if concept else None,
-                concept_name=concept.vocab_term_name if concept else None,
+                concept_term_id=concept.vocab_term_id if concept else None,
+                concept_term_name=concept.vocab_term_name if concept else None,
                 concept_code=concept.concept_code if concept else None,
                 concept_domain=concept.domain_id if concept else None,
                 concept_class=concept.concept_class_id if concept else None,
@@ -506,7 +507,9 @@ def search_concepts(
 
     pagination = create_pagination_metadata(total_hits, limit, offset)
 
-    return ConceptSearchResults(results=results, total=total_hits, pagination=pagination)
+    return ConceptSearchResults(
+        results=results, total=total_hits, pagination=pagination
+    )
 
 
 @router.get(
@@ -564,9 +567,7 @@ def export_mappings(
     return StreamingResponse(
         iter([zip_bytes]),
         media_type="application/zip",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}"
-        },
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

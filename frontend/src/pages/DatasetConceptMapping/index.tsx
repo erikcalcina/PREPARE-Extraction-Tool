@@ -568,11 +568,11 @@ export default function DatasetConceptMapping() {
                   {/* Target Concept Panel */}
                   <div className={styles["selection-bar__panel"]}>
                     <span className={styles["selection-bar__panel-label"]}>Target Concept</span>
-                    {selectedMapping.concept_name ? (
+                    {selectedMapping.concept_term_name ? (
                       <>
-                        <span className={styles["selection-bar__target"]}>{selectedMapping.concept_name}</span>
+                        <span className={styles["selection-bar__target"]}>{selectedMapping.concept_term_name}</span>
                         <div className={styles["selection-bar__meta"]}>
-                          <span>ID: {selectedMapping.concept_id}</span>
+                          <span>ID: {selectedMapping.concept_term_id}</span>
                           {selectedMapping.concept_code && <span>Code: {selectedMapping.concept_code}</span>}
                           {selectedMapping.concept_domain && <span>Domain: {selectedMapping.concept_domain}</span>}
                           {selectedMapping.concept_class && <span>Class: {selectedMapping.concept_class}</span>}

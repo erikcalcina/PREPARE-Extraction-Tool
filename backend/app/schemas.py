@@ -287,10 +287,12 @@ class VocabularyCreate(BaseModel):
     name: str
     concepts: List["ConceptCreate"] = Field(default_factory=list)
 
+
 class VocabularyUploadResponse(BaseModel):
     status: ProcessingStatus
     message: str
-    
+
+
 class VocabularyResponse(BaseModel):
     """Model for vocabulary API responses with metadata."""
 
@@ -307,11 +309,13 @@ class VocabularyOutput(BaseModel):
 
     vocabulary: VocabularyResponse
 
+
 class ProcessingVocabularyStats(BaseModel):
     """Model for tracking vocabulary progress during processing."""
 
     processing_vocabularies: int
     total_concepts: int
+
 
 class VocabulariesOutput(BaseModel):
     """Wrapper for paginated list of vocabularies."""
@@ -470,7 +474,6 @@ class MergeSuggestionsOutput(BaseModel):
     suggestions: List[MergeSuggestionResponse]
 
 
-
 # ================================================
 # Mapping models
 # ================================================
@@ -536,7 +539,8 @@ class ClusterMappingResponse(BaseModel):
     cluster_term_count: int
     cluster_total_occurrences: int
     concept_id: Optional[int] = None
-    concept_name: Optional[str] = None
+    concept_term_id: Optional[str] = None
+    concept_term_name: Optional[str] = None
     concept_code: Optional[str] = None
     concept_domain: Optional[str] = None
     concept_class: Optional[str] = None

@@ -69,8 +69,8 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
       (m) =>
         m.cluster_title.toLowerCase().includes(query) ||
         m.cluster_id.toString().includes(query) ||
-        (m.concept_name && m.concept_name.toLowerCase().includes(query)) ||
-        (m.concept_id && m.concept_id.toString().includes(query))
+        (m.concept_term_name && m.concept_term_name.toLowerCase().includes(query)) ||
+        (m.concept_term_id && m.concept_term_id.toLowerCase().includes(query))
     );
   }, [mappings, searchQuery]);
 
@@ -123,14 +123,14 @@ const SourceTermsTable: React.FC<SourceTermsTableProps> = ({
         ),
       },
       {
-        key: "concept_id",
+        key: "concept_term_id",
         header: "Concept ID",
-        render: (mapping: ClusterMapping) => mapping.concept_id || "—",
+        render: (mapping: ClusterMapping) => mapping.concept_term_id || "—",
       },
       {
-        key: "concept_name",
+        key: "concept_term_name",
         header: "Concept Name",
-        render: (mapping: ClusterMapping) => mapping.concept_name || "—",
+        render: (mapping: ClusterMapping) => mapping.concept_term_name || "—",
       },
       {
         key: "concept_domain",
