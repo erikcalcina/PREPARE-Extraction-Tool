@@ -428,7 +428,7 @@ def ingest_vocabulary_background(file_path: str, current_user: User):
                 ).first()
 
                 # Check for existing vocabulary from seed user
-                if seed_user_id:
+                if seed_user_id is not None:
                     existing_seed_vocabulary = db.exec(
                         select(Vocabulary).where(
                             Vocabulary.name == vocab_name,
