@@ -61,6 +61,14 @@ def verify_vocabulary_ownership(vocabulary: Vocabulary, user_id: int, db: Sessio
         detail="Not authorized to access this vocabulary",
     )
 
+def verify_strict_vocabulary_ownership(vocabulary: Vocabulary, user_id: int):
+    """Verify that the user owns the vocabulary."""
+    if vocabulary.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this vocabulary",
+        )
+
 def get_seed_user_id(db: Session):
     return db.exec(
         select(User.id).where(User.username == "seed_system")
@@ -397,6 +405,7 @@ def ingest_vocabulary_background(file_path: str, current_user: User):
 
     vocabularies = {}  # vocab_name -> vocab_id
     new_vocab_ids = set()  # only IDs for newly created vocabularies
+    seed_user_id = get_seed_user_id(db)
     try:
 
         # start ingesting
@@ -409,15 +418,27 @@ def ingest_vocabulary_background(file_path: str, current_user: User):
             if vocab_name in vocabularies:
                 concept.vocabulary_id = vocabularies[vocab_name]
             else:
-                # Check for existing vocabulary (same name + (user or seed user), DONE)
-                owner_filter = get_owner_filter(current_user, db)
+                # Check for existing vocabulary (same name + user, DONE)
                 existing = db.exec(
                     select(Vocabulary).where(
                         Vocabulary.name == vocab_name,
-                        owner_filter,
+                        Vocabulary.user_id == current_user.id,
                         Vocabulary.status == ProcessingStatus.DONE,
                     )
                 ).first()
+
+                # Check for existing vocabulary from seed user
+                if seed_user_id:
+                    existing_seed_vocabulary = db.exec(
+                        select(Vocabulary).where(
+                            Vocabulary.name == vocab_name,
+                            Vocabulary.user_id == seed_user_id,
+                            Vocabulary.status == ProcessingStatus.DONE,
+                        )
+                    ).first()
+                    if existing_seed_vocabulary:
+                        print(f"Not possible to modify seed Vocabulary '{vocab_name}' (id={existing_seed_vocabulary.id}).")
+                        continue
 
                 if existing:
                     vocab_id = existing.id
@@ -574,7 +595,7 @@ def delete_vocabulary(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
 
-    verify_vocabulary_ownership(vocabulary, current_user.id, db)
+    verify_strict_vocabulary_ownership(vocabulary, current_user.id)
     vocabulary.status = ProcessingStatus.DELETED
     db.commit()
 
@@ -810,7 +831,7 @@ def delete_concept(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Vocabulary not found"
         )
-    verify_vocabulary_ownership(vocabulary, current_user.id, db)
+    verify_strict_vocabulary_ownership(vocabulary, current_user.id)
 
     statement = (
         select(Concept)
