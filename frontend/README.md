@@ -1,6 +1,6 @@
 # Frontend
 
-The frontend for the PREPARE USAGI Tool, built with React 19, TypeScript, and Vite.
+The frontend for the PREPARE Extraction Tool, built with React 19, TypeScript, and Vite.
 
 ## ☑️ Requirements
 

@@ -17,7 +17,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 class Settings(BaseSettings):
     # App settings
-    SERVICE_NAME: str = "PREPARE USAGI"
+    SERVICE_NAME: str = "PREPARE Extraction Tool"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "local"
 

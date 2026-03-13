@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Button from "@components/Button";
 import styles from "./styles.module.css";
 
@@ -8,11 +8,13 @@ export interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
   message: string;
-  onConfirm: () => void;
+  onConfirm: (inputValue?: string) => void;
   onCancel: () => void;
   variant?: DialogVariant;
   confirmText?: string;
   cancelText?: string;
+  showInput?: boolean;
+  inputPlaceholder?: string;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -24,16 +26,25 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   variant = "info",
   confirmText = "Confirm",
   cancelText = "Cancel",
+  showInput = false,
+  inputPlaceholder = "",
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState("");
 
-  // Store previous active element and focus confirm button when opening
+  // Reset input value and focus when opening
   useEffect(() => {
     if (isOpen) {
+      setInputValue("");
       previousActiveElement.current = document.activeElement as HTMLElement;
-      confirmButtonRef.current?.focus();
+      if (showInput) {
+        setTimeout(() => inputRef.current?.focus(), 0);
+      } else {
+        confirmButtonRef.current?.focus();
+      }
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -42,7 +53,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, showInput]);
 
   // Handle keyboard events
   const handleKeyDown = useCallback(
@@ -98,6 +109,21 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <p id="confirm-dialog-message" className={styles["confirm-dialog__message"]}>
           {message}
         </p>
+        {showInput && (
+          <input
+            ref={inputRef}
+            type="text"
+            className={styles["confirm-dialog__input"]}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={inputPlaceholder}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && inputValue.trim()) {
+                onConfirm(inputValue.trim());
+              }
+            }}
+          />
+        )}
         <div className={styles["confirm-dialog__actions"]}>
           <Button variant="outline" onClick={onCancel}>
             {cancelText}
@@ -105,7 +131,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <Button
             ref={confirmButtonRef}
             variant={variant === "danger" ? "danger" : variant === "warning" ? "warning" : "info"}
-            onClick={onConfirm}
+            onClick={() => onConfirm(showInput ? inputValue.trim() : undefined)}
+            disabled={showInput && !inputValue.trim()}
           >
             {confirmText}
           </Button>

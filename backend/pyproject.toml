@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "The backend for the PREPARE USAGI project"
+description = "The backend for the PREPARE Extraction Tool project"
 readme = "README.md"
 dynamic = ["dependencies"]
 keywords = ["python", "machine learning", "natural language processing", "extraction", "vocabulary", "ohdsi"]

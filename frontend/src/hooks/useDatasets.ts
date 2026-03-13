@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Dataset, DatasetCreate, PaginationMetadata, ProcessingStatus } from "@/types";
+import type { Dataset, DatasetCreate, PaginationMetadata } from "@/types";
 import { getDatasets, createDataset, deleteDataset, downloadDataset as downloadDatasetAPI } from "@/api";
 
 // ================================================
@@ -7,15 +7,6 @@ import { getDatasets, createDataset, deleteDataset, downloadDataset as downloadD
 // ================================================
 
 const POLL_INTERVAL_MS = 3000;
-
-/** Correct obviously-wrong statuses (e.g. migration defaulted old rows to PENDING). */
-function normalizeStatus(d: Dataset): Dataset {
-  const isActive = d.status === "PENDING" || d.status === "PROCESSING";
-  if (isActive && d.record_count > 0) {
-    return { ...d, status: "DONE" as ProcessingStatus };
-  }
-  return d;
-}
 
 function hasActiveProcessing(items: Dataset[]): boolean {
   return items.some((d) => d.status === "PENDING" || d.status === "PROCESSING" || d.status === "DELETED");
@@ -34,10 +25,9 @@ export function useDatasets() {
     setError(null);
     try {
       const response = await getDatasets(page, limit);
-      const normalized = response.datasets.map(normalizeStatus);
-      setDatasets(normalized);
+      setDatasets(response.datasets);
       setPagination(response.pagination);
-      setIsProcessing(hasActiveProcessing(normalized));
+      setIsProcessing(hasActiveProcessing(response.datasets));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch datasets");
     } finally {
@@ -48,10 +38,9 @@ export function useDatasets() {
   const silentRefresh = useCallback(async () => {
     try {
       const response = await getDatasets(1, 50);
-      const normalized = response.datasets.map(normalizeStatus);
-      setDatasets(normalized);
+      setDatasets(response.datasets);
       setPagination(response.pagination);
-      setIsProcessing(hasActiveProcessing(normalized));
+      setIsProcessing(hasActiveProcessing(response.datasets));
     } catch {
       // Silent — don't set error or loading state
     }

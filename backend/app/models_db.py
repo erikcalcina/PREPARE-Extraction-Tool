@@ -51,8 +51,10 @@ class RefreshToken(SQLModel, table=True):
     # Relationship back to User
     user: Optional["User"] = Relationship(back_populates="refresh_tokens")
 
+
 class ProcessingStatus(str, Enum):
-    """ Enum for processing status, used in Vocabulary and Dataset. """
+    """Enum for processing status, used in Vocabulary and Dataset."""
+
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     DONE = "DONE"
@@ -75,10 +77,7 @@ class Dataset(SQLModel, table=True):
     # TODO: need to specify a structure for the labels
     labels: List[str] = Field(sa_column=Column(JSON))
     date_label: Optional[str] = Field(default=None, nullable=True)
-    status: ProcessingStatus = Field(
-        default=ProcessingStatus.PROCESSING,
-        index=True
-    )
+    status: ProcessingStatus = Field(default=ProcessingStatus.PROCESSING, index=True)
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
@@ -108,7 +107,7 @@ class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_id: str
     seq_number: Optional[str] = Field(default=None)
-    visit_date: Optional[datetime] = Field(default=None)
+    visit_date: datetime = Field(default=None)
     text: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed: bool = Field(default=False)
@@ -188,7 +187,9 @@ class SourceTerm(SQLModel, table=True):
         nullable=True,
         ondelete="SET NULL",
     )
-    sentence_segment: Optional["SentenceSegment"] = Relationship(back_populates="source_terms")
+    sentence_segment: Optional["SentenceSegment"] = Relationship(
+        back_populates="source_terms"
+    )
 
     linked_date_term_id: Optional[int] = Field(
         default=None,
@@ -304,14 +305,13 @@ class Vocabulary(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     uploaded: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    status: ProcessingStatus = Field(
-        default=ProcessingStatus.PROCESSING,
-        index=True
-    )
+    status: ProcessingStatus = Field(default=ProcessingStatus.PROCESSING, index=True)
     error_message: Optional[str] = None
 
     # Relationship to User (owner)
-    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
+    user_id: int = Field(
+        foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True
+    )
     user: Optional["User"] = Relationship(back_populates="vocabularies")
 
     # Relationship to Concepts (one-to-many)

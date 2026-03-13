@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Vocabulary, VocabularyCreate, PaginationMetadata, ProcessingStatus } from "@/types";
+import type { Vocabulary, VocabularyCreate, PaginationMetadata } from "@/types";
 import {
   getVocabularies,
   createVocabulary,
@@ -12,15 +12,6 @@ import {
 // ================================================
 
 const POLL_INTERVAL_MS = 3000;
-
-/** Correct obviously-wrong statuses (e.g. migration defaulted old rows to PROCESSING). */
-function normalizeStatus(v: Vocabulary): Vocabulary {
-  const isActive = v.status === "PENDING" || v.status === "PROCESSING";
-  if (isActive && v.concept_count > 0) {
-    return { ...v, status: "DONE" as ProcessingStatus };
-  }
-  return v;
-}
 
 function hasActiveProcessing(items: Vocabulary[]): boolean {
   return items.some((v) => v.status === "PENDING" || v.status === "PROCESSING" || v.status === "DELETED");
@@ -39,10 +30,9 @@ export function useVocabularies() {
     setError(null);
     try {
       const response = await getVocabularies(page, limit);
-      const normalized = response.vocabularies.map(normalizeStatus);
-      setVocabularies(normalized);
+      setVocabularies(response.vocabularies);
       setPagination(response.pagination);
-      setIsProcessing(hasActiveProcessing(normalized));
+      setIsProcessing(hasActiveProcessing(response.vocabularies));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch vocabularies");
     } finally {
@@ -53,10 +43,9 @@ export function useVocabularies() {
   const silentRefresh = useCallback(async () => {
     try {
       const response = await getVocabularies(1, 50);
-      const normalized = response.vocabularies.map(normalizeStatus);
-      setVocabularies(normalized);
+      setVocabularies(response.vocabularies);
       setPagination(response.pagination);
-      setIsProcessing(hasActiveProcessing(normalized));
+      setIsProcessing(hasActiveProcessing(response.vocabularies));
     } catch {
       // Silent — don't set error or loading state
     }

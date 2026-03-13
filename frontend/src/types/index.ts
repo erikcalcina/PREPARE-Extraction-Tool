@@ -340,7 +340,8 @@ export interface ClusterMapping {
   cluster_term_count: number;
   cluster_total_occurrences: number;
   concept_id: number | null;
-  concept_name: string | null;
+  concept_term_id: string | null;
+  concept_term_name: string | null;
   concept_code: string | null;
   concept_domain: string | null;
   concept_class: string | null;

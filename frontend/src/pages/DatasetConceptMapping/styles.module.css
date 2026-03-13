@@ -211,6 +211,11 @@
   color: #11415e;
 }
 
+.target-concepts-list-panel__total-results {
+  margin: 0;
+  font-size: 14px;
+}
+
 .target-concepts-list-panel__content {
   flex: 1;
   overflow-y: auto;
