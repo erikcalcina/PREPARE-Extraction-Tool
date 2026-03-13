@@ -1,6 +1,6 @@
 # Database Migrations Guide
 
-This guide explains how to manage database schema changes using Alembic migrations in the PREPARE Usagi backend.
+This guide explains how to manage database schema changes using Alembic migrations in the PREPARE Extraction Tool backend.
 
 ## Table of Contents
 

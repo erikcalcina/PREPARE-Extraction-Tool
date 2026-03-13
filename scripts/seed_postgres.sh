@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-CONTAINER="PREPARE-USAGI-POSTGRESQL"
+CONTAINER="PREPARE-POSTGRESQL"
 DB="${POSTGRES_DB:-}"
 USER="${POSTGRES_USER:-}"
 SEED_DIR="$(cd "$(dirname "$0")/../seed_data" && pwd)"

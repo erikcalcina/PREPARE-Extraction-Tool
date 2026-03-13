@@ -1,7 +1,7 @@
 [project]
 name = "bioner"
 version = "0.1.0"
-description = "The service for bioner used in the PREPARE USAGI project"
+description = "The service for bioner used in the PREPARE Extraction Tool project"
 readme = "README.md"
 dynamic = ["dependencies"]
 keywords = ["python", "ohdsi", "machine learning", "natural language processing", "named entity extraction"]

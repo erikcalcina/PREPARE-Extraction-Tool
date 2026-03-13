@@ -2,7 +2,7 @@ services:
 
   postgres:
     image: postgres:18
-    container_name: PREPARE-USAGI-POSTGRESQL
+    container_name: PREPARE-POSTGRESQL
     restart: unless-stopped
     expose:
       - "5432"
@@ -24,7 +24,7 @@ services:
 
   adminer:
     image: adminer
-    container_name: PREPARE-USAGI-ADMINER
+    container_name: PREPARE-ADMINER
     restart: unless-stopped
     expose:
       - "8080"
@@ -37,7 +37,7 @@ services:
 
   elasticsearch:
     image: elasticsearch:8.19.7
-    container_name: PREPARE-USAGI-ELASTICSEARCH
+    container_name: PREPARE-ELASTICSEARCH
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms4g -Xmx4g
@@ -50,7 +50,7 @@ services:
       - app-es-data:/usr/share/elasticsearch/data
       - ./seed_data/es_repo:/usr/share/elasticsearch/snapshots
     networks:
-      - prepare-usagi-public
+      - prepare-public
       - default
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
@@ -61,12 +61,12 @@ services:
 
   backend:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
-    container_name: PREPARE-USAGI-BACKEND
+    container_name: PREPARE-BACKEND
     restart: unless-stopped
     expose:
       - "8000"
     networks:
-      - prepare-usagi-public
+      - prepare-public
       - default
     depends_on:
       postgres:
@@ -99,12 +99,12 @@ services:
 
   frontend:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
-    container_name: PREPARE-USAGI-FRONTEND
+    container_name: PREPARE-FRONTEND
     restart: unless-stopped
     ports:
       - "3000:3000"
     networks:
-      - prepare-usagi-public
+      - prepare-public
       - default
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
@@ -121,7 +121,7 @@ services:
     build:
       context: ./bioner
     image: "${DOCKER_IMAGE_BIONER:-bioner}:${TAG:-latest}"
-    container_name: PREPARE-USAGI-BIONER
+    container_name: PREPARE-BIONER
     restart: unless-stopped
     expose:
       - "${BIONER_PORT:-5600}"
@@ -147,7 +147,7 @@ services:
       - ADAPTER_PATH=${BIONER_ADAPTER_PATH}
       - PROMPTS_PATH=${BIONER_PROMPTS_PATH}
     networks:
-      - prepare-usagi-public
+      - prepare-public
       - default
     command:
       - python
@@ -171,6 +171,6 @@ volumes:
   app-es-data:
 
 networks:
-  prepare-usagi-public:
+  prepare-public:
     # Set to true if the network is already created
     external: false

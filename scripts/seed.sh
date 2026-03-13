@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # seed.sh
-# Main seed script for PREPARE-USAGI
+# Main seed script for PREPARE Extraction Tool
 #
 # Prerequisites:
 #   cp .env.example .env
@@ -30,7 +30,7 @@ else
 fi
 
 echo "======================================================"
-echo "  PREPARE-Extraction-Tool Data Seeding"
+echo "  PREPARE Extraction Tool Data Seeding"
 echo "======================================================"
 echo "This will import seed data into PostgreSQL and Elasticsearch."
 echo
@@ -39,7 +39,7 @@ echo
 # Wait for PostgreSQL
 # ------------------------------------------------------------
 echo "Waiting for PostgreSQL..."
-until docker exec PREPARE-USAGI-POSTGRESQL \
+until docker exec PREPARE-POSTGRESQL \
   pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" > /dev/null 2>&1
 do
   sleep 3
@@ -50,7 +50,7 @@ echo "✅ PostgreSQL is ready."
 # Check migrations
 # ------------------------------------------------------------
 echo "Checking if migrations have been executed..."
-if ! docker exec -i PREPARE-USAGI-POSTGRESQL \
+if ! docker exec -i PREPARE-POSTGRESQL \
   psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc "SELECT to_regclass('public.vocabulary');" \
   | grep -q "vocabulary"; then
   echo "❌ Table 'vocabulary' does not exist."
