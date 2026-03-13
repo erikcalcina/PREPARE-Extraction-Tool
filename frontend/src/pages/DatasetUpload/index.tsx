@@ -174,7 +174,9 @@ const DatasetUpload = () => {
 
               {isUploading && (
                 <div className={styles["upload__progress"]}>
-                  <p className={styles["upload__progress-label"]}>Uploading...</p>
+                  <p className={styles["upload__progress-label"]}>
+                    {uploadProgress >= 100 ? "Please wait while we process your dataset..." : "Uploading..."}
+                  </p>
                   <ProgressBar progress={uploadProgress} />
                 </div>
               )}
@@ -185,7 +187,7 @@ const DatasetUpload = () => {
                 <Button
                   variant="primary"
                   type="submit"
-                  label={isUploading ? "Uploading..." : "Upload Dataset"}
+                  label={isUploading ? (uploadProgress >= 100 ? "Processing..." : "Uploading...") : "Upload Dataset"}
                   disabled={isUploading}
                 />
               </div>
@@ -200,7 +202,27 @@ const DatasetUpload = () => {
                 along with patient identifiers.
               </p>
               <p>
-                <strong>Required columns:</strong> patient_id, text
+                <strong>Required columns:</strong>
+                <ul>
+                  <li>
+                    <b>patient_id</b> - the patient identifier
+                  </li>
+                  <li>
+                    <b>visit_date</b> - the date of the visit
+                  </li>
+                  <li>
+                    <b>text</b> - the text of the record
+                  </li>
+                </ul>
+              </p>
+              <p>
+                <strong>Optional columns:</strong>
+                <ul>
+                  <li>
+                    <b>seq_number</b> - if a long record is split into multiple observations, this column can be used to
+                    identify the sequence number of the observation
+                  </li>
+                </ul>
               </p>
               <p>
                 <strong>Labels:</strong> Type a label and press Enter to add it. These labels represent the data
