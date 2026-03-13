@@ -49,9 +49,10 @@ export default function DatasetTermClustering() {
     isOpen: boolean;
     title: string;
     message: string;
-    onConfirm: () => void;
+    onConfirm: (inputValue?: string) => void;
     variant?: "danger" | "warning" | "info";
     showInput?: boolean;
+    inputPlaceholder?: string;
   }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
 
   usePageTitle(datasetName ? `Term Clustering - ${datasetName}` : "Term Clustering");
@@ -541,26 +542,37 @@ export default function DatasetTermClustering() {
   };
 
   // Create new cluster
-  const handleCreateCluster = async () => {
+  const handleCreateCluster = () => {
     if (!datasetId || !selectedLabel) return;
 
-    const title = prompt("Enter cluster name:");
-    if (!title) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: "Create New Cluster",
+      message: "Enter a name for the new cluster:",
+      variant: "info",
+      showInput: true,
+      inputPlaceholder: "Cluster name",
+      onConfirm: async (inputValue?: string) => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        if (!inputValue) return;
 
-    try {
-      const newCluster = await api.createCluster(parseInt(datasetId), { label: selectedLabel, title });
-      // Add new cluster to state immediately
-      setClusters((prev) => [...prev, newCluster]);
-      // Scroll to the new cluster after React re-renders
-      setTimeout(() => {
-        const element = document.querySelector(`[data-cluster-id="${CSS.escape(String(newCluster.id))}"]`);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        try {
+          const newCluster = await api.createCluster(parseInt(datasetId), {
+            label: selectedLabel,
+            title: inputValue,
+          });
+          setClusters((prev) => [...prev, newCluster]);
+          setTimeout(() => {
+            const element = document.querySelector(`[data-cluster-id="${CSS.escape(String(newCluster.id))}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }, 100);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to create cluster");
         }
-      }, 100);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create cluster");
-    }
+      },
+    });
   };
 
   // Filter and sort clusters by search
@@ -864,6 +876,8 @@ export default function DatasetTermClustering() {
             title={confirmDialog.title}
             message={confirmDialog.message}
             variant={confirmDialog.variant}
+            showInput={confirmDialog.showInput}
+            inputPlaceholder={confirmDialog.inputPlaceholder}
             onConfirm={confirmDialog.onConfirm}
             onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
           />
