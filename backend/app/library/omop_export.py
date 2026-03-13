@@ -11,10 +11,16 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import text
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.models_db import Dataset
+from app.models_db import (
+    Cluster,
+    Concept,
+    Dataset,
+    Record,
+    SourceTerm,
+    SourceToConceptMap,
+)
 
 # EHR note type concept
 EHR_TYPE_CONCEPT_ID = 32833
@@ -51,39 +57,37 @@ def _query_export_rows(
     status_filter: Optional[str],
 ) -> List[dict]:
     """Fetch all mapped source terms with patient/visit/concept data."""
-    params = {"dataset_id": dataset_id}
+    statement = (
+        select(SourceTerm, Record, Concept, SourceToConceptMap)
+        .join(Record, SourceTerm.record_id == Record.id)
+        .join(Cluster, SourceTerm.cluster_id == Cluster.id)
+        .join(SourceToConceptMap, SourceToConceptMap.cluster_id == Cluster.id)
+        .join(Concept, SourceToConceptMap.concept_id == Concept.id)
+        .where(Record.dataset_id == dataset_id)
+    )
 
-    status_clause = ""
     if status_filter:
-        status_clause = "AND m.status = :status_filter"
-        params["status_filter"] = status_filter
+        statement = statement.where(SourceToConceptMap.status == status_filter)
 
-    sql = text(f"""
-        SELECT
-            st.id           AS source_term_id,
-            st.value        AS source_term_value,
-            st.linked_visit_date,
-            st.cluster_id,
-            r.id            AS record_id,
-            r.patient_id,
-            r.visit_date,
-            r.text          AS record_text,
-            c.vocab_term_id,
-            c.domain_id,
-            c.vocab_term_name,
-            m.status        AS mapping_status
-        FROM source_term st
-        JOIN record r ON st.record_id = r.id
-        JOIN cluster cl ON st.cluster_id = cl.id
-        JOIN source_to_concept_map m ON m.cluster_id = cl.id
-        JOIN concept c ON m.concept_id = c.id
-        WHERE r.dataset_id = :dataset_id
-          {status_clause}
-    """)
+    results = db.exec(statement).all()
 
-    result = db.exec(sql, params=params)
-    columns = result.keys()
-    return [dict(zip(columns, row)) for row in result.fetchall()]
+    return [
+        {
+            "source_term_id": st.id,
+            "source_term_value": st.value,
+            "linked_visit_date": st.linked_visit_date,
+            "cluster_id": st.cluster_id,
+            "record_id": r.id,
+            "patient_id": r.patient_id,
+            "visit_date": r.visit_date,
+            "record_text": r.text,
+            "vocab_term_id": c.vocab_term_id,
+            "domain_id": c.domain_id,
+            "vocab_term_name": c.vocab_term_name,
+            "mapping_status": m.status,
+        }
+        for st, r, c, m in results
+    ]
 
 
 def _write_csv(rows: List[List], columns: List[str]) -> str:
