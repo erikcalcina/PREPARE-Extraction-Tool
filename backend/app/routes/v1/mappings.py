@@ -17,6 +17,7 @@ from app.models_db import (
     User,
 )
 from app.library.concept_indexer import indexer
+from app.library.omop_export import build_omop_cdm_zip
 from app.routes.v1.auth import get_current_user
 from app.schemas import (
     MessageOutput,
@@ -539,8 +540,8 @@ def get_concept_hierarchy(
     "/{dataset_id}/mappings/export",
     response_class=StreamingResponse,
     status_code=status.HTTP_200_OK,
-    summary="Export mappings",
-    description="Export mappings as OMOP SOURCE_TO_CONCEPT_MAP CSV",
+    summary="Export OMOP CDM tables",
+    description="Export mappings as OMOP CDM tables in a ZIP of CSVs",
 )
 def export_mappings(
     dataset_id: int,
@@ -548,82 +549,23 @@ def export_mappings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
-    """Export mappings in OMOP SOURCE_TO_CONCEPT_MAP format.
+    """Export mappings as OMOP CDM ZIP.
 
-    One row per source term. Each source term in a mapped cluster
-    gets its own row pointing to the cluster's mapped concept.
+    Generates separate CSV files per OMOP CDM table, routed by
+    concept domain_id, and returns them as a single ZIP archive.
     """
     dataset = db.get(Dataset, dataset_id)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     verify_dataset_ownership(dataset, current_user.id)
 
-    clusters = db.exec(
-        select(Cluster).where(Cluster.dataset_id == dataset_id)
-    ).all()
+    zip_bytes, filename = build_omop_cdm_zip(dataset, db, status_filter)
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # OMOP SOURCE_TO_CONCEPT_MAP columns
-    writer.writerow(
-        [
-            "source_code",
-            "source_concept_id",
-            "source_vocabulary_id",
-            "source_code_description",
-            "target_concept_id",
-            "target_vocabulary_id",
-            "mapping_type",
-            "primary_map",
-            "valid_start_date",
-            "valid_end_date",
-            "invalid_reason",
-        ]
-    )
-
-    seen = set()
-
-    for cluster in clusters:
-        if not cluster.mapping:
-            continue
-
-        mapping = cluster.mapping[0]
-
-        if status_filter and mapping.status != status_filter:
-            continue
-
-        concept = mapping.concept
-        vocabulary = concept.vocabulary if concept else None
-
-        # One row per source term in the cluster
-        for source_term in cluster.source_terms:
-            key = (source_term.value, cluster.label or "")
-            if key in seen:
-                continue
-            seen.add(key)
-            writer.writerow(
-                [
-                    source_term.value,
-                    0,
-                    dataset.name,
-                    source_term.value,
-                    concept.vocab_term_id if concept else "",
-                    vocabulary.name if vocabulary else "",
-                    cluster.label or "",
-                    "Y",
-                    concept.valid_start_date.strftime("%Y%m%d") if concept and concept.valid_start_date else "19700101",
-                    concept.valid_end_date.strftime("%Y%m%d") if concept and concept.valid_end_date else "20991231",
-                    concept.invalid_reason if concept and concept.invalid_reason else "",
-                ]
-            )
-
-    output.seek(0)
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
+        iter([zip_bytes]),
+        media_type="application/zip",
         headers={
-            "Content-Disposition": f"attachment; filename={dataset.name}_mappings.csv"
+            "Content-Disposition": f"attachment; filename={filename}"
         },
     )
 
