@@ -3,12 +3,12 @@
 # seed_elasticsearch.sh
 # Restore Elasticsearch snapshot for concepts_* indices.
 #
-# Predpogoji:
-# - Elasticsearch teče
-# - docker-compose.yml vsebuje:
+# Prerequisites:
+# - Elasticsearch is running
+# - docker-compose.yml contains:
 #     - path.repo=/usr/share/elasticsearch/snapshots
 #     - ./seed_data/es_repo:/usr/share/elasticsearch/snapshots
-# - snapshot repository datoteke so v seed_data/es_repo
+# - snapshot repository files are in seed_data/es_repo
 # ============================================================
 
 set -euo pipefail
@@ -18,13 +18,13 @@ REPO_NAME="${ES_REPO_NAME:-seed_repo}"
 SNAPSHOT_NAME="${ES_SNAPSHOT_NAME:-seed_snapshot}"
 
 
-echo "⏳ Čakam na Elasticsearch..."
+echo "Waiting for Elasticsearch..."
 until curl -fsS "$ES_URL/_cluster/health" > /dev/null; do
   sleep 3
 done
-echo "✅ Elasticsearch je pripravljen."
+echo "✅ Elasticsearch is ready."
 
-echo "📦 Registriram snapshot repository '$REPO_NAME'..."
+echo "Registering snapshot repository '$REPO_NAME'..."
 curl -fsS -X PUT "$ES_URL/_snapshot/$REPO_NAME" \
   -H "Content-Type: application/json" \
   -d '{
@@ -35,17 +35,17 @@ curl -fsS -X PUT "$ES_URL/_snapshot/$REPO_NAME" \
   }'
 
 echo
-echo "🔎 Preverjam, ali snapshot '$SNAPSHOT_NAME' obstaja..."
+echo "Checking if snapshot '$SNAPSHOT_NAME' exists..."
 curl -fsS "$ES_URL/_snapshot/$REPO_NAME/$SNAPSHOT_NAME?pretty" > /dev/null
-echo "✅ Snapshot obstaja."
+echo "✅ Snapshot exists."
 
 echo
-echo "🧹 Brišem obstoječe concepts_* indekse, če obstajajo..."
+echo "Deleting existing concepts_* indices, if they exist..."
 curl -fsS -X DELETE "$ES_URL/concepts_*" > /dev/null || true
-echo "✅ Stari concepts_* indeksi odstranjeni ali pa jih ni bilo."
+echo "✅ Old concepts_* indices removed or did not exist."
 
 echo
-echo "♻️ Restoram snapshot '$SNAPSHOT_NAME'..."
+echo "Restoring snapshot '$SNAPSHOT_NAME'..."
 curl -fsS -X POST "$ES_URL/_snapshot/$REPO_NAME/$SNAPSHOT_NAME/_restore?wait_for_completion=true" \
   -H "Content-Type: application/json" \
   -d '{
@@ -58,8 +58,8 @@ curl -fsS -X POST "$ES_URL/_snapshot/$REPO_NAME/$SNAPSHOT_NAME/_restore?wait_for
   }'
 
 echo
-echo "📊 Končno stanje indeksov:"
+echo "Final index status:"
 curl -fsS "$ES_URL/_cat/indices/concepts_*?v"
 
 echo
-echo "✅ Elasticsearch seed uspešno končan."
+echo "✅ Elasticsearch seed completed successfully."

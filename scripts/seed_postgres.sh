@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
 # seed_postgres.sh
-# Seed PostgreSQL z vocabulary + concept CSV datotekami.
-# Ohrani originalne vocabulary.id in concept.id.
+# Seed PostgreSQL with vocabulary + concept CSV files.
+# Preserves original vocabulary.id and concept.id.
 # ============================================================
 
 set -euo pipefail
@@ -13,21 +13,21 @@ USER="${POSTGRES_USER:-}"
 SEED_DIR="$(cd "$(dirname "$0")/../seed_data" && pwd)"
 
 if [ -z "$DB" ] || [ -z "$USER" ]; then
-  echo "❌ POSTGRES_DB ali POSTGRES_USER ni nastavljen."
+  echo "❌ POSTGRES_DB or POSTGRES_USER is not set."
   exit 1
 fi
 
 if [ ! -f "$SEED_DIR/vocabulary.csv" ] || [ ! -f "$SEED_DIR/concept.csv" ]; then
-  echo "❌ Manjka vocabulary.csv ali concept.csv v $SEED_DIR"
+  echo "❌ Missing vocabulary.csv or concept.csv in $SEED_DIR"
   exit 1
 fi
 
 if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
-  echo "❌ Container $CONTAINER ne teče."
+  echo "❌ Container $CONTAINER is not running."
   exit 1
 fi
 
-echo "🌱 Začenjam PostgreSQL seed..."
+echo "Starting PostgreSQL seed..."
 
 docker cp "$SEED_DIR/vocabulary.csv" "$CONTAINER:/tmp/vocabulary.csv"
 docker cp "$SEED_DIR/concept.csv" "$CONTAINER:/tmp/concept.csv"
@@ -68,8 +68,8 @@ COPY tmp_concept (
 )
 FROM '/tmp/concept.csv' WITH CSV HEADER;
 
-INSERT INTO "user" (username, hashed_password, disabled)
-VALUES ('seed_system', 'not-a-real-password', true)
+INSERT INTO "user" (username, hashed_password, disabled, created_at)
+VALUES ('seed_system', 'not-a-real-password', true, CURRENT_TIMESTAMP)
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO vocabulary (id, name, uploaded, user_id, status, error_message)
@@ -135,4 +135,4 @@ EOF
 
 docker exec "$CONTAINER" rm -f /tmp/vocabulary.csv /tmp/concept.csv
 
-echo "✅ PostgreSQL seed uspešno končan!"
+echo "✅ PostgreSQL seed completed successfully!"

@@ -1,15 +1,15 @@
 #!/bin/bash
 # ============================================================
 # seed.sh
-# Glavni seed skript za PREPARE-USAGI
+# Main seed script for PREPARE-USAGI
 #
-# Predpogoj:
+# Prerequisites:
 #   cp .env.example .env
 #   docker-compose up -d
 #   docker-compose exec backend alembic upgrade head
 #
-# Nato:
-#   ./seed.sh
+# Then:
+#   ./scripts/seed.sh
 # ============================================================
 
 set -euo pipefail
@@ -25,65 +25,65 @@ if [ -f ".env" ]; then
   . ./.env
   set +a
 else
-  echo "❌ .env datoteka ne obstaja."
-  echo "   Najprej zaženi: cp .env.example .env"
+  echo "❌ .env file does not exist."
+  echo "   First run: cp .env.example .env"
   exit 1
 fi
 
 echo "======================================================"
-echo "  PREPARE-USAGI Seed podatkov"
+echo "  PREPARE-Extraction-Tool Data Seeding"
 echo "======================================================"
-echo "To bo uvozilo seed podatke v PostgreSQL in Elasticsearch."
+echo "This will import seed data into PostgreSQL and Elasticsearch."
 echo
 
 # ------------------------------------------------------------
 # Wait for PostgreSQL
 # ------------------------------------------------------------
-echo "⏳ Čakam na PostgreSQL..."
+echo "Waiting for PostgreSQL..."
 until docker exec PREPARE-USAGI-POSTGRESQL \
   pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" > /dev/null 2>&1
 do
   sleep 3
 done
-echo "✅ PostgreSQL je pripravljen."
+echo "✅ PostgreSQL is ready."
 
 # ------------------------------------------------------------
 # Check migrations
 # ------------------------------------------------------------
-echo "🔎 Preverjam, ali so migracije že izvedene..."
+echo "Checking if migrations have been executed..."
 if ! docker exec -i PREPARE-USAGI-POSTGRESQL \
   psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc "SELECT to_regclass('public.vocabulary');" \
   | grep -q "vocabulary"; then
-  echo "❌ Tabela 'vocabulary' ne obstaja."
-  echo "   Najprej zaženi: docker compose exec backend alembic upgrade head"
+  echo "❌ Table 'vocabulary' does not exist."
+  echo "   First run: docker compose exec backend alembic upgrade head"
   exit 1
 fi
-echo "✅ Migracije so izvedene."
+echo "✅ Migrations are applied."
 
 # ------------------------------------------------------------
 # Wait for Elasticsearch
 # ------------------------------------------------------------
-echo "⏳ Čakam na Elasticsearch..."
+echo "Waiting for Elasticsearch..."
 until curl -fsS "http://localhost:9200/_cluster/health" > /dev/null; do
   sleep 3
 done
-echo "✅ Elasticsearch je pripravljen."
+echo "✅ Elasticsearch is ready."
 
 # ------------------------------------------------------------
 # Run PostgreSQL seed
 # ------------------------------------------------------------
 echo
-echo "📦 [1/2] PostgreSQL seed..."
+echo "[1/2] PostgreSQL seed..."
 bash "$SCRIPT_DIR/seed_postgres.sh"
 
 # ------------------------------------------------------------
 # Run Elasticsearch seed
 # ------------------------------------------------------------
 echo
-echo "📦 [2/2] Elasticsearch seed..."
+echo "[2/2] Elasticsearch seed..."
 bash "$SCRIPT_DIR/seed_elasticsearch.sh"
 
 echo
 echo "======================================================"
-echo "✅ Seed uspešno končan."
+echo "✅ Seeding completed successfully."
 echo "======================================================"
