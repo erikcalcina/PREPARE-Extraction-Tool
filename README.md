@@ -52,7 +52,17 @@ This is the easiest way to run the full stack. Open a terminal in the project ro
     docker compose exec backend alembic upgrade head
     ```
 
-5. **Access the application** by opening http://localhost:3000 in your browser (using default host values):
+5. **(Optional) Load Medical Vocabularies:**
+    This step populates PostgreSQL and Elasticsearch with the main medical vocabularies and concepts required for mapping.
+    
+    * **Note:** You can skip this step now and manually upload these vocabularies through the application interface later.
+    * **Prerequisite:** Ensure the required data files (`vocabulary.csv`, `concept.csv`, and the `es_repo` folder) are placed inside the `seed_data` directory.
+    * **Run the script:**
+    ```bash
+    ./scripts/seed.sh
+    ```
+
+6. **Access the application** by opening http://localhost:3000 in your browser (using default host values):
 
     - Frontend: http://localhost:3000 (configured via `FRONTEND_HOST`)
     - Backend API: http://localhost:8000 (configured via `BACKEND_HOST`)
