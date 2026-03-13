@@ -109,7 +109,9 @@ const VocabularyUpload = () => {
 
               {isUploading && (
                 <div className={styles["upload__progress"]}>
-                  <p className={styles["upload__progress-label"]}>Uploading...</p>
+                  <p className={styles["upload__progress-label"]}>
+                    {uploadProgress >= 100 ? "Please wait while we process your vocabulary..." : "Uploading..."}
+                  </p>
                   <ProgressBar progress={uploadProgress} />
                 </div>
               )}
@@ -120,7 +122,7 @@ const VocabularyUpload = () => {
                 <Button
                   variant="primary"
                   type="submit"
-                  label={isUploading ? "Uploading..." : "Upload Vocabulary"}
+                  label={isUploading ? (uploadProgress >= 100 ? "Processing..." : "Uploading...") : "Upload Vocabulary"}
                   disabled={isUploading}
                 />
               </div>
