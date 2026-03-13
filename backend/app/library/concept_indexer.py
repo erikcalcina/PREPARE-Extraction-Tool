@@ -442,14 +442,29 @@ class ConceptIndexer:
 
         if is_id_query:
             # ID search: keyword-only, skip kNN (embeddings are
-            # meaningless for numeric IDs)
-            text_query: Dict[str, Any] = {
+            # meaningless for numeric IDs).
+            # Score by length similarity so exact-length IDs rank
+            # first, then length+1, length+2, etc.
+            base_match: Dict[str, Any] = {
                 "wildcard": {"vocab_term_id": {"value": f"*{stripped_query}*"}}
+            }
+            text_query: Dict[str, Any] = {
+                "script_score": {
+                    "query": base_match,
+                    "script": {
+                        "source": (
+                            "1.0 / (1.0 + Math.abs("
+                            "doc['vocab_term_id'].value.length()"
+                            " - params.query_len))"
+                        ),
+                        "params": {"query_len": len(stripped_query)},
+                    },
+                }
             }
             if es_filters:
                 text_query = {
                     "bool": {
-                        "should": [text_query],
+                        "must": [text_query],
                         "filter": es_filters,
                     }
                 }
