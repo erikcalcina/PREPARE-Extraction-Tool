@@ -42,11 +42,13 @@ services:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms4g -Xmx4g
       - xpack.security.enabled=false
+      - path.repo=/usr/share/elasticsearch/snapshots
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
       - app-es-data:/usr/share/elasticsearch/data
+      - ./seed_data/es_repo:/usr/share/elasticsearch/snapshots
     networks:
       - prepare-usagi-public
       - default
