@@ -76,7 +76,6 @@ services:
     env_file:
       - .env
     environment:
-      - DOMAIN=${DOMAIN}
       - EXTRACT_HOST=${EXTRACT_HOST:-http://bioner:${BIONER_PORT:-5600}}
       - ENVIRONMENT=${ENVIRONMENT}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
