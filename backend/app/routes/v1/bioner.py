@@ -1,13 +1,13 @@
 import requests
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, List, Optional
 from sqlmodel import Session, select
 from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 
 from app.core.settings import settings
 from app.core.database import engine, get_session, User, Dataset
 from app.models_db import Record, SourceTerm, ExtractionJob
-from app.library.record_processing import link_dates_for_record
+from app.library.record_processing import link_dates_for_record, _parse_date_value
 from app.schemas import (
     MessageOutput,
     ExtractionJobStartResponse,
@@ -18,6 +18,30 @@ from app.routes.v1.auth import get_current_user
 from app.interfaces import NERRequest, Entity, LabelsInput
 
 router = APIRouter(tags=["BioNER"])
+
+
+def _is_date_label(label: Any, date_label: Optional[str]) -> bool:
+    if label is None:
+        return False
+    normalized = str(label).strip().lower()
+    if not normalized:
+        return False
+    if date_label and normalized == date_label.strip().lower():
+        return True
+    return normalized == "date"
+
+
+def _filter_invalid_date_entities(
+    entities: list[dict[str, Any]],
+    date_label: Optional[str],
+) -> list[dict[str, Any]]:
+    """
+    Preserve all extracted entities, including unresolved date labels.
+    Date parsing is handled later in link_dates_for_record().
+    If a date-like label cannot be parsed, it still stays in SourceTerm so a
+    doctor can fill the linked date manually.
+    """
+    return entities
 
 
 @router.post("/extract", response_model=List[Entity])
@@ -92,6 +116,8 @@ def extract_entities_from_record(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Extraction service unavailable",
         )
+
+    entities = _filter_invalid_date_entities(entities, dataset.date_label)
 
     existing_keys = {
         (t.value, t.label, t.start_position, t.end_position)
@@ -289,6 +315,8 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
         job = session.get(ExtractionJob, job_id)
         if job is None:
             return
+        dataset = session.get(Dataset, dataset_id)
+        date_label = dataset.date_label if dataset is not None else None
 
         if job.status == "cancelled":
             return
@@ -336,6 +364,7 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
                 )
                 response.raise_for_status()
                 entities = response.json()
+                entities = _filter_invalid_date_entities(entities, date_label)
             except requests.RequestException as exc:
                 job.status = "failed"
                 job.error_message = str(exc)
@@ -377,7 +406,7 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
             if new_terms:
                 session.add_all(new_terms)
                 session.flush()
-                link_dates_for_record(session, record)
+                link_dates_for_record(session, record, dataset)
             job.completed += 1
             job.updated_at = datetime.now(timezone.utc)
             session.add(job)
