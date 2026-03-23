@@ -40,19 +40,30 @@ This is the easiest way to run the full stack. Open a terminal in the project ro
     | `BACKEND_HOST` | `http://localhost:8000` | URL where the backend API is accessible |
     | `EXTRACT_HOST` | `http://localhost:5600` | URL where the extraction service is accessible |
 
-3. **Start all services:**
+3. **Place the GLiNER model files:**
+
+    Use the shared zip file named `model.zip`, extract it, and place the extracted `model` folder inside `bioner`.
+    If you have a fine-tuned model, place that extracted model folder in the same location.
+
+    Expected result:
+
+    ```text
+    bioner/model/
+    ```
+
+4. **Start all services:**
 
     ```bash
     docker-compose up -d
     ```
     
-4. **Apply database migrations:**
+5. **Apply database migrations:**
 
     ```bash
     docker compose exec backend alembic upgrade head
     ```
 
-5. **(Optional) Load Medical Vocabularies:**
+6. **(Optional) Load Medical Vocabularies:**
    
     This step populates PostgreSQL and Elasticsearch with the main medical vocabularies and concepts required for mapping.
     
