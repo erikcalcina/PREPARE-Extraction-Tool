@@ -222,7 +222,7 @@ def ingest_dataset_background(
     db = Session(engine)
 
     # create a new Dataset
-    REQUIRED_COLUMNS = ["text", "patient_id"]
+    REQUIRED_COLUMNS = ["text", "patient_id", "visit_date"]
     dataset = Dataset(
         name=name,
         labels=label_list,
