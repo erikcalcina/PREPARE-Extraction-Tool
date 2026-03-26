@@ -1,47 +1,23 @@
 import requests
 from datetime import datetime, timezone
-from typing import Any, List, Optional
-from sqlmodel import Session, select
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from typing import List
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlmodel import Session, select
+
+from app.core.database import Dataset, User, engine, get_session
 from app.core.settings import settings
-from app.core.database import engine, get_session, User, Dataset
-from app.models_db import Record, SourceTerm, ExtractionJob
-from app.library.record_processing import link_dates_for_record, _parse_date_value
+from app.interfaces import Entity, LabelsInput, NERRequest
+from app.library.record_processing import link_dates_for_record
+from app.models_db import ExtractionJob, Record, SourceTerm
+from app.routes.v1.auth import get_current_user
 from app.schemas import (
-    MessageOutput,
     ExtractionJobStartResponse,
     ExtractionJobStatusResponse,
+    MessageOutput,
 )
-from app.routes.v1.auth import get_current_user
-
-from app.interfaces import NERRequest, Entity, LabelsInput
 
 router = APIRouter(tags=["BioNER"])
-
-
-def _is_date_label(label: Any, date_label: Optional[str]) -> bool:
-    if label is None:
-        return False
-    normalized = str(label).strip().lower()
-    if not normalized:
-        return False
-    if date_label and normalized == date_label.strip().lower():
-        return True
-    return normalized == "date"
-
-
-def _filter_invalid_date_entities(
-    entities: list[dict[str, Any]],
-    date_label: Optional[str],
-) -> list[dict[str, Any]]:
-    """
-    Preserve all extracted entities, including unresolved date labels.
-    Date parsing is handled later in link_dates_for_record().
-    If a date-like label cannot be parsed, it still stays in SourceTerm so a
-    doctor can fill the linked date manually.
-    """
-    return entities
 
 
 @router.post("/extract", response_model=List[Entity])
@@ -78,7 +54,8 @@ def extract_entities_from_record(
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
         )
     if dataset.user_id != current_user.id:
         raise HTTPException(
@@ -117,15 +94,14 @@ def extract_entities_from_record(
             detail="Extraction service unavailable",
         )
 
-    entities = _filter_invalid_date_entities(entities, dataset.date_label)
-
     existing_keys = {
         (t.value, t.label, t.start_position, t.end_position)
         for t in db.exec(
             select(SourceTerm).where(SourceTerm.record_id == record_id)
         ).all()
     }
-    new_terms = []
+
+    new_terms: List[SourceTerm] = []
     for entity in entities:
         key = (
             entity["text"],
@@ -135,6 +111,7 @@ def extract_entities_from_record(
         )
         if key in existing_keys:
             continue
+
         existing_keys.add(key)
         new_terms.append(
             SourceTerm(
@@ -143,7 +120,7 @@ def extract_entities_from_record(
                 label=entity["label"],
                 start_position=entity["start"],
                 end_position=entity["end"],
-                score=entity["score"],
+                score=entity.get("score"),
                 automatically_extracted=True,
             )
         )
@@ -166,7 +143,6 @@ def extract_entities_from_records(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
-    
 ):
     """
     Kick off extraction for every unreviewed record in the dataset.
@@ -177,7 +153,8 @@ def extract_entities_from_records(
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
         )
     if dataset.user_id != current_user.id:
         raise HTTPException(
@@ -195,7 +172,12 @@ def extract_entities_from_records(
     records_to_process = [r for r in records if not r.reviewed]
     total = len(records_to_process)
 
-    job = ExtractionJob(dataset_id=dataset_id, total=total, completed=0, status="pending")
+    job = ExtractionJob(
+        dataset_id=dataset_id,
+        total=total,
+        completed=0,
+        status="pending",
+    )
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -242,7 +224,8 @@ def get_extraction_job_status(
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
         )
     if dataset.user_id != current_user.id:
         raise HTTPException(
@@ -282,7 +265,8 @@ def cancel_extraction_job(
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
         )
     if dataset.user_id != current_user.id:
         raise HTTPException(
@@ -315,8 +299,8 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
         job = session.get(ExtractionJob, job_id)
         if job is None:
             return
+
         dataset = session.get(Dataset, dataset_id)
-        date_label = dataset.date_label if dataset is not None else None
 
         if job.status == "cancelled":
             return
@@ -326,22 +310,26 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
         session.add(job)
         session.commit()
 
-        records = session.exec(select(Record).where(Record.dataset_id == dataset_id)).all()
+        records = session.exec(
+            select(Record).where(Record.dataset_id == dataset_id)
+        ).all()
 
         # Skip reviewed records and records already containing automatically extracted terms
         unreviewed_records = [r for r in records if not r.reviewed]
         processed_records = []
         records_to_process: List[Record] = []
-        for r in unreviewed_records:
+
+        for record in unreviewed_records:
             has_auto = session.exec(
                 select(SourceTerm.id)
-                .where(SourceTerm.record_id == r.id)
+                .where(SourceTerm.record_id == record.id)
                 .where(SourceTerm.automatically_extracted == True)  # noqa: E712
             ).first()
+
             if has_auto:
-                processed_records.append(r)
+                processed_records.append(record)
             else:
-                records_to_process.append(r)
+                records_to_process.append(record)
 
         job.total = len(unreviewed_records)
         job.completed = len(processed_records)
@@ -364,7 +352,6 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
                 )
                 response.raise_for_status()
                 entities = response.json()
-                entities = _filter_invalid_date_entities(entities, date_label)
             except requests.RequestException as exc:
                 job.status = "failed"
                 job.error_message = str(exc)
@@ -390,6 +377,7 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
                 )
                 if key in existing_keys:
                     continue
+
                 existing_keys.add(key)
                 new_terms.append(
                     SourceTerm(
@@ -407,6 +395,7 @@ def run_dataset_extraction_job(job_id: int, dataset_id: int, labels: List[str]):
                 session.add_all(new_terms)
                 session.flush()
                 link_dates_for_record(session, record, dataset)
+
             job.completed += 1
             job.updated_at = datetime.now(timezone.utc)
             session.add(job)
