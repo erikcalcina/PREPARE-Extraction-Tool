@@ -33,6 +33,16 @@ class TrainingRequest(BaseModel):
     dataset_id: int
     labels: list[str]
 
+
+class GLiNERTrainingRequest(BaseModel):
+    dataset_id: int
+    labels: list[str]
+    base_model: str = "urchade/gliner_small-v2.1"
+    num_epochs: int = 4
+    learning_rate: float = 5e-6
+    train_batch_size: int = 8
+    device: str = "cpu"      # "cpu" by default; pass "cuda" to use GPU
+
 class ExtractionJobStatusResponse(BaseModel):
     """Progress snapshot for a dataset extraction job."""
 
