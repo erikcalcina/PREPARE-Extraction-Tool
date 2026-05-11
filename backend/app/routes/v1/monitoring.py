@@ -3,6 +3,29 @@ import logging
 import time
 import threading
 from typing import List
+from xml.parsers.expat import model
+from anyio import Path
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from torch.optim import AdamW
+from gliner import GLiNER
+from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
+from app.models_db import TrainingEvaluation, TrainingRun
+from sqlmodel import select
+from pathlib import Path
+import os
+
+from transformers import AutoModelForTokenClassification
+from torch.optim import AdamW
+import torch
+from transformers import AutoTokenizer 
+ 
+from sqlmodel import Session, select
+from gliner import GLiNER
+import torch
+from tqdm import tqdm
+from sqlmodel import select
+from sqlalchemy import func 
+from gliner import GLiNER
 
 import requests
 from jose import jwt, JWTError
@@ -105,8 +128,23 @@ def run_gliner_training_job(
             run.status = "running"
             db.add(run)
             db.commit()
+        emit_training_update({"type": "training_start", "run_id": run_id})
+        # ======================
+        # SAVE MODEL
+        # ======================
 
-    emit_training_update({"type": "training_start", "run_id": run_id})
+
+        BASE_DIR = Path(os.getenv("MODEL_STORE_DIR", "model_store")).resolve()
+
+        MODEL_DIR = BASE_DIR / "runs"
+        MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+        model_path = MODEL_DIR / f"model_{run_id}"
+        model_path.mkdir(parents=True, exist_ok=True)
+
+
+        model.save_pretrained(model_path)
+        print(f"[TRAIN] Model saved to: {model_path}") 
 
     try:
         response = requests.post(

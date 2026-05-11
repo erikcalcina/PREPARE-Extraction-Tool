@@ -26,3 +26,10 @@ class NERRequest(BaseModel):
 
 class LabelsInput(BaseModel):
     labels: List[str] | None = None
+
+
+class SwitchModelRequest(BaseModel):
+    engine: str
+    model: str
+    adapter_model: Optional[str] = None
+    use_gpu: bool = False

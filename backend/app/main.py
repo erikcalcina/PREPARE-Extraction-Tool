@@ -7,7 +7,6 @@ from starlette.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from elasticsearch.exceptions import ApiError
-from app.routes.v1.monitoring import router as monitoring_stats_router
 
 
 from app.routes.v1 import api_router
@@ -93,4 +92,3 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 # add API routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(monitoring_stats_router,prefix="/api/v1/monitoring", tags=["Monitoring"],)

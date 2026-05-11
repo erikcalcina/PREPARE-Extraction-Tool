@@ -439,3 +439,13 @@ class ModelArtifact(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class UserModelPreference(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    user_id: int = Field(foreign_key="user.id", unique=True)
+    model_id: int = Field(foreign_key="modelartifact.id")
+
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    user: Optional["User"] = Relationship()
+    model: Optional["ModelArtifact"] = Relationship()

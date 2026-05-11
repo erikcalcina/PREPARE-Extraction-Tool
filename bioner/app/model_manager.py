@@ -5,7 +5,6 @@ import os
 import tempfile
 import threading
 from typing import Optional, Any
-from pathlib import Path
 from datetime import datetime
 
 import torch
@@ -15,9 +14,20 @@ from app.interfaces import ModelInfo, ModelHealthCheck, AvailableModel, Availabl
 
 logger = logging.getLogger(__name__)
 
+# =========================
+# SHARED STORAGE (BACKEND + BIONER)
+# =========================
+MODEL_ROOT = os.getenv(
+    "MODEL_STORE_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../model_store"))
+)
+
+RUNS_DIR = os.path.join(MODEL_ROOT, "runs")
+LATEST_FILE = os.path.join(MODEL_ROOT, "latest.json")
+
 
 class ModelManager:
-    _instance: Optional['ModelManager'] = None
+    _instance: Optional["ModelManager"] = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -34,107 +44,29 @@ class ModelManager:
 
         self._initialized = True
         self._switch_lock = threading.RLock()
+
         self._model_instance: Optional[Any] = None
-        self._current_engine: Optional[str] = None
         self._current_model_path: Optional[str] = None
-        self._current_adapter_model: Optional[str] = None
-        self._current_prompt_path: Optional[str] = None
+        self._current_engine: Optional[str] = None
         self._current_device: Optional[str] = None
-        self._use_gpu: bool = False
-        self._is_loading: bool = False
-        self._load_error: Optional[str] = None
-        self._load_start_time: Optional[datetime] = None
-        
-        # State file sync for cross-process model switching
-        self._state_path = os.environ.get(
-            "BIONER_MODEL_STATE_PATH",
-            os.path.join(tempfile.gettempdir(), "bioner_model_state.json")
-        )
-        self._last_state_mtime_ns: int = 0  # Initialize to 0 so first state file is detected as changed
 
-    def switch_model(self,
-                    engine: str,
-                    model: str,
-                    adapter_model: Optional[str] = None,
-                    prompt_path: Optional[str] = None,
-                    use_gpu: bool = False) -> ModelInfo:
-        """Switch model by writing state file. Worker auto-loads via get_model()."""
-        with self._switch_lock:
-            try:
-                logger.info(f"Starting model switch: engine={engine}, model={model}")
-                
-                # Validate input
-                if not engine or not model:
-                    raise ValueError("engine and model must be specified")
-                
-                # Update metadata locally
-                self._current_engine = engine
-                self._current_model_path = model
-                self._current_adapter_model = adapter_model
-                self._current_prompt_path = prompt_path
-                self._use_gpu = use_gpu
-                
-                # Write state file for workers to detect
-                self._write_state()
-                
-                # If we already have a model loaded (worker process), reload it now
-                # Otherwise (API process), just signal the worker via state file
-                if self._model_instance is not None:
-                    self._is_loading = True
-                    self._load_error = None
-                    self._load_start_time = datetime.now()
-                    self._unload_model()
-                    self._load_from_state_file()
+        self._is_loading = False
+        self._load_error = None
 
-                logger.info(f"Model switch signaled: {engine} - {model}")
-                return self.get_model_info()
-
-            except Exception as e:
-                self._is_loading = False
-                self._load_error = str(e)
-                logger.error(f"Failed to switch model: {e}", exc_info=True)
-                raise ValueError(f"Failed to switch model: {str(e)}")
-
-    def _get_model_device(self, model_instance: Any) -> Optional[str]:
-        device = getattr(model_instance, "device", None)
-        if device is not None:
-            return str(device)
-
-        model = getattr(model_instance, "model", None)
-        if model is not None:
-            model_device = getattr(model, "device", None)
-            if model_device is not None:
-                return str(model_device)
-
-        return None
-
-    def _unload_model(self) -> None:
+    # =========================
+    # READ LATEST MODEL
+    # =========================
+    def get_latest_model_path(self) -> Optional[str]:
         try:
-            model_instance = self._model_instance
-            device = self._current_device
+            if not os.path.exists(LATEST_FILE):
+                logger.warning("latest.json not found")
+                return None
 
-            if model_instance is not None:
-                model = getattr(model_instance, "model", None)
-                if model is not None and hasattr(model, "to"):
-                    try:
-                        model.to("cpu")
-                    except Exception as e:
-                        logger.debug(f"Could not move model to CPU: {e}")
+            with open(LATEST_FILE, "r") as f:
+                data = json.load(f)
 
-                self._model_instance = None
-                self._current_engine = None
-                self._current_model_path = None
-                self._current_adapter_model = None
-                self._current_device = None
-                self._use_gpu = False
+            return data.get("path")
 
-                del model_instance
-                gc.collect()
-
-                if device == "cuda" and torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-                logger.info("Model unloaded successfully")
         except Exception as e:
             logger.warning(f"Error during model unload: {e}")
 
@@ -255,8 +187,10 @@ class ModelManager:
             logger.error(f"Failed to load model from state: {e}", exc_info=True)
             raise
 
+    # =========================
+    # AUTO LOAD / HOT RELOAD
+    # =========================
     def get_model(self) -> Optional[Any]:
-        """Get model, auto-reloading if state file changed (worker process)."""
         with self._switch_lock:
             if self._state_changed():
                 state = self._read_state()
@@ -283,122 +217,98 @@ class ModelManager:
                     self._use_gpu = state.get("use_gpu", False)
 
                     self._load_from_state_file()
+            latest_path = self.get_latest_model_path()
 
+            if latest_path and latest_path != self._current_model_path:
+                logger.info(f"🔥 New model detected: {latest_path}")
+
+                self._unload_model()
+
+                self._model_instance = build_engine(
+                    engine="gliner",
+                    model=latest_path,
+                    adapter_model=None,
+                    prompt_path=None,
+                    use_gpu=False
+                )
+
+                self._current_model_path = latest_path
+                self._current_engine = "gliner"
+
+                logger.info("✅ Model loaded successfully")
             return self._model_instance
 
-    def get_model_info(self) -> ModelInfo:
-        with self._switch_lock:
-            if self._is_loading:
-                status = "loading"
-            elif self._load_error:
-                status = "error"
-            elif self._model_instance is not None:
-                status = "loaded"
-            else:
-                status = "unloaded"
+    # =========================
+    # UNLOAD MODEL
+    # =========================
+    def _unload_model(self):
+        try:
+            if self._model_instance is not None:
+                del self._model_instance
+                self._model_instance = None
 
-            return ModelInfo(
-                engine=self._current_engine or "none",
-                model_path=self._current_model_path or "none",
-                adapter_model=self._current_adapter_model,
-                prompt_path=self._current_prompt_path,
-                use_gpu=self._use_gpu,
-                device=self._current_device,
-                loaded=self._model_instance is not None,
-                status=status
-            )
+                gc.collect()
 
-    def health_check(self) -> ModelHealthCheck:
-        with self._switch_lock:
-            model_info = self.get_model_info()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
-            if self._is_loading:
-                elapsed = (datetime.now() - self._load_start_time).total_seconds()
-                return ModelHealthCheck(
-                    healthy=False,
-                    loaded=False,
-                    engine=self._current_engine,
-                    message=f"Model is loading... ({elapsed:.1f}s elapsed)"
-                )
+                logger.info("🧹 Model unloaded")
+        except Exception as e:
+            logger.warning(f"Unload error: {e}")
 
-            if self._load_error:
-                return ModelHealthCheck(
-                    healthy=False,
-                    loaded=False,
-                    engine=self._current_engine,
-                    message=f"Model load failed: {self._load_error}"
-                )
-
-            if model_info.loaded:
-                return ModelHealthCheck(
-                    healthy=True,
-                    loaded=True,
-                    engine=self._current_engine,
-                    message="Model is loaded and ready"
-                )
-            else:
-                return ModelHealthCheck(
-                    healthy=False,
-                    loaded=False,
-                    engine=None,
-                    message="No model loaded"
-                )
-
-    def discover_available_models(self, model_base_path: str = "/model") -> AvailableModelsResponse:
+    # =========================
+    # DISCOVER MODELS
+    # =========================
+    def discover_available_models(self) -> AvailableModelsResponse:
         available_models: list[AvailableModel] = []
 
         try:
-            base_path = Path(model_base_path)
+            if not os.path.exists(RUNS_DIR):
+                return AvailableModelsResponse(models=[])
 
-            gliner_path = base_path / "gliner"
-            if gliner_path.exists():
-                for model_dir in gliner_path.iterdir():
-                    if model_dir.is_dir():
-                        available_models.append(AvailableModel(
-                            name=f"GLiNER - {model_dir.name}",
+            for model_dir in os.listdir(RUNS_DIR):
+                full_path = os.path.join(RUNS_DIR, model_dir)
+
+                if os.path.isdir(full_path):
+                    available_models.append(
+                        AvailableModel(
+                            name=model_dir,
                             engine="gliner",
-                            path=str(model_dir),
+                            path=full_path,
                             type="gliner"
-                        ))
-
-            gliner2_path = base_path / "gliner2"
-            if gliner2_path.exists():
-                for model_dir in gliner2_path.iterdir():
-                    if model_dir.is_dir():
-                        available_models.append(AvailableModel(
-                            name=f"GLiNER2 - {model_dir.name}",
-                            engine="gliner2",
-                            path=str(model_dir),
-                            type="gliner2"
-                        ))
-
-            adapters_path = base_path / "adapters"
-            if adapters_path.exists():
-                for adapter_dir in adapters_path.iterdir():
-                    if adapter_dir.is_dir():
-                        available_models.append(AvailableModel(
-                            name=f"LLM Adapter - {adapter_dir.name}",
-                            engine="huggingface",
-                            path=str(adapter_dir),
-                            type="huggingface"
-                        ))
-
-            logger.info(f"Discovered {len(available_models)} available models")
+                        )
+                    )
 
         except Exception as e:
-            logger.warning(f"Error discovering available models: {e}")
+            logger.error(f"Model discovery error: {e}")
 
         return AvailableModelsResponse(models=available_models)
 
+    # =========================
+    # INFO
+    # =========================
+    def get_model_info(self) -> ModelInfo:
+        return ModelInfo(
+            engine=self._current_engine or "none",
+            model_path=self._current_model_path or "none",
+            adapter_model=None,
+            prompt_path=None,
+            use_gpu=False,
+            device=self._current_device,
+            loaded=self._model_instance is not None,
+            status="loaded" if self._model_instance else "unloaded"
+        )
+
     def is_model_loaded(self) -> bool:
-        with self._switch_lock:
-            return self._model_instance is not None and not self._is_loading
+        return self._model_instance is not None
 
     def is_loading(self) -> bool:
-        with self._switch_lock:
-            return self._is_loading
+        return self._is_loading
 
 
+# =========================
+# SINGLETON
+# =========================
 _model_manager: Optional[ModelManager] = None
 
 

@@ -63,8 +63,8 @@ services:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
     container_name: PREPARE-BACKEND
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     networks:
       - prepare-public
       - default

@@ -124,7 +124,7 @@ const Monitor = () => {
     resetAll();
 
     const res = await fetch(
-      `http://localhost:8000/api/v1/monitoring/datasets/${id}/full-stats`,
+      `http://localhost:8000/api/v1/monitor/datasets/${id}/full-stats`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -139,7 +139,7 @@ const Monitor = () => {
 
     const fetchRuns = async () => {
       const res = await fetch(
-        `http://localhost:8000/api/v1/monitoring/datasets/${selectedDatasetId}/runs`,
+        `http://localhost:8000/api/v1/monitor/datasets/${selectedDatasetId}/runs`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -158,7 +158,7 @@ const Monitor = () => {
 
     const fetchAll = async () => {
       const res = await fetch(
-        `http://localhost:8000/api/v1/monitoring/datasets/${selectedDatasetId}/runs/evaluations`,
+        `http://localhost:8000/api/v1/monitor/datasets/${selectedDatasetId}/runs/evaluations`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -176,7 +176,7 @@ const Monitor = () => {
 
     const fetchEvaluation = async () => {
       const res = await fetch(
-        `http://localhost:8000/api/v1/monitoring/runs/${selectedRun}/evaluation`,
+        `http://localhost:8000/api/v1/monitor/runs/${selectedRun}/evaluation`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -226,7 +226,7 @@ const Monitor = () => {
     if (!selectedDatasetId) return;
 
     const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/monitoring/ws/training?token=${token}`
+      `ws://localhost:8000/api/v1/monitor/ws/training?token=${token}`
     );
 
     wsRef.current = ws;
@@ -303,7 +303,7 @@ const Monitor = () => {
   };
 
   const stopTraining = async () => {
-    await fetch("http://localhost:8000/api/v1/monitoring/stop", {
+    await fetch("http://localhost:8000/api/v1/monitor/stop", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
