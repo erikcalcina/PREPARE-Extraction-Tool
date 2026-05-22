@@ -1,7 +1,6 @@
 # app/routes/v1/settings.py
 
 #from backend.app.core.models.embedding_base import BaseModel
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from pydantic import BaseModel
@@ -86,4 +85,3 @@ def select_model(
     return {
         "message": f"Model '{model.name}' selected"
     }
-"""

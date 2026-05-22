@@ -13,6 +13,8 @@ class Entity(BaseModel):
 class NERRequest(BaseModel):
     medical_text: str
     labels: list[str] | None = None
+    engine: str | None = None
+    model: str | None = None
 
 
 class ModelInfo(BaseModel):

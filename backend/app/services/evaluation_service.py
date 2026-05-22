@@ -40,7 +40,12 @@ def evaluate_model(model, dataset):
         f1_per_label[label] = f1
 
     return {
-        "precision": precision_per_label,
-        "recall": recall_per_label,
-        "f1": f1_per_label,
+        "precision": float(sum(precision_per_label.values()) / len(precision_per_label)),
+        "recall": float(sum(recall_per_label.values()) / len(recall_per_label)),
+        "f1": float(sum(f1_per_label.values()) / len(f1_per_label)),
+        "per_label": {
+            "precision": precision_per_label,
+            "recall": recall_per_label,
+            "f1": f1_per_label,
+        }
     }

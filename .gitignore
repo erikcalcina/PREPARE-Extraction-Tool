@@ -3,3 +3,9 @@
 .env.prod
 .claude
 backend/models/
+# Local model artifacts
+# IDE
+.vscode/
+bioner/model/
+bioner/models/
+model_store/model_state.json

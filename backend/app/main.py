@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from elasticsearch.exceptions import ApiError
 
 
+
 from app.routes.v1 import api_router
 from app.core.settings import settings
 from app.core.database import check_migration_status
@@ -92,3 +93,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 # add API routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+
+#app.include_router(training_events_router, prefix="/api/v1/bioner")

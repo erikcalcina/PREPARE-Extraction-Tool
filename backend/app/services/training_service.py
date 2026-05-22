@@ -34,15 +34,21 @@ def run_training(model, train_data, val_data, db, run_id):
     return metrics
 
 def save_metrics_to_db(db, run_id, metrics):
+    # 🔥 only store FULL evaluation metrics
+    required = ["precision", "recall", "f1"]
+
+    if any(metrics.get(k) is None for k in required):
+        return  # skip incomplete updates (training logs etc.)
+
     db.add(
         TrainingMetric(
             run_id=run_id,
-            epoch=metrics["epoch"],
+            epoch=metrics.get("epoch", 0),
             loss=metrics.get("loss"),
             accuracy=metrics.get("accuracy"),
-            precision=metrics.get("precision"),
-            recall=metrics.get("recall"),
-            f1=metrics.get("f1"),
+            precision=metrics["precision"],
+            recall=metrics["recall"],
+            f1=metrics["f1"],
         )
     )
     db.commit()

@@ -9,6 +9,12 @@ from app.routes_training import router as training_router
 
 logging.basicConfig(level=logging.INFO)
 
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+
+app = FastAPI()
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -56,18 +62,30 @@ class NERAPI(ls.LitAPI):
         return {
             "medical_text": request.medical_text,
             "labels": request.labels or [],
+            "engine": request.engine,
+            "model": request.model,
         }
 
-    def predict(self, inputs: dict) -> dict:
+    def predict(self, inputs: dict) -> dict: 
+
+        if inputs.get("model"):
+            requested_model = inputs.get("model")
+            manager = get_model_manager()
+            if requested_model and manager.current_model_path != requested_model:
+                manager.switch_model(
+                    engine=inputs.get("engine", "gliner"),
+                    model=inputs["model"],
+                )
+
         model = get_model_manager().get_model()
         if model is None:
-            raise RuntimeError("No model is currently loaded. Use /models/switch to load a model.")
-        
-        return model.extract_entities(
-            medical_text=inputs["medical_text"], 
-            labels=inputs["labels"]
-        )
+            raise RuntimeError("No model loaded")
 
+        return model.extract_entities(
+            medical_text=inputs["medical_text"],
+            labels=inputs["labels"],
+        )
+        
     def encode_response(self, output):
         return output
 

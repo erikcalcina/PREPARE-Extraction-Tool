@@ -395,12 +395,11 @@ class TrainingMetric(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     run_id: int
-    epoch: int
-
-    loss: float
-    precision: float
-    recall: float
-    f1: float
+    epoch: int 
+    loss: Optional[float] = None
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    f1: Optional[float] = None
 
 
 class TrainingRun(SQLModel, table=True):
@@ -419,9 +418,9 @@ class TrainingEvaluation(SQLModel, table=True):
 
     run_id: int = Field(foreign_key="trainingrun.id")
 
-    precision: float
-    recall: float
-    f1: float
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    f1: Optional[float] = None
 
     per_label: dict = Field(sa_column=Column(JSON))
 
@@ -443,9 +442,9 @@ class UserModelPreference(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
     user_id: int = Field(foreign_key="user.id", unique=True)
-    model_id: int = Field(foreign_key="modelartifact.id")
+    model_id: int = Field(foreign_key="trainingrun.id")
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     user: Optional["User"] = Relationship()
-    model: Optional["ModelArtifact"] = Relationship()
+    model: Optional["TrainingRun"] = Relationship()
