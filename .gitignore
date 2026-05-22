@@ -9,3 +9,8 @@ backend/models/
 bioner/model/
 bioner/models/
 model_store/model_state.json
+
+# ML model artifacts
+*.safetensors
+model_store/
+backend/app/model_store/
